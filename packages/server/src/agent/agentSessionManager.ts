@@ -117,7 +117,7 @@ import {
 	watchMcpStatus,
 } from "./mcpSessions";
 import { refreshModelListings } from "./modelAvailability";
-import { preferredDefaultModel } from "./modelDefaults";
+import { isVirtualModel, preferredDefaultModel } from "./modelDefaults";
 import { createPiSettings } from "./packages";
 import {
 	getPiRuntimeGeneration,
@@ -1098,6 +1098,7 @@ export interface CreateSessionResult {
 }
 
 export function toWireModel(model: Model<string>, auth?: WireModelAuth): WireModel {
+	const virtual = isVirtualModel(model);
 	return {
 		id: model.id,
 		name: model.name,
@@ -1107,7 +1108,8 @@ export function toWireModel(model: Model<string>, auth?: WireModelAuth): WireMod
 		thinkingLevels: getSupportedThinkingLevels(model),
 		cost: { input: model.cost.input, output: model.cost.output },
 		input: [...model.input],
-		...(auth ? { auth } : {}),
+		...(virtual ? { virtual: true as const } : {}),
+		...(auth && !virtual ? { auth } : {}),
 	};
 }
 

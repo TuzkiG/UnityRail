@@ -39,6 +39,11 @@ export type WireModel = Pick<
 	input?: Model<string>["input"];
 	/** How the model's provider is connected — decides whether `cost` is what the user pays. */
 	auth?: WireModelAuth;
+	/**
+	 * pi routes each request to a physical model, so `cost` and `contextWindow` describe no single
+	 * model: the picker shows neither, and pi reports the real ones per response.
+	 */
+	virtual?: true;
 };
 
 export interface WireModelAuth {

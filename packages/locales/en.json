@@ -258,6 +258,7 @@
 	"chat.modelPicker.recent": "Recent",
 	"chat.modelPicker.refresh": "Refresh",
 	"chat.modelPicker.resetTo": "reset to {{level}}",
+	"chat.modelPicker.routed": "Uses a faster or stronger model per request",
 	"chat.modelPicker.search": "Search models…",
 	"chat.modelPicker.searchWithLevel": "Search models… (append a level: opus high)",
 	"chat.modelPicker.selectModel": "Select model",

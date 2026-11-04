@@ -280,7 +280,7 @@ function EffortSlider({
 function RowMeta({ model, withProvider }: { model: WireModel; withProvider: boolean }) {
 	const t = useT();
 	const kind = kindLabel(t, model);
-	const cost = costLabel(model);
+	const cost = model.virtual ? null : costLabel(model);
 	return (
 		<span className="flex min-w-0 items-center gap-4 truncate text-text-muted tr-text-metadata">
 			{withProvider ? <span className="shrink-0">{model.provider}</span> : null}
@@ -298,7 +298,9 @@ function RowMeta({ model, withProvider }: { model: WireModel; withProvider: bool
 				</>
 			) : null}
 			{withProvider || kind || cost ? <span aria-hidden>·</span> : null}
-			<span className="shrink-0">{formatContext(model.contextWindow)}</span>
+			<span className="truncate">
+				{model.virtual ? t("chat.modelPicker.routed") : formatContext(model.contextWindow)}
+			</span>
 		</span>
 	);
 }

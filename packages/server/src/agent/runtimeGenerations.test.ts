@@ -157,7 +157,7 @@ describe("PI runtime generations", () => {
 		await activateRuntime(candidate);
 
 		expect(await usePiRuntime((runtime) => runtime === candidate)).toBe(true);
-		expect(await listAvailableModels()).toEqual([]);
+		expect((await listAvailableModels()).filter((model) => !model.virtual)).toEqual([]);
 		faux.appendResponses([fauxAssistantMessage("AFTER_GENERATION_SWAP")]);
 		await promptSession(session.sessionId, "old generation remains usable");
 		const hydrated = await getSessionMessages(session.sessionId, "workspace-generation", cwd);

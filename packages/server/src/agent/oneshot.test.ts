@@ -22,6 +22,7 @@ function stubAvailable(models: ReturnType<typeof withProvider>[]): void {
 		getAvailableSnapshot: () => models,
 		getModels: () => [],
 		isUsingOAuth: () => false,
+		registerVirtualModel: () => {},
 	} as unknown as ModelRuntime);
 }
 

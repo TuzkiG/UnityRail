@@ -298,6 +298,21 @@ apart from the recorded selection. Run the manager's restart regressions on upgr
   It skips virtual selections by matching pi's unexported `"pi-virtual"` model API, since a `context`
   handler sees only the selection, not the routed model; replace that check when pi exposes the
   dispatched model (or `isVirtualModel`) to `context` handlers.
+- **Virtual-model routing (`Auto`)** — [[submodule-server-agent]], `agent/autoModel.ts`. The host
+  registers `thinkrail/auto` with pi's public `ModelRuntime.registerVirtualModel` on every runtime
+  generation, so pi — not the host — selects and records the physical model per request. The host relies
+  on three pi facts: `route()`'s `reason` (`user` / `continuation` / `retry` / `direct`) and its sticky
+  `previous` / `failed` (a turn's tool follow-ups and retries must not switch models, or the prompt cache
+  and thinking signatures are lost); per-branch router state (`state`, dropped for `direct`); and a
+  virtual model's `contextWindow` / `cost` being placeholders, with the real limits taken from the
+  physical model that answered. Two private details stay mirrored: the `"pi-virtual"` API id marks the
+  wire's `virtual` flag (same string as `skillCarryover`), and routing candidates are the host's settled
+  snapshot rather than `ctx.modelRegistry`, so a model the account does not serve is never dispatched.
+  **Removal gates:** pi exporting `isVirtualModel` / `VIRTUAL_MODEL_API` from the package root (drop the
+  mirror), and a router API that reports the dispatched model to `context` handlers (then the usage and
+  cost surfaces need no virtual special case). On upgrades re-read `docs/virtual-models.md` and run
+  `agent/autoModel.test.ts` plus `agent/agentSessionManager.test.ts` (the wire allowlist). Virtual models
+  are **experimental upstream** — a pi release may change `route()` without a major bump.
 
 ## Context-budget limitations
 

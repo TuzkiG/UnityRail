@@ -35,15 +35,12 @@ export function usageParts(stats: SessionStats): string[] {
 }
 
 export function contextPart(usage: ContextUsage): { bar: string; text: string } {
-	const filled =
-		usage.percent === null ? 0 : Math.round(Math.min(100, Math.max(0, usage.percent)) / 20);
+	const percent = usage.percent === null || !Number.isFinite(usage.percent) ? null : usage.percent;
+	const filled = percent === null ? 0 : Math.round(Math.min(100, Math.max(0, percent)) / 20);
 	const contextWindow = formatTokens(usage.contextWindow);
 	return {
 		bar: `${"▰".repeat(filled)}${"▱".repeat(5 - filled)}`,
-		text:
-			usage.percent === null
-				? `?/${contextWindow}`
-				: `${usage.percent.toFixed(1)}%/${contextWindow}`,
+		text: percent === null ? `?/${contextWindow}` : `${percent.toFixed(1)}%/${contextWindow}`,
 	};
 }
 

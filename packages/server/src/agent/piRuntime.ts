@@ -4,6 +4,7 @@ import {
 	ModelRuntime,
 } from "@earendil-works/pi-coding-agent";
 import { logger } from "../log";
+import { registerAutoModel } from "./autoModel";
 import { accountAvailableModels, type ModelAvailabilityRuntime } from "./modelAvailability";
 import { advancePiExtensionCache, createPiSettings } from "./packages";
 
@@ -63,6 +64,7 @@ export function configurePiRuntime(rt: ModelRuntime | null): void {
 		return;
 	}
 	const providerStatus = captureProviderStatus(rt);
+	registerAutoModel(rt, () => settledAvailableModels(rt));
 	activeGeneration = Promise.resolve({
 		id: nextGenerationId++,
 		runtime: rt,
@@ -191,6 +193,7 @@ async function createGeneration(paths: readonly string[]): Promise<PiRuntimeGene
 	const additionalExtensionPaths = [...new Set(paths)];
 	const excludedSessionExtensionPaths = [...configuredSessionExtensionExclusions];
 	const prepared = await runtimeFactory(additionalExtensionPaths);
+	registerAutoModel(prepared.runtime, () => settledAvailableModels(prepared.runtime));
 	return {
 		id: nextGenerationId++,
 		runtime: prepared.runtime,

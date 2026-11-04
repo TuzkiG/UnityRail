@@ -1,5 +1,16 @@
 import type { WireModel } from "@thinkrail/contracts";
 
+/** pi's API id for catalog entries a router resolves before dispatch; not re-exported from the package root. */
+export const VIRTUAL_MODEL_API = "pi-virtual";
+
+/** The two shapes a selection sees: pi's `Model` (its `api`) or the wire model (its `virtual` flag). */
+type Routed = { api?: string; virtual?: true };
+
+/** A routed model has no provider of its own and must never be a default or a one-shot target. */
+export function isVirtualModel(model: Routed): boolean {
+	return model.virtual === true || model.api === VIRTUAL_MODEL_API;
+}
+
 export const PI_DEFAULT_MODEL_PER_PROVIDER: Readonly<Record<string, string>> = {
 	"amazon-bedrock": "us.anthropic.claude-opus-4-6-v1",
 	"ant-ling": "Ring-2.6-1T",
@@ -44,16 +55,49 @@ export const PI_DEFAULT_MODEL_PER_PROVIDER: Readonly<Record<string, string>> = {
 	"xiaomi-token-plan-sgp": "mimo-v2.6-pro",
 };
 
-export function preferredDefaultModel<T extends Pick<WireModel, "provider" | "id">>(
+export function preferredDefaultModel<T extends Pick<WireModel, "provider" | "id"> & Routed>(
 	available: readonly T[],
 ): T | undefined {
+	const physical = available.filter((model) => !isVirtualModel(model));
 	for (const [provider, id] of Object.entries(PI_DEFAULT_MODEL_PER_PROVIDER)) {
-		const match = available.find((model) => model.provider === provider && model.id === id);
+		const match = physical.find((model) => model.provider === provider && model.id === id);
 		if (match) return match;
 	}
 	for (const id of Object.values(PI_DEFAULT_MODEL_PER_PROVIDER)) {
-		const match = available.find((model) => model.id === id);
+		const match = physical.find((model) => model.id === id);
 		if (match) return match;
 	}
-	return available[0];
+	return physical[0];
+}
+
+/** Small models first, by family: what auxiliary work and a routed chat's execution turn use. */
+const CHEAP_MODELS: ReadonlyArray<readonly [provider: string, idPrefix: string]> = [
+	["anthropic", "claude-haiku"],
+	["openai", "gpt-5-mini"],
+	["openai", "gpt-4o-mini"],
+	["openai", "gpt-4.1-mini"],
+	["google", "gemini-2.5-flash"],
+	["google", "gemini-flash"],
+	["xai", "grok-build"],
+];
+
+type PricedModel = Pick<WireModel, "provider" | "id"> & { cost: { input: number; output: number } };
+
+/** The cheapest available model by list price, preferring the known small families. */
+export function cheapModel<T extends PricedModel>(available: readonly T[]): T | undefined {
+	for (const [provider, prefix] of CHEAP_MODELS) {
+		const hit = available.find(
+			(model) => model.provider === provider && model.id.startsWith(prefix),
+		);
+		if (hit) return hit;
+	}
+	return available
+		.filter((model) => tokenCost(model) > 0)
+		.sort(
+			(left, right) => tokenCost(left) - tokenCost(right) || left.id.localeCompare(right.id),
+		)[0];
+}
+
+function tokenCost(model: PricedModel): number {
+	return model.cost.input + model.cost.output;
 }

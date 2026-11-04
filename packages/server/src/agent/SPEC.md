@@ -126,11 +126,35 @@ re-opened transcripts provider-valid.
     the provider's error text. Direct API keys and other subscriptions keep pi's catalog: no listing was verified to
     agree with pi's aliases there.
   - `modelDefaults` — `preferredDefaultModel(available)`: pi's `defaultModelPerProvider` in pi's order,
-    then any available model whose id is one of those defaults, else the first available model. Pi does
+    then any available model whose id is one of those defaults, else the first available model. **Routed
+    models are skipped** (pi's `api` or the wire's `virtual`), so a virtual model is never a new chat's
+    default, a resume fallback, or a one-shot target. Pi does
     not export that map, so the host mirrors it under a parity test against the installed dist; the first
     pass is what pi's own `findInitialModel` would pick. The same-id pass covers a provider whose own
     default the account filter removed: Sign in with ChatGPT serves `openai` models from the
-    `openai-codex` set, so it lands on the Codex default instead of catalog order.
+    `openai-codex` set, so it lands on the Codex default instead of catalog order. `cheapModel(available)`
+    is the other end of the same policy: the known small families first, else the lowest list price. Both
+    auxiliary one-shots (`oneshot`) and the `Auto` router read it, so "cheap" means one thing.
+  - `autoModel` — the `thinkrail/auto` **virtual model** (pi routes each request to a physical model).
+    Picking it is opt-in; it is never a default. It then spends two tiers by difficulty: a **hard** turn
+    plans on the account's default model and hands off to `cheapModel` at the turn's first successful
+    `edit` / `write`, while an **easy** turn is answered and executed by `cheapModel` alone. Difficulty is
+    read from the latest user message only — short, question-shaped, with no code block, path, or failure
+    text and no request to change anything — because the default must be *hard*: an unfamiliar shape keeps
+    the flagship model instead of silently downgrading. There is deliberately no classifier call: it would
+    add a round trip before the first token of every turn, and pi's classifier models are not what most
+    accounts have connected. Steering a turn re-reads difficulty, so a course correction escalates rather
+    than inherits a cheap turn. `retry` and `continuation` stay on the phase's model so prompt caches and
+    thinking signatures survive; `direct` requests (compaction summaries, one-shots) always spend the cheap
+    model. The phase and both resolved refs live in pi's router state on the session branch — the host
+    derives no per-turn model state of its own, and pi records both the selection and every dispatched
+    model, so cost, stats and resume stay pi's. Candidates are re-resolved against `settledAvailableModels`
+    on every request: a logged-out provider re-derives instead of failing, a chat switched to `Auto` keeps
+    the model already in its transcript as the planner (no extra cache miss), and the router never routes
+    to itself. Registered on every runtime generation, so tests and embedders see the same catalog; the
+    model is served under a provider id with no physical models, which pi treats as always available.
+    Accepted: an easy turn's cheap model owns that turn's exploration too — a misread question costs
+    quality, not correctness, and the next message is re-assessed.
   - `modelsFile` — the one owner of pi's shared `getAgentDir()/models.json` IO for the settings adapters
     below: BOM-preserving JSONC parse with `jsonc-parser` (comments and unrelated configuration survive),
     refusing invalid JSON or a read-only file rather than patching it, a temp file written beside the
@@ -1651,12 +1675,14 @@ the `/mcp` command stay pi's; ThinkRail owns what a multi-session GUI host owes 
   model ref (`session.create` /
   `session.setModel`) is **re-resolved** host-side by `{provider,id}` (`resolveWireModel`), never trusted.
   The wire type `WireModel = Pick<Model, id|name|provider|contextWindow|reasoning> + thinkingLevels +
-  cost{input,output} + input + auth` is an
+  cost{input,output} + input + auth + virtual` is an
   **allowlist** — it fails closed, so a future `Model` field can't leak by default (a unit test pins the
   exact key set). `thinkingLevels` is a computed field: pi-ai's `getSupportedThinkingLevels(model)`
   mapped at the same choke point, so the effort picker renders pi's per-model support truth without the
   client re-deriving it. `cost` keeps only the two list prices (pi's `ModelCost` tiers and cache rates stay
-  host-side) and `input` the modality list. **`auth`** is the per-provider connection kind projected onto
+  host-side) and `input` the modality list. **`virtual`** marks a router entry (`autoModel`): its `cost` and
+  `contextWindow` describe no single model, so the picker shows the routing sentence instead of both and pi
+  reports the real limits per response. **`auth`** is the per-provider connection kind projected onto
   each model (`providerAuth.ts` → `catalogProviderAuth`, from pi's synchronous `isUsingOAuth` /
   `getProviderAuthStatus` plus the generation's opaque Central ids) so the picker can say *plan* / *API key*
   / *env* / *JetBrains AI* without the `provider.status` refresh; `describeProviderAuth` is the one

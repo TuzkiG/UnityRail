@@ -1,6 +1,6 @@
 import type { Api, Context, Model } from "@earendil-works/pi-ai";
 import { usePiRuntime } from "./agentSessionManager";
-import { preferredDefaultModel } from "./modelDefaults";
+import { cheapModel, preferredDefaultModel } from "./modelDefaults";
 import { type AvailableModelsRuntime, settledAvailableModels } from "./piRuntime";
 
 export type ModelTier = "cheap" | "default";
@@ -19,38 +19,11 @@ export interface OneShotResult {
 	model: { provider: string; id: string };
 }
 
-const CHEAP_MODELS: ReadonlyArray<readonly [provider: string, idPrefix: string]> = [
-	["anthropic", "claude-haiku"],
-	["openai", "gpt-5-mini"],
-	["openai", "gpt-4o-mini"],
-	["openai", "gpt-4.1-mini"],
-	["google", "gemini-2.5-flash"],
-	["google", "gemini-flash"],
-	["xai", "grok-build"],
-];
-
 function pickModelFromRuntime(runtime: AvailableModelsRuntime, tier: ModelTier): Model<Api> | null {
 	const available = settledAvailableModels(runtime);
 	if (available.length === 0) return null;
 	if (tier === "default") return preferredDefaultModel(available) ?? null;
-	for (const [provider, prefix] of CHEAP_MODELS) {
-		const hit = available.find(
-			(model) => model.provider === provider && model.id.startsWith(prefix),
-		);
-		if (hit) return hit;
-	}
-	const priced = available.filter((model) => tokenCost(model) > 0);
-	return (
-		priced.sort(
-			(left, right) => tokenCost(left) - tokenCost(right) || left.id.localeCompare(right.id),
-		)[0] ??
-		preferredDefaultModel(available) ??
-		null
-	);
-}
-
-function tokenCost(model: Model<Api>): number {
-	return model.cost.input + model.cost.output;
+	return cheapModel(available) ?? preferredDefaultModel(available) ?? null;
 }
 
 export function pickModel(tier: ModelTier = "cheap"): Promise<Model<Api> | null> {

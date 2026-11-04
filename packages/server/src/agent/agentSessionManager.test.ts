@@ -1568,18 +1568,36 @@ test("a newly-shipped catalog model appears on a later model.list without a rest
 test("wire models expose only the allowlisted fields (no baseUrl/headers/other Model fields)", async () => {
 	const models = await listAvailableModels();
 	expect(models.length).toBeGreaterThan(0);
+	const allowlist = [
+		"auth",
+		"contextWindow",
+		"cost",
+		"id",
+		"input",
+		"name",
+		"provider",
+		"reasoning",
+		"thinkingLevels",
+	];
 	for (const m of models) {
-		expect(Object.keys(m).sort()).toEqual([
-			"auth",
-			"contextWindow",
-			"cost",
-			"id",
-			"input",
-			"name",
-			"provider",
-			"reasoning",
-			"thinkingLevels",
-		]);
+		if (m.virtual) {
+			expect(Object.keys(m).sort()).toEqual(
+				[
+					"contextWindow",
+					"cost",
+					"id",
+					"input",
+					"name",
+					"provider",
+					"reasoning",
+					"thinkingLevels",
+					"virtual",
+				].sort(),
+			);
+			expect(m.thinkingLevels).toEqual(["low", "medium", "high"]);
+			continue;
+		}
+		expect(Object.keys(m).sort()).toEqual(allowlist);
 		expect(m.thinkingLevels).toEqual(["off"]);
 		expect(Object.keys(m.cost ?? {}).sort()).toEqual(["input", "output"]);
 		expect(m.auth?.kind).toBeDefined();

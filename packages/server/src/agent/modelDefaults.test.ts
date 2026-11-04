@@ -34,3 +34,18 @@ test("the preferred default follows pi's provider order before falling back to t
 	});
 	expect(preferredDefaultModel([])).toBeUndefined();
 });
+
+test("a routed model is never the default, in either the wire or the pi catalog shape", () => {
+	expect(
+		preferredDefaultModel([{ provider: "thinkrail", id: "auto", virtual: true }]),
+	).toBeUndefined();
+	expect(
+		preferredDefaultModel([{ provider: "thinkrail", id: "auto", api: "pi-virtual" }]),
+	).toBeUndefined();
+	expect(
+		preferredDefaultModel([
+			{ provider: "thinkrail", id: "auto", virtual: true },
+			{ provider: "custom", id: "local" },
+		]),
+	).toEqual({ provider: "custom", id: "local" });
+});

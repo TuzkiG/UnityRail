@@ -3,6 +3,7 @@ import type { MessageKey } from "@thinkrail/locales";
 import type { Translator } from "@thinkrail/locales/react";
 
 export function formatContext(tokens: number): string {
+	if (tokens <= 0) return "?";
 	if (tokens >= 1_000_000) return `${Math.round(tokens / 100_000) / 10}M`.replace(".0", "");
 	if (tokens >= 1_000) return `${Math.round(tokens / 1_000)}K`;
 	return String(tokens);

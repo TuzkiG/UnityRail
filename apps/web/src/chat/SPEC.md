@@ -886,7 +886,10 @@ both message orders. *Rejected:* keeping the modal for non-MCP extensions — ev
   connection glyph — **key** = API key, **∞** = subscription, **{ }** = environment key, a **JCP** tag =
   JetBrains AI (Central proxy) — then the plan/variable/key word and, only where the provider bills per
   token (`auth.kind` api-key / env), `$in / $out per M`; group headers add the provider's connection
-  detail. The **vendor glyph** (`ProviderGlyph`) is a monochrome `currentColor` mark from
+  detail. A **routed** model (`virtual`, the host's `Auto`) has no single price or context window, so its
+  row shows neither: it reads `chat.modelPicker.routed` in the context slot instead, carries no
+  connection word, and the chat's usage bar keeps reporting an unknown window until pi reports the
+  physical model that answered. The **vendor glyph** (`ProviderGlyph`) is a monochrome `currentColor` mark from
   `generated/providerGlyphs.ts`, which `scripts/generate-provider-glyphs.ts` extracts at build time from
   the dev-only `@lobehub/icons-static-svg` set (`provider-glyphs:check` guards drift, like the colour
   pipeline); the pi-provider-id → mark mapping lives once in `scripts/providerGlyphs.ts`, vendors reached

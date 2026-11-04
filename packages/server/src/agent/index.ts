@@ -1,6 +1,16 @@
 export * from "./agentSessionManager";
 export { disableAnthropicExtraUsageWarning, globalProviderWarnings } from "./anthropicExtraUsage";
 export {
+	AUTO_MODEL_ID,
+	AUTO_MODEL_NAME,
+	AUTO_MODEL_PROVIDER,
+	type AutoDifficulty,
+	type AutoModelState,
+	assessDifficulty,
+	registerAutoModel,
+	routeAutoModel,
+} from "./autoModel";
+export {
 	getResourceHistoryPage,
 	getSessionResources,
 	readBackgroundCommandOutput,
@@ -67,7 +77,7 @@ export {
 	listModelContextSettings,
 	setModelContextWindow,
 } from "./modelContext";
-export { preferredDefaultModel } from "./modelDefaults";
+export { cheapModel, isVirtualModel, preferredDefaultModel } from "./modelDefaults";
 export { setModelsFilePublisher } from "./modelsFile";
 export * from "./oneshot";
 export {

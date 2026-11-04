@@ -57,6 +57,7 @@ function install(loginImpl: LoginImpl): Harness {
 		logout: async (id: string) => {
 			logout.push(id);
 		},
+		registerVirtualModel: () => {},
 	} as unknown as ModelRuntime;
 
 	configurePiRuntime(runtime);

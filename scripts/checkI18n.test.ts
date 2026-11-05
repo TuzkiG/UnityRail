@@ -31,7 +31,7 @@ test("flags prose in text-named properties, toasts, and errorText fallbacks", ()
 });
 
 test("ignores symbols, the bare brand, and translated calls", () => {
-	expect(texts('const A = () => <span title="⌘K">{t("a.b")} · ThinkRail</span>;')).toEqual([]);
+	expect(texts('const A = () => <span title="⌘K">{t("a.b")} · UnityRail</span>;')).toEqual([]);
 });
 
 test("the catalog must be sorted, non-empty, and referenced", () => {

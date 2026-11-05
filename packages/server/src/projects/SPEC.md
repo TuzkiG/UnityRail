@@ -38,7 +38,7 @@ bootstrap it into one so it can be opened.
   same record closed and publishes it without deleting the project, repository, workspace records, or
   live runtimes. **`renameProject`** replaces only the display `name` (whitespace-collapsed, trimmed,
   1–100 chars) and publishes the record; the folder-derived `slug`, `path`, and id never change, so
-  workspace paths and identity are unaffected and a reopen keeps the chosen name. **One cwd, one ThinkRail identity:** `openProject` rejects (named `ALREADY_OPEN`) a root already held as some
+  workspace paths and identity are unaffected and a reopen keeps the chosen name. **One cwd, one UnityRail identity:** `openProject` rejects (named `ALREADY_OPEN`) a root already held as some
   workspace's `worktreePath` — pi keys chat transcripts by *directory*, so a second identity on an owned
   folder would serve that workspace's chats as its own and have them purged when either side is archived.
   Compared **canonically** (a managed worktree's stored path is composed, `--show-toplevel` answers
@@ -99,7 +99,7 @@ history depth. HTTP(S), SSH, Git, SCP-style SSH and local `file:` URLs are accep
 embedded passwords, HTTP userinfo, query strings, fragments and backslashes are rejected. Backslashes
 are ambiguous between the web URL parser and Git, so validation never accepts one spelling while Git
 executes another. Git uses the host's existing
-credential helpers and SSH configuration; no credentials are collected by ThinkRail. The parent must
+credential helpers and SSH configuration; no credentials are collected by UnityRail. The parent must
 already be a directory. Every existing destination (including an empty directory or symlink) rejects.
 An exclusive mkdir reserves the destination before Git starts. Failures and cancellation clean only that
 reservation, checking its filesystem identity before deletion; a replacement entry is never removed.

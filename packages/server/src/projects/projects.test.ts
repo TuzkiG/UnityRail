@@ -121,18 +121,18 @@ test("openProject refuses a checkout already attached as an external workspace",
 	makeRepo(attached);
 	seedWorkspace(attached, "external");
 
-	expect(() => openProject(attached)).toThrow("already open in ThinkRail");
+	expect(() => openProject(attached)).toThrow("already open in UnityRail");
 	expect(listProjects()).toHaveLength(0);
 });
 
-test("openProject refuses a ThinkRail-managed worktree dir, whatever symlinks the path carries", () => {
+test("openProject refuses a UnityRail-managed worktree dir, whatever symlinks the path carries", () => {
 	const repo = join(dataDir, "repo");
 	makeRepo(repo);
 	const managed = join(dataDir, "worktrees", "repo", "workspace-1");
 	git(repo, "worktree", "add", "-b", "workspace-1", managed);
 	seedWorkspace(managed);
 
-	expect(() => openProject(managed)).toThrow("already open in ThinkRail");
+	expect(() => openProject(managed)).toThrow("already open in UnityRail");
 	expect(openProject(repo).path).toBe(realpathSync(repo));
 });
 
@@ -336,7 +336,7 @@ test("initProject: commits even with no configured git identity (the -c fallback
 
 	withoutUserGitConfig(() => initProject(dir));
 	expect(gitOut(dir, "rev-parse", "HEAD")).not.toBe("");
-	expect(gitOut(dir, "log", "-1", "--format=%an")).toBe("ThinkRail");
+	expect(gitOut(dir, "log", "-1", "--format=%an")).toBe("UnityRail");
 });
 
 test("initProject: an existing repo is opened, not re-initialised (dedupe, history preserved)", () => {

@@ -1,11 +1,11 @@
 ---
 name: managing-mcp-servers
-description: Use when the user asks to add, change, remove, enable or disable an MCP server, or when an MCP tool is missing, needs sign-in, fails, or was blocked. ThinkRail runs pi in-process, so there is no `pi` command to call.
+description: Use when the user asks to add, change, remove, enable or disable an MCP server, or when an MCP tool is missing, needs sign-in, fails, or was blocked. UnityRail runs pi in-process, so there is no `pi` command to call.
 ---
 
-# Managing MCP servers in ThinkRail
+# Managing MCP servers in UnityRail
 
-ThinkRail uses pi's built-in MCP support but has no `pi` executable. Never run `pi mcp add`,
+UnityRail uses pi's built-in MCP support but has no `pi` executable. Never run `pi mcp add`,
 `pi mcp login` or other `pi` commands; edit the configuration files and point the user at
 **Settings › MCP servers** for everything that needs them.
 
@@ -62,11 +62,11 @@ Add it to the user-level file (Settings › MCP servers offers the same entry un
 
 The host reloads idle chats on its own and a busy chat picks the change up when it is idle. Tell the user
 when a step is theirs: approving a repository server, or **Sign in** for a server that uses OAuth (both in
-Settings › MCP servers). Do not ask them to restart ThinkRail.
+Settings › MCP servers). Do not ask them to restart UnityRail.
 
 ## Using MCP tools
 
 - Tools are named `mcp__<server>__<tool>`. For a `deferred` server, call `tool_search` to load them.
 - Subagents cannot call MCP tools: call them yourself and put what the subagent needs in its task.
-- ThinkRail asks the user before a call that may change data. A denied or cancelled call is final for that
+- UnityRail asks the user before a call that may change data. A denied or cancelled call is final for that
   call; do not retry it without asking the user first.

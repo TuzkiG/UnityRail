@@ -478,7 +478,7 @@ export async function openPr(
 	// Default/external workspaces are user-owned checkouts the fs watcher re-syncs asynchronously —
 	// resolve the live branch synchronously here so a switch made in a terminal just before Open PR
 	// can never push/open/compare against a stale one (see SPEC). A no-op for created workspaces,
-	// whose branch is ThinkRail-owned and never drifts externally.
+	// whose branch is UnityRail-owned and never drifts externally.
 	prWorkspace(params.workspaceId, params.branch);
 	const dirtyFiles = (await gitStatus(params.workspaceId, { kind: "uncommitted" })).changes.length;
 	const ws = prWorkspace(params.workspaceId, params.branch);

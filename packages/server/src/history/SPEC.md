@@ -17,7 +17,7 @@ file in full* just to build its `SessionInfo`s (`messageCount`/`allMessagesText`
 index refresh through it costs the whole corpus even when nothing changed, on the event loop every live
 session shares. **Never writes** session files. Because discovery walks every pi session on disk, the
 host handler's `all` scope (`host/historyScope.ts`'s `filter = () => true`) deliberately surfaces pi-CLI
-sessions outside any registered ThinkRail workspace too — a bit more than `session.getMessages` itself
+sessions outside any registered UnityRail workspace too — a bit more than `session.getMessages` itself
 ever exposes for a single session, but consistent with an owner-scoped host (no multi-tenant isolation
 to preserve).
 

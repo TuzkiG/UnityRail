@@ -67,6 +67,7 @@
         "@shikijs/langs": "4.5.0",
         "@thinkrail/contracts": "workspace:*",
         "@thinkrail/ext-ask-user-question": "workspace:*",
+        "@thinkrail/ext-unity": "workspace:*",
         "@thinkrail/ext-visualize": "workspace:*",
         "@thinkrail/extension-api": "workspace:*",
         "@thinkrail/locales": "workspace:*",
@@ -297,6 +298,10 @@
         "typebox": "*",
       },
     },
+    "packages/pi-unity-skills": {
+      "name": "@thinkrail/pi-unity-skills",
+      "version": "0.0.0",
+    },
     "packages/resource-renderers": {
       "name": "@thinkrail/resource-renderers",
       "version": "0.0.0",
@@ -338,11 +343,13 @@
         "@stroncium/procfs": "1.2.1",
         "@thinkrail/contracts": "workspace:*",
         "@thinkrail/ext-ask-user-question": "workspace:*",
+        "@thinkrail/ext-unity": "workspace:*",
         "@thinkrail/ext-visualize": "workspace:*",
         "@thinkrail/ext-web-access": "workspace:*",
         "@thinkrail/extension-api": "workspace:*",
         "@thinkrail/locales": "workspace:*",
         "@thinkrail/shared": "workspace:*",
+        "@thinkrail/unity-project": "workspace:*",
         "bun-pty": "0.5.1",
         "jsonc-parser": "3.3.1",
         "pi-background-commands": "workspace:*",
@@ -420,6 +427,14 @@
         "typescript": "catalog:",
       },
     },
+    "packages/unity-project": {
+      "name": "@thinkrail/unity-project",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
+      },
+    },
     "packages/website-analytics": {
       "name": "@thinkrail/website-analytics",
       "version": "0.0.0",
@@ -481,6 +496,29 @@
         "@earendil-works/pi-coding-agent": "catalog:",
         "@types/bun": "catalog:",
         "@types/react": "catalog:",
+        "typescript": "catalog:",
+      },
+    },
+    "thinkrail-extensions/unity": {
+      "name": "@thinkrail/ext-unity",
+      "version": "0.0.0",
+      "dependencies": {
+        "@remixicon/react": "catalog:",
+        "@thinkrail/contracts": "workspace:*",
+        "@thinkrail/extension-api": "workspace:*",
+        "@thinkrail/locales": "workspace:*",
+        "@thinkrail/pi-unity-skills": "workspace:*",
+        "@thinkrail/ui": "workspace:*",
+        "@thinkrail/unity-project": "workspace:*",
+        "react": "catalog:",
+        "typebox": "catalog:",
+      },
+      "devDependencies": {
+        "@earendil-works/pi-coding-agent": "catalog:",
+        "@types/bun": "catalog:",
+        "@types/react": "catalog:",
+        "@types/react-dom": "catalog:",
+        "react-dom": "catalog:",
         "typescript": "catalog:",
       },
     },
@@ -1260,6 +1298,8 @@
 
     "@thinkrail/ext-ask-user-question": ["@thinkrail/ext-ask-user-question@workspace:thinkrail-extensions/ask-user-question"],
 
+    "@thinkrail/ext-unity": ["@thinkrail/ext-unity@workspace:thinkrail-extensions/unity"],
+
     "@thinkrail/ext-visualize": ["@thinkrail/ext-visualize@workspace:thinkrail-extensions/visualize"],
 
     "@thinkrail/ext-web-access": ["@thinkrail/ext-web-access@workspace:thinkrail-extensions/web-access"],
@@ -1270,6 +1310,8 @@
 
     "@thinkrail/pi-ask-user-question": ["@thinkrail/pi-ask-user-question@workspace:pi-extensions/ask-user-question"],
 
+    "@thinkrail/pi-unity-skills": ["@thinkrail/pi-unity-skills@workspace:packages/pi-unity-skills"],
+
     "@thinkrail/pi-visualize": ["@thinkrail/pi-visualize@workspace:pi-extensions/visualize"],
 
     "@thinkrail/resource-renderers": ["@thinkrail/resource-renderers@workspace:packages/resource-renderers"],
@@ -1279,6 +1321,8 @@
     "@thinkrail/shared": ["@thinkrail/shared@workspace:packages/shared"],
 
     "@thinkrail/ui": ["@thinkrail/ui@workspace:packages/ui"],
+
+    "@thinkrail/unity-project": ["@thinkrail/unity-project@workspace:packages/unity-project"],
 
     "@thinkrail/web": ["@thinkrail/web@workspace:apps/web"],
 

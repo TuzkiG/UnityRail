@@ -9,6 +9,7 @@ import {
 	RiFileList3Line,
 	RiFolderLine,
 	RiFolderOpenLine,
+	RiGamepadLine,
 	RiHistoryLine,
 	RiHome4Line,
 	RiInboxArchiveLine,
@@ -17,6 +18,7 @@ import {
 	RiLayoutBottomLine,
 	RiLayoutLeftLine,
 	RiLayoutRightLine,
+	RiLinkM,
 	RiListCheck3,
 	RiMailUnreadLine,
 	RiNodeTree,
@@ -41,6 +43,8 @@ const TOOL_LABELS: Record<PaletteTool, MessageKey> = {
 	files: "workbench.tool.files",
 	review: "workbench.tool.review",
 	plan: "workbench.tool.plan",
+	"unity-project": "workbench.tool.unityProject",
+	unity: "workbench.tool.unity",
 };
 
 const TOOL_ICONS: Record<PaletteTool, RemixiconComponentType> = {
@@ -48,6 +52,8 @@ const TOOL_ICONS: Record<PaletteTool, RemixiconComponentType> = {
 	files: RiFolderLine,
 	review: RiFileList3Line,
 	plan: RiListCheck3,
+	"unity-project": RiLinkM,
+	unity: RiGamepadLine,
 };
 
 export interface PaletteCatalogDeps {

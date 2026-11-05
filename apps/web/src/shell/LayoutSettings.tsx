@@ -6,13 +6,18 @@ import {
 	RiArrowRightSLine,
 	RiDashboardLine,
 	RiFocusLine,
+	RiGamepadLine,
 	RiLayoutLine,
 	RiLayoutRightLine,
 	RiQuestionLine,
 	RiDeleteBin6Line as Trash2,
 	RiCloseLine as X,
 } from "@remixicon/react";
-import { LAYOUT_PLAN_PRESET_PROTOCOL_VERSION, type LayoutPreset } from "@thinkrail/contracts";
+import {
+	LAYOUT_PLAN_PRESET_PROTOCOL_VERSION,
+	type LayoutPreset,
+	UNITY_PROTOCOL_VERSION,
+} from "@thinkrail/contracts";
 import type { MessageKey } from "@thinkrail/locales";
 import { t as translate, useT } from "@thinkrail/locales/react";
 import { Button, IconButton } from "@thinkrail/ui/button";
@@ -49,12 +54,14 @@ const PRESET_DESCRIPTIONS: Readonly<Record<string, MessageKey>> = {
 	balanced: "workbench.layoutSettings.balancedDescription",
 	focus: "workbench.layoutSettings.focusDescription",
 	review: "workbench.layoutSettings.reviewDescription",
+	unity: "workbench.layoutSettings.unityDescription",
 };
 
 const PRESET_ICONS: Record<string, typeof RiDashboardLine> = {
 	balanced: RiDashboardLine,
 	focus: RiFocusLine,
 	review: RiLayoutRightLine,
+	unity: RiGamepadLine,
 };
 
 async function updateCustomPresets(customLayoutPresets: LayoutPreset[]): Promise<boolean> {
@@ -65,6 +72,16 @@ async function updateCustomPresets(customLayoutPresets: LayoutPreset[]): Promise
 	) {
 		toast.error(
 			translate("workbench.layoutSettings.planNeedsNewerHost"),
+			translate("workbench.layoutSettings.saveFailed"),
+		);
+		return false;
+	}
+	if (
+		protocolVersion < UNITY_PROTOCOL_VERSION &&
+		customLayoutPresets.some((preset) => presetPlacesTool(preset, "unity"))
+	) {
+		toast.error(
+			translate("unity.panel.needsNewerHost"),
 			translate("workbench.layoutSettings.saveFailed"),
 		);
 		return false;
@@ -156,12 +173,18 @@ export function LayoutSettings() {
 	const [addLayoutOpen, setAddLayoutOpen] = useState(false);
 	const addLayoutInputRef = useRef<HTMLInputElement>(null);
 
+	const protocolVersion = useAppStore((state) => state.protocolVersion);
 	const presets = useMemo(
 		() => [
-			...BUILTIN_LAYOUT_PRESETS,
+			...BUILTIN_LAYOUT_PRESETS.filter(
+				(preset) =>
+					preset.id !== "unity" ||
+					protocolVersion === null ||
+					protocolVersion >= UNITY_PROTOCOL_VERSION,
+			),
 			...customLayoutPresets.filter((preset) => !BUILTIN_PRESET_IDS.has(preset.id)),
 		],
-		[customLayoutPresets],
+		[customLayoutPresets, protocolVersion],
 	);
 	const selected = resolveLayoutPreset(preferences.defaultPresetId, customLayoutPresets);
 	const canApply = !saving && activeWorkspaceId !== null && frame !== null;

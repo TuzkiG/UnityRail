@@ -292,7 +292,7 @@ for (const [host, entry, relativeBase] of [
 	});
 }
 
-test("discovers new pi and ThinkRail extensions and rejects host and sibling dependencies", () => {
+test("discovers new pi and UnityRail extensions and rejects host and sibling dependencies", () => {
 	const root = sdkFixture();
 	write(root, "pi-extensions/future/leak.ts", 'import "@thinkrail/server";');
 	write(root, "thinkrail-extensions/another/web/leak.ts", 'import "@thinkrail/web";');

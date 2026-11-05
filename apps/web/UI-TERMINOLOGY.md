@@ -1,6 +1,6 @@
-# ThinkRail UI Terminology Reference
+# UnityRail UI Terminology Reference
 
-A canonical vocabulary for the ThinkRail web UI (`apps/web`), for use by the designer, ChatGPT, and the
+A canonical vocabulary for the UnityRail web UI (`apps/web`), for use by the designer, ChatGPT, and the
 pi agent in design discussions.
 
 **Scope & rules for this document:**
@@ -56,7 +56,7 @@ Children (left → right):
 
 | Canonical name | Implementation | `data-testid` | Responsibility |
 |---|---|---|---|
-| Logo | `<BrandLogo />` (the supplied full vector artwork) | `brand-logo` | The theme-aware ThinkRail brand mark |
+| Logo | `<BrandLogo />` (the supplied full vector artwork) | `brand-logo` | The theme-aware UnityRail brand mark |
 | Scope Context | inline block in `Shell.tsx` | `scope-context` | Persistent location breadcrumb; two lines when a workspace is active |
 | — Scope Project | inline `<span>` | `scope-project` | Owning project name |
 | — Scope Name | inline `<span>` | `scope-name` | Active workspace display name, or `"Project home"` |
@@ -464,7 +464,7 @@ hidden terminal placements do not attach. One terminal identity has at most one 
 - **Responsibility:** preserve host-owned shell identity while layout controls placement and visibility.
   Closing retains the explicit busy-process confirmation flow.
 
-**⚠ Naming note (Status Bar):** ThinkRail has **no dedicated status bar component**. The closest surfaces
+**⚠ Naming note (Status Bar):** UnityRail has **no dedicated status bar component**. The closest surfaces
 are the Top Bar's Connection Status and the Chat Header's Session Stats Bar.
 
 ---
@@ -496,7 +496,7 @@ are the Top Bar's Connection Status and the Chat Header's Session Stats Bar.
 # Shared UI Primitives
 
 The reusable building blocks (shadcn/ui, Radix), owned under `packages/ui/` and themed with
-ThinkRail tokens. Imported per-file as `@thinkrail/ui/<primitive>` (no barrel).
+UnityRail tokens. Imported per-file as `@thinkrail/ui/<primitive>` (no barrel).
 
 | Canonical name | Implementation | Notes |
 |---|---|---|
@@ -555,7 +555,7 @@ its alternatives in parentheses.
 
 **Top Bar**
 
-- **Wordmark** — the ThinkRail brand mark.
+- **Wordmark** — the UnityRail brand mark.
 - **Scope Context** (alt: location context) — the persistent location breadcrumb.
 - **Connection Status** — the connected/connecting/disconnected pill.
 - **Settings Button** — opens the Settings Dialog.
@@ -642,7 +642,7 @@ its alternatives in parentheses.
   **Template Editor Dialog**, **Skills Dialog**, **Login Dialog**. (Extension dialogs are not a modal: see
   **Ext-UI Prompt**.)
 
-**Terms that do NOT map to a ThinkRail region (avoid or use only as noted)**
+**Terms that do NOT map to a UnityRail region (avoid or use only as noted)**
 
 - **Status Bar** — none exists; the closest are the Connection Status pill and the Session Stats Bar.
 - **Context Menu** — a real primitive now (Project Row right-click); the Changes rows' right-click is still

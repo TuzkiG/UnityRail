@@ -138,7 +138,7 @@ assumption; re-verify on a pi bump.
   following `.pi/prompts/linked.md → ~/somewhere` would let `template.get` disclose the target and
   `template.save` overwrite it, so a checked-out repo could plant a link and turn a routine template
   edit into a file write outside the worktree. Cost: a legitimately symlinked individual template that
-  pi's own `/` menu would offer doesn't appear in ThinkRail's — acceptable, and already the listing's
+  pi's own `/` menu would offer doesn't appear in UnityRail's — acceptable, and already the listing's
   behavior before this gate existed. The same rule applies **one level up**: a symlinked `<cwd>/.pi` or
   `<cwd>/.pi/prompts` *directory* (the repo controls those path components) makes the project dir
   untraversable for **every** project-scope operation — `listTemplates`/`getTemplate` treat it as having

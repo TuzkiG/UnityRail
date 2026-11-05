@@ -105,7 +105,7 @@ export function terminalPtyEnv(
 	}
 	result.TERM = "xterm-256color";
 	result.COLORTERM = "truecolor";
-	result.TERM_PROGRAM = "ThinkRail";
+	result.TERM_PROGRAM = "UnityRail";
 	const account = platform === "win32" ? null : accountName();
 	if (account) {
 		result.USER = account;

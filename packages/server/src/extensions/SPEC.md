@@ -2,7 +2,7 @@
 id: submodule-server-extensions
 type: submodule-design
 status: active
-title: extensions — the server registry of ThinkRail extensions
+title: extensions — the server registry of UnityRail extensions
 parent: module-server
 depends-on: [module-extension-api, module-thinkrail-extensions]
 tags: [extensions, public-surface-checked]
@@ -10,7 +10,7 @@ tags: [extensions, public-surface-checked]
 
 ## Responsibility
 
-The one place the host lists the ThinkRail extensions it composes ([[module-thinkrail-extensions]]
+The one place the host lists the UnityRail extensions it composes ([[module-thinkrail-extensions]]
 § Composition). `registry.ts` statically imports every `@thinkrail/ext-*/server` and exports ordered
 entries `{ specifier, extension }` — the `defineServerExtension` descriptor **and** its public server
 specifier as a string. The static imports carry the factories into the compiled CLI binary and the

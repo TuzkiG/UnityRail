@@ -12,7 +12,7 @@ references: [module-ext-web-access]
 ## Responsibility
 
 Presentational renderers for all three tools exposed by **`pi-web-access`** — composed on the server by
-the `web-access` ThinkRail extension ([[module-ext-web-access]]), which has no `./web` half yet — joined
+the `web-access` UnityRail extension ([[module-ext-web-access]]), which has no `./web` half yet — joined
 to that capability by **tool name**: `WebSearchCard` (`web_search`), `WebFetchCard` (`fetch_content`), and
 `WebStoredContentCard` (`get_search_content`). `register.ts` wires all three via `registerToolRenderer`
 (+ collapsed-header summaries) and is imported for its side effect by the parent `tools/register`.

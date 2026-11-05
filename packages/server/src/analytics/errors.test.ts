@@ -119,7 +119,7 @@ test("chunk ids pass only as UUIDs, from the SDK frame or the browser's url map"
 
 test("Windows frame roots compare case-insensitively with either separator", () => {
 	const roots: FrameRoots = {
-		appRoot: "C:/Program Files/ThinkRail/resources/app",
+		appRoot: "C:/Program Files/UnityRail/resources/app",
 		caseInsensitive: true,
 	};
 	expect(
@@ -137,9 +137,9 @@ test("detectAppRoot resolves the repository in source and the bundle directory w
 	expect(detectAppRoot("file:///$bunfs/root/thinkrail")).toBe("/$bunfs/root");
 	expect(
 		detectAppRoot(
-			"file:///Applications/ThinkRail.app/Contents/Resources/app/runtime/server-runtime.ts",
+			"file:///Applications/UnityRail.app/Contents/Resources/app/runtime/server-runtime.ts",
 		),
-	).toBe("/Applications/ThinkRail.app/Contents/Resources/app/runtime");
+	).toBe("/Applications/UnityRail.app/Contents/Resources/app/runtime");
 });
 
 test("sanitizeExceptionProperties rebuilds the event from an allow-list", () => {

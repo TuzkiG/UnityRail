@@ -40,6 +40,7 @@ test("runtime source manifest covers the launcher artifact surface", () => {
 			["pi-todos", "host"],
 			["server", "host"],
 			["pi-web-access", "extensions/web-access"],
+			["pi-unity-skills", "extensions/unity"],
 		],
 	);
 	expect(

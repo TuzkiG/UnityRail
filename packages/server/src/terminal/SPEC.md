@@ -91,7 +91,7 @@ identities. A tab's shell outlives every client that looks at it; each frontend 
   drops `SSH_ASKPASS`/`SSH_ASKPASS_REQUIRE` — otherwise the orphaned `askpass.sh` exits 0 with empty output
   and Git accepts blank credentials instead of prompting. A helper with no VS Code support variables is the
   user's own and is kept; the terminal identifies itself as `TERM=xterm-256color`, `COLORTERM=truecolor`,
-  `TERM_PROGRAM=ThinkRail`. `NO_COLOR` is kept: it is the user's standing preference, not a runner's
+  `TERM_PROGRAM=UnityRail`. `NO_COLOR` is kept: it is the user's standing preference, not a runner's
   override. Other `PI_*` names are user pi configuration and are kept, never filtered by prefix:
   `PI_CODING_AGENT_DIR` set at launch or by Settings → Environment must reach a `pi` run in the terminal,
   or it would silently switch to `~/.pi/agent` (auth, models, settings, sessions) while the host uses the

@@ -55,8 +55,9 @@ convention; their boundary is held by convention + spec. Sibling edges live here
 | `i18n` | active language: synced preference + browser languages + bundled/local catalogs → the shared i18next instance, `<html lang>`, desktop menu labels | yes | [i18n/SPEC.md](src/i18n/SPEC.md) |
 | `lib` | shared path/array primitives + highlighting | yes | [lib/SPEC.md](src/lib/SPEC.md) |
 
-Leaf utilities without their own spec: `constants/` (branding — the product name, storage/event prefixes, and the one
-`BRAND_MARK_SEGMENTS` monogram regions, joined into the `BRAND_MARK_PATH` the shell logo fills and clipped to by the components' working badge), `clientPreferences.ts` (feature-neutral
+Leaf utilities without their own spec: `constants/` (branding — the product name, storage/event prefixes, the one
+`BRAND_GLYPH_PATH` the shell logo fills, and the `BRAND_MARK_SEGMENTS` cube faces and rail centre lines
+stroked by the components' working badge), `clientPreferences.ts` (feature-neutral
 access to the optional native stable string adapter, and `firstPaintPreferenceStorage` — that adapter, else
 `localStorage` — which the theme and font first-paint hints share), and `styles/` — which holds the three
 design-system SOURCES (`typography.json`, `colors.json`, `spacing.json`), their generated CSS, and the
@@ -67,7 +68,7 @@ Outside `src/`, **[`scripts/`](scripts/SPEC.md)** is the build-time generator mo
 never ships, and turns those three JSON sources into `styles/generated/` (plus the vendored provider
 marks into `chat/generated/`).
 `index.html` names the product and links the local, symbol-only SVG favicon derived from the same
-ThinkRail artwork as the shell logo (compact enough for browser-tab sizes and light/dark browser chrome).
+UnityRail artwork as the shell logo (compact enough for browser-tab sizes and light/dark browser chrome).
 `main.tsx` is the entry/composition root — it synchronously builds the bundled theme catalog, resolves and
 applies the versioned first-paint theme-preference hint (including the current system color scheme) pre-React,
 initializes transport and its client error reporting (window listeners + the error-boundary reporter
@@ -79,7 +80,7 @@ screen, not a blank root) plus the app's single `TooltipProvider`.
 **React is one exact, matching `react` + `react-dom` pin on a release that carries upstream fix #34803.**
 React 19.2's development Performance Tracks retained every `performance.measure()` record; Pi-rate chat
 renders grew a Vite tab past 10 GB while the JS heap stayed flat, then Chrome killed the renderer and Vite
-reported the dead socket as `EPIPE` / `ECONNRESET` (React #34770). ThinkRail ran a 19.3 canary with React's
+reported the dead socket as `EPIPE` / `ECONNRESET` (React #34770). UnityRail ran a 19.3 canary with React's
 own `clearMeasures` fix until a stable release shipped it, and deliberately carries no second
 measure-reaping policy. The root package-manager overrides resolve both runtime packages through their
 catalog entries, and `check:deps` reads `bun.lock` and rejects any second `react` or `react-dom` version, so
@@ -173,7 +174,7 @@ change. `dist/` therefore has no profiler timers (`actualStartTime` is absent fr
 - `store` → `transport` (**type-only** — `ConnectionStatus`), `chat` (**type-only** — `ChatTurn`/`ToolResultState`), `auth` (**type-only** — `LoginState`; the `foldLoginFrame` reducer lives in `store`, like `reduceExtUi`), `contracts` (domain + custom-preset types, never current-layout DTOs), `lib` (shared path/array primitives — a leaf, so no cycle), and `shell/layout` (**type-only** for web-local frame/view state)
 - `transport` → `contracts`, `store` (welcome routing; the `store → transport` back-edge is type-only, so
   the runtime graph is acyclic), `lib` (plain-HTTP-safe random page identity)
-- `components` → `lib` (`ErrorBoundary`'s `shallowEqualArrays` for its reset keys) and `constants` (`RunningIcon` draws the shared brand monogram) — both leaves, so any region can still wrap in it; presentational controls consume `ui`
+- `components` → `lib` (`ErrorBoundary`'s `shallowEqualArrays` for its reset keys) and `constants` (`RunningIcon` strokes the shared brand mark) — both leaves, so any region can still wrap in it; presentational controls consume `ui`
 - `lib` → `themes` (the lazy highlighter uses the one generic CSS-variable Shiki registration), React (the phone-viewport hook only), and `contracts` (types only, e.g. the MCP state vocabulary's `McpServerState`)
 - `themes` → `constants` (the branding storage prefix scopes the first-paint hint and the user-theme cache), `clientPreferences` (native-stable hint storage); `transport` hydrates the store's user-theme snapshot and `shell`'s theme effect installs it
 - `fonts` → `contracts`, `constants` (the first-paint hint key), `clientPreferences` (native-stable hint storage and the desktop signal); `transport` hydrates the store's custom-font snapshot, `shell`'s fonts effect applies the settings and installs the faces, `main.tsx` applies the hint before React, and `panels` (the Appearance font groups) reads its bundled faces, probes and weight preview

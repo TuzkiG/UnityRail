@@ -14,7 +14,7 @@ list of `NAME=value` variables, edited in Settings → Environment and applied t
 host process at boot. It exists because a Dock/Finder launch has no way to pass `PI_*` (the login-shell
 import never imports them) and a shell alias is never exported. Everything in-process — pi, extensions,
 the bash tool, terminals, stdio MCP servers — then sees one consistent environment, so a `pi` run in a
-ThinkRail terminal uses the same config folder.
+UnityRail terminal uses the same config folder.
 
 ## Boundary
 

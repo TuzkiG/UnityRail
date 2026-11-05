@@ -12,7 +12,7 @@ tags: [public-surface-checked]
 
 The host's diagnostic record: every module logs through `logger(scope)` instead of `console.*`.
 Operators see readable stderr, while the same application records land as structured JSONL under
-`<dataDir>/logs/` so users can send them to ThinkRail for agent-led reproduction and investigation.
+`<dataDir>/logs/` so users can send them to UnityRail for agent-led reproduction and investigation.
 Only calls through this module's explicit logger reach durable files; arbitrary pi / extension
 `console.*` arguments remain terminal-only because they can contain prompts, tool data, or credentials.
 

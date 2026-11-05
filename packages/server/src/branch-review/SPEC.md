@@ -69,7 +69,7 @@ contracts spec pins `state` to `WORKSPACE_SETTLE_PROTOCOL_VERSION` and the host 
   transient outage can recover on the next read. Expired entries are pruned lazily on cache activity.
 - Ordinary workspace activation may reuse a settled answer; `{ fresh: true }` bypasses one while still
   joining an already-running lookup. The web uses the fresh path on window focus, preserving focus as the
-  explicit revalidation point for reviews opened, closed, or merged outside ThinkRail.
+  explicit revalidation point for reviews opened, closed, or merged outside UnityRail.
 - `forgetOpenBranchReview(cwd)` invalidates every branch generation for that worktree. A lookup superseded
   while in flight must resolve through the current generation rather than return or re-cache its stale
   answer; this is what makes invalidation safe against a concurrent read.

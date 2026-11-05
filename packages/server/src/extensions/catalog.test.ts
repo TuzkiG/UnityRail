@@ -37,6 +37,31 @@ describe("listExtensionCatalog", () => {
 				tools: ["web_search", "fetch_content", "get_search_content"],
 				hasChildExtensions: true,
 			},
+			{
+				name: "unity",
+				title: "Unity",
+				description: expect.any(String),
+				enabled: true,
+				tools: [
+					"unity_project",
+					"unity_doctor",
+					"unity_install_bridge",
+					"unity_open_editor",
+					"unity_compile",
+					"unity_console",
+					"unity_playmode",
+					"unity_screenshot",
+					"unity_tests",
+					"unity_verify",
+					"unity_status",
+					"unity_hierarchy",
+					"unity_inspect",
+					"unity_find",
+					"unity_open",
+					"unity_select",
+				],
+				hasChildExtensions: false,
+			},
 		]);
 		const [visualize, ask] = await listExtensionCatalog(new Set(["visualize", "retired"]));
 		expect(visualize?.enabled).toBe(false);

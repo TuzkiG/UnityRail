@@ -306,21 +306,21 @@ describe.skipIf(process.platform !== "win32" || !powershell)("install.ps1 valida
 		() => {
 			if (!powershell) throw new Error("PowerShell is unavailable");
 			const fixture = makeFixture();
-			const definition = /^function Test-ThinkRailOnPath \{[\s\S]*?^\}/m.exec(
+			const definition = /^function Test-UnityRailOnPath \{[\s\S]*?^\}/m.exec(
 				readFileSync(powershellInstaller, "utf8"),
 			)?.[0];
-			if (!definition) throw new Error("install.ps1 defines no Test-ThinkRailOnPath");
+			if (!definition) throw new Error("install.ps1 defines no Test-UnityRailOnPath");
 			const script = join(fixture.root, "on-path.ps1");
 			writeFileSync(
 				script,
 				[
 					definition,
 					"$dir = 'C:\\Users\\me\\.thinkrail\\bin'",
-					"Write-Output (Test-ThinkRailOnPath -Dir $dir -PathEntries @('C:/Users/me/.thinkrail/bin'))",
-					"Write-Output (Test-ThinkRailOnPath -Dir $dir -PathEntries @('c:/users/ME/.thinkrail/bin/'))",
-					"Write-Output (Test-ThinkRailOnPath -Dir $dir -PathEntries @('C:\\Users\\me\\.thinkrail\\bin\\'))",
-					"Write-Output (Test-ThinkRailOnPath -Dir 'C:/Users/me/.thinkrail/bin' -PathEntries @('C:\\Users\\me\\.thinkrail\\bin'))",
-					"Write-Output (Test-ThinkRailOnPath -Dir $dir -PathEntries @('C:/Other/bin'))",
+					"Write-Output (Test-UnityRailOnPath -Dir $dir -PathEntries @('C:/Users/me/.thinkrail/bin'))",
+					"Write-Output (Test-UnityRailOnPath -Dir $dir -PathEntries @('c:/users/ME/.thinkrail/bin/'))",
+					"Write-Output (Test-UnityRailOnPath -Dir $dir -PathEntries @('C:\\Users\\me\\.thinkrail\\bin\\'))",
+					"Write-Output (Test-UnityRailOnPath -Dir 'C:/Users/me/.thinkrail/bin' -PathEntries @('C:\\Users\\me\\.thinkrail\\bin'))",
+					"Write-Output (Test-UnityRailOnPath -Dir $dir -PathEntries @('C:/Other/bin'))",
 				].join("\n"),
 			);
 			const child = Bun.spawnSync(
@@ -523,7 +523,7 @@ describe("install.sh controlled installation", () => {
 		]);
 		expect(result.exitCode).toBe(0);
 		expect(readFileSync(rcFile, "utf8")).toBe(profileBody);
-		expect(result.stderr).toContain("malformed ThinkRail PATH markers");
+		expect(result.stderr).toContain("malformed UnityRail PATH markers");
 		expect(result.stdout).toContain("Add to PATH:");
 	});
 

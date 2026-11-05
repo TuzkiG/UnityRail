@@ -482,7 +482,7 @@ export default function syntheticExternalExtension(pi) {
 			"-C",
 			projectDir,
 			"-c",
-			"user.name=ThinkRail Smoke",
+			"user.name=UnityRail Smoke",
 			"-c",
 			"user.email=smoke@thinkrail.invalid",
 			"-c",
@@ -535,7 +535,7 @@ export default function syntheticExternalExtension(pi) {
 		const health = await within(fetch(`${customHost.origin}/health`), 10_000, "GET /health");
 		assert(health.ok && (await health.text()) === "ok", `/health answered ${health.status}`);
 		const index = await within(fetch(customHost.origin), 10_000, "GET /");
-		assert(index.ok && (await index.text()).includes("ThinkRail"), "web UI was not served");
+		assert(index.ok && (await index.text()).includes("UnityRail"), "web UI was not served");
 		socket = await within(connectRpc(customHost.origin), 10_000, "custom host WebSocket");
 		const models = await within(rpc(socket, "model.list", {}), 20_000, "custom model.list");
 		assertExternalModel(models);

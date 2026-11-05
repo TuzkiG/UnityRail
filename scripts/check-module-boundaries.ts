@@ -41,6 +41,7 @@ const MODULE_RULES: readonly ModuleRule[] = [
 			"packages/pi-thinkrail-workflow",
 			"packages/pi-todos",
 			"packages/extension-api",
+			"packages/unity-project",
 		],
 	},
 	{
@@ -133,6 +134,9 @@ function moduleRules(packages: ReadonlyMap<string, string>): ModuleRule[] {
 				"packages/extension-api",
 				"packages/resource-renderers",
 				piExtensionRoot(root),
+				...(root === "thinkrail-extensions/unity"
+					? ["packages/unity-project", "packages/pi-unity-skills"]
+					: []),
 			],
 		})),
 	];
@@ -273,7 +277,14 @@ function sourceRule(rule: ModuleRule, subpath: string): ModuleRule {
 				],
 			};
 		case "server":
-			return { ...rule, allowed: ["packages/extension-api", piExtensionRoot(rule.root)] };
+			return {
+				...rule,
+				allowed: [
+					"packages/extension-api",
+					piExtensionRoot(rule.root),
+					...(rule.root === "thinkrail-extensions/unity" ? ["packages/unity-project"] : []),
+				],
+			};
 		default:
 			return rule;
 	}

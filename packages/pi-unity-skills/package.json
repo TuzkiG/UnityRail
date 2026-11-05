@@ -1,0 +1,15 @@
+{
+	"name": "@thinkrail/pi-unity-skills",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Unity development skills for the UnityRail agent: project orientation, verification, gameplay code, testing, and asset safety.",
+	"exports": {
+		"./package.json": "./package.json"
+	},
+	"pi": {
+		"skills": [
+			"./skills"
+		]
+	}
+}

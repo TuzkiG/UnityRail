@@ -1,0 +1,33 @@
+{
+	"name": "@thinkrail/ext-unity",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./server": "./server/index.ts",
+		"./web": "./web/index.ts"
+	},
+	"scripts": {
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@remixicon/react": "catalog:",
+		"@thinkrail/contracts": "workspace:*",
+		"@thinkrail/extension-api": "workspace:*",
+		"@thinkrail/locales": "workspace:*",
+		"@thinkrail/pi-unity-skills": "workspace:*",
+		"@thinkrail/ui": "workspace:*",
+		"@thinkrail/unity-project": "workspace:*",
+		"react": "catalog:",
+		"typebox": "catalog:"
+	},
+	"devDependencies": {
+		"@earendil-works/pi-coding-agent": "catalog:",
+		"@types/bun": "catalog:",
+		"@types/react": "catalog:",
+		"typescript": "catalog:",
+		"react-dom": "catalog:",
+		"@types/react-dom": "catalog:"
+	}
+}

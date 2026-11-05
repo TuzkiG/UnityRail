@@ -1,0 +1,24 @@
+{
+	"name": "com.thinkrail.bridge",
+	"version": "0.3.0",
+	"displayName": "UnityRail Unity Bridge",
+	"description": "Gives the UnityRail AI IDE eyes and hands inside the Unity Editor: compile diagnostics, Console, Play Mode, Game/Scene screenshots, tests, hierarchy, inspection and asset search.",
+	"unity": "2022.3",
+	"documentationUrl": "https://github.com/thinkrail/thinkrail",
+	"licensesUrl": "https://github.com/thinkrail/thinkrail/blob/main/LICENSE",
+	"keywords": [
+		"thinkrail",
+		"ai",
+		"agent",
+		"editor",
+		"automation"
+	],
+	"author": {
+		"name": "UnityRail",
+		"url": "https://github.com/thinkrail"
+	},
+	"dependencies": {
+		"com.unity.nuget.newtonsoft-json": "3.2.1",
+		"com.unity.test-framework": "1.1.33"
+	}
+}

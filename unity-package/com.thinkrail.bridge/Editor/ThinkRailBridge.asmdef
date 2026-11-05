@@ -1,0 +1,14 @@
+{
+	"name": "ThinkRail.Bridge.Editor",
+	"rootNamespace": "ThinkRail.Bridge",
+	"references": [],
+	"includePlatforms": ["Editor"],
+	"excludePlatforms": [],
+	"allowUnsafeCode": false,
+	"overrideReferences": false,
+	"precompiledReferences": [],
+	"autoReferenced": true,
+	"defineConstraints": [],
+	"versionDefines": [],
+	"noEngineReferences": false
+}

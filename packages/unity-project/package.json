@@ -1,0 +1,19 @@
+{
+	"name": "@thinkrail/unity-project",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Unity project model, asset/assembly intelligence, and the UnityRail Unity Editor bridge client.",
+	"exports": {
+		".": "./src/index.ts",
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "bun test"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"typescript": "catalog:"
+	}
+}

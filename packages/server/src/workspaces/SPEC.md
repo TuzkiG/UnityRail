@@ -15,7 +15,7 @@ chats. Its **display `name` is decoupled from its git `branch`**: `name` is a hu
 (Title Case, spaces) and `branch` is a kebab slug derived from it — they were once held equal, and still
 coincide for the auto `workspace-N` placeholder, but a named workspace carries both distinctly.
 
-Two kinds are **user-owned** — ThinkRail uses their cwd but never renames or reclaims them. Every project
+Two kinds are **user-owned** — UnityRail uses their cwd but never renames or reclaims them. Every project
 carries **exactly one built-in Default workspace** (`kind: "default"`) whose `worktreePath` is the project
 folder itself (git's *main working tree*) — the "just work in my project folder" anchor, ensured lazily,
 **non-removable and non-renamable**. Any **existing worktree** the user explicitly attaches is recorded in
@@ -28,7 +28,7 @@ place as `kind: "external"` — outside the data dir, never created or mutated h
   this is the Existing-Worktree dialog's populate call, so a slow/large registry must not freeze the host's
   event loop; each listed path is resolved, since git prints `C:/…` on Windows and the row's path becomes the
   stored `worktreePath` (architecture Decision 22); drop the project folder, prunable registrations, and every
-  path already represented in ThinkRail; branch-backed rows are `available`, detached-HEAD ones `detached`),
+  path already represented in UnityRail; branch-backed rows are `available`, detached-HEAD ones `detached`),
   `openExistingWorktree(projectId, path)`
   (**async** for the same worktree-list read; revalidate against
   the Git registry at the mutation door, comparing canonicalized paths; same-project retries are
@@ -78,6 +78,15 @@ place as `kind: "external"` — outside the data dir, never created or mutated h
   where `name === branch`; **re-reads the registry after the awaited fallback fetch** before appending —
   the pre-await snapshot is stale by then, and saving it would clobber a concurrent list's Default-ensure
   (same discipline as `renameWorkspace`'s re-load after its git subprocess)),
+  **submodules are initialized on the new worktree**: when the project has a `.gitmodules`, `createWorkspace`
+  runs `git submodule update --init --recursive` in the new checkout before saving the record; a repo with
+  no `.gitmodules` pays no extra spawn. The base fallback fetch and the submodule init share one 50s
+  network budget (each step gets the remaining time, floored at 5s) so a create still answers inside the
+  client's 60s request timeout; a timeout or any other init failure **removes the worktree and the branch it
+  just created** (`worktree remove --force --force`, a filesystem fallback + `worktree prune`, then
+  `branch -D`) and throws git's own words as `Could not initialize submodules: …`. A half-created workspace
+  must not be recorded: the agent would start in an empty submodule tree. Local-path submodules follow the
+  user's Git `protocol.file.allow` setting; the host never loosens it.
   `renameWorkspace` (**sync**; sets the sanitized, casing- and script-preserving display `name` and always
   sets `renamed: true`, so automatic naming never touches it again. **`opts.branch`** is the agent's English
   slug from `set_title`: when present, the branch becomes the slug's ASCII kebab form, clamped to 60 (the display name
@@ -133,15 +142,18 @@ place as `kind: "external"` — outside the data dir, never created or mutated h
   against; collapsing them would make a re-pointed target lie about provenance (the `branch · from
   baseBranch` receipt). Every read of "the base" resolves through the `git` module, never inline —
   `diffStats` composes the git module's **branch-scope range** (`resolveDiffRange` +
-  `changedFileArgs(…, "--shortstat")`), so the workspace aggregate measures exactly what the Changes panel
-  shows (merge-base semantics included — upstream commits on the base never inflate it) and reaches git
-  bracketed by `--end-of-options` … `--` like every other rev this app passes. `diffStats` yields **no stats at all** (logged) when git couldn't
+  `changedFileArgs(…, "--shortstat")`), so the workspace aggregate measures the root repository's share of
+  what the Changes panel shows (merge-base semantics included — upstream commits on the base never inflate
+  it) and reaches git bracketed by `--end-of-options` … `--` like every other rev this app passes. A nested
+  repository's own line counts are not folded into this one-spawn badge; its files still appear in the
+  panel, and one dirty submodule already surfaces as a changed path in the root shortstat. `diffStats` yields **no stats at all** (logged) when git couldn't
   answer, rather than a fabricated `+0 −0` — a failed read must not paint a dirty worktree as clean; the
   `Workspace.diffStats` field is simply absent, and `workspaceDiffStats` rejects,
   `getWorkspace` (by-id lookup, throws on unknown — anchors a chat session's cwd),
   and the **archive** primitives, split so the fast record-drop
   and the slow git reclaim are separable (the host archives off the request's critical path):
-  `forgetWorkspace(id)` (drop the persistence record, return the removed record or `null` — gone from
+  `forgetWorkspace(id)` (drop the persistence record and the nested-repository discovery cache for it,
+  return the removed record or `null` — gone from
   `listWorkspaces` immediately), `reclaimWorktree(ws)` (the slow half — `git worktree remove --force`,
   keeps the branch; hardened: rm + `prune` if git fails; **refuses both user-owned kinds and,
   defense-in-depth, any record whose `worktreePath` resolves to the project folder** — the rm-fallback must

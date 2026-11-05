@@ -133,7 +133,7 @@ export async function piPackagesInstall(
 	if (summary?.installedPath === undefined) {
 		throw new CodedError(
 			"PACKAGE_INSTALLED_UNLISTED",
-			`${request.source} was added to your settings, but ThinkRail cannot find it on disk.`,
+			`${request.source} was added to your settings, but UnityRail cannot find it on disk.`,
 		);
 	}
 	return { identity, summary };

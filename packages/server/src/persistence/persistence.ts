@@ -230,6 +230,23 @@ function turnChangeSet(value: unknown): TurnChangeSet | null {
 	) {
 		return null;
 	}
+	let nestedTrees: TurnChangeSet["nestedTrees"];
+	if (value.nestedTrees !== undefined) {
+		if (!Array.isArray(value.nestedTrees)) return null;
+		const parsed: NonNullable<TurnChangeSet["nestedTrees"]> = [];
+		for (const entry of value.nestedTrees) {
+			if (
+				!isRecord(entry) ||
+				typeof entry.repo !== "string" ||
+				typeof entry.baseTree !== "string" ||
+				typeof entry.headTree !== "string"
+			) {
+				return null;
+			}
+			parsed.push({ repo: entry.repo, baseTree: entry.baseTree, headTree: entry.headTree });
+		}
+		if (parsed.length > 0) nestedTrees = parsed;
+	}
 	const changes: TurnChangeSet["changes"] = [];
 	for (const change of value.changes) {
 		if (
@@ -245,9 +262,21 @@ function turnChangeSet(value: unknown): TurnChangeSet | null {
 			status: change.status as TurnChangeSet["changes"][number]["status"],
 			...(typeof change.added === "number" ? { added: change.added } : {}),
 			...(typeof change.removed === "number" ? { removed: change.removed } : {}),
+			...(change.submodule === true ? { submodule: true } : {}),
+			...(typeof change.repo === "string" && change.repo ? { repo: change.repo } : {}),
 		});
 	}
-	return { id, workspaceId, sessionId, startedAt, settledAt, baseTree, headTree, changes };
+	return {
+		id,
+		workspaceId,
+		sessionId,
+		startedAt,
+		settledAt,
+		baseTree,
+		headTree,
+		...(nestedTrees ? { nestedTrees } : {}),
+		changes,
+	};
 }
 
 function parseTurns(raw: unknown): PersistedTurns | null {

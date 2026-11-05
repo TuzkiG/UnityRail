@@ -302,7 +302,7 @@ test("openExistingWorktree adopts idempotently and removal never reclaims the ch
 	expect((await openExistingWorktree("p1", external)).id).toBe(workspace.id);
 	expect(events).toHaveLength(1);
 	expect(() => renameWorkspace(workspace.id, "hands off")).toThrow(
-		"An existing worktree cannot be renamed by ThinkRail",
+		"An existing worktree cannot be renamed by UnityRail",
 	);
 
 	removeWorkspace(workspace.id);
@@ -341,7 +341,7 @@ test("existing worktrees represented by another project are rejected before its 
 		false,
 	);
 	await expect(openExistingWorktree("p1", external)).rejects.toThrow(
-		"This worktree is already open under another ThinkRail project",
+		"This worktree is already open under another UnityRail project",
 	);
 });
 
@@ -1179,3 +1179,53 @@ test("setWorkspaceReview persists a trimmed snapshot and stays silent when nothi
 	expect(listWorkspaceRecords("p1").find((row) => row.id === ws.id)?.review).toBeUndefined();
 	expect(events).toHaveLength(3);
 });
+
+test("createWorkspace initializes a new worktree's submodules recursively", async () => {
+	const lib = join(dataDir, "lib");
+	mkdirSync(lib);
+	git(lib, "init", "-b", "main");
+	git(lib, "config", "user.email", "t@thinkrail.test");
+	git(lib, "config", "user.name", "test");
+	git(lib, "config", "commit.gpgsign", "false");
+	writeFileSync(join(lib, "a.txt"), "base\n");
+	git(lib, "add", "-A");
+	git(lib, "commit", "-m", "init");
+	git(repo, "config", "protocol.file.allow", "always");
+	git(repo, "-c", "protocol.file.allow=always", "submodule", "add", "-q", "../lib", "libs/lib");
+	git(repo, "commit", "-m", "add submodule");
+
+	const savedProtocol = process.env.GIT_ALLOW_PROTOCOL;
+	process.env.GIT_ALLOW_PROTOCOL = "file";
+	try {
+		const ws = await createWorkspace("p1");
+		expect(readFileSync(join(ws.worktreePath, "libs/lib/a.txt"), "utf8").trim()).toBe("base");
+		expect(existsSync(join(ws.worktreePath, "libs/lib/.git"))).toBe(true);
+	} finally {
+		if (savedProtocol === undefined) delete process.env.GIT_ALLOW_PROTOCOL;
+		else process.env.GIT_ALLOW_PROTOCOL = savedProtocol;
+	}
+}, 30_000);
+
+test("createWorkspace removes the worktree and branch when submodules cannot be initialized", async () => {
+	const lib = join(dataDir, "lib");
+	mkdirSync(lib);
+	git(lib, "init", "-b", "main");
+	git(lib, "config", "user.email", "t@thinkrail.test");
+	git(lib, "config", "user.name", "test");
+	git(lib, "config", "commit.gpgsign", "false");
+	writeFileSync(join(lib, "a.txt"), "base\n");
+	git(lib, "add", "-A");
+	git(lib, "commit", "-m", "init");
+	git(repo, "config", "protocol.file.allow", "always");
+	git(repo, "-c", "protocol.file.allow=always", "submodule", "add", "-q", "../lib", "libs/lib");
+	git(repo, "commit", "-m", "add submodule");
+	git(repo, "config", "-f", ".gitmodules", "submodule.libs/lib.url", "../missing-lib");
+	git(repo, "add", ".gitmodules");
+	git(repo, "commit", "-m", "break the submodule url");
+	const before = registeredWorktrees(repo);
+
+	await expect(createWorkspace("p1")).rejects.toThrow(/Could not initialize submodules/);
+	expect(registeredWorktrees(repo)).toEqual(before);
+	expect(gitOut(repo, "branch", "--format=%(refname:short)")).toBe("main");
+	expect((await listWorkspaces("p1")).filter((ws) => ws.kind !== "default")).toEqual([]);
+}, 30_000);

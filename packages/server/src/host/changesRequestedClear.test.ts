@@ -76,7 +76,7 @@ afterEach(() => {
 function flaggedItem(store: TodoStore, title: string, file: string): { id: string; sha: string } {
 	writeFileSync(join(repo, file), "export const x = 1;\n");
 	const committed = gitCommitPaths(WS, title, [file]);
-	if (!committed) throw new Error("commit failed");
+	if (!committed?.sha) throw new Error("commit failed");
 	const todo = store.add({
 		title,
 		artifacts: [{ kind: "commit", sha: committed.sha, label: title }],

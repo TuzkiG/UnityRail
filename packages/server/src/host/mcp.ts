@@ -52,7 +52,7 @@ function target(workspaceId: string): { workspace: Workspace; project: Project }
 }
 
 const handledElsewhere = (): CodedError =>
-	new CodedError("MCP_HANDLED_ELSEWHERE", "MCP is not managed by ThinkRail here.");
+	new CodedError("MCP_HANDLED_ELSEWHERE", "MCP is not managed by UnityRail here.");
 
 function assertRenderedEntry(
 	name: string,

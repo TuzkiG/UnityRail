@@ -32,6 +32,7 @@ import {
 	approveTodoReview,
 	cancelTodoReview,
 	listTodos,
+	nestedRepos,
 	recordAgentChangesRequested,
 	renderFixPackage,
 	settleChangeArtifacts,
@@ -297,10 +298,9 @@ async function deliverFixToWorker(
 				marked = sentIds;
 				sent = findings;
 			}
+			const fixContext = renderFixPackage(item, note, nestedRepos(params.workspaceId));
 			return {
-				text: fixPackage
-					? `${renderFixPackage(item, note)}\n\n${fixPackage}`
-					: renderFixPackage(item, note),
+				text: fixPackage ? `${fixContext}\n\n${fixPackage}` : fixContext,
 				details: buildReviewFixDetails({
 					itemId: item.id,
 					itemTitle: item.title,

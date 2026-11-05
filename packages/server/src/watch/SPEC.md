@@ -26,8 +26,12 @@ truth) and visible-panel polling (laggy, wasteful over Tailscale).
   workspace read or `workspace.watchReady` preflight lands — the read is the "a client is looking" signal;
   readiness reports whether the watcher was already known ready), `stopWatch(workspaceId)` (called
   in `workspace.remove`'s fast path),
-  `stopAllWatches()` (called in `server.stop()`); the ignore filter (any path segment `.git` or
-  `node_modules`, plus `.DS_Store`); per-workspace coalescing (deduped relative paths, flushed after
+  `stopAllWatches()` (called in `server.stop()`); the ignore filter (any path segment `.git`,
+  `node_modules`, the host's `.thinkrail` state, or a Unity/IDE churn directory — `Library`, `Temp`, `Logs`,
+  `obj`, `Build`, `Builds`, `UserSettings`, `MemoryCaptures`, `.vs`, `.idea`; plus `.DS_Store` names), so
+  an editor's import loop cannot flood the coalescer and permanently close the watcher. A watcher that
+  fails on the platform edge is **rebuilt** with exponential backoff (2s…30s) instead of dying silently,
+  and the backoff resets once a watch is established; per-workspace coalescing (deduped relative paths, flushed after
   300ms quiet / 1s max-wait, capped at 100 paths → `truncated: true` = a generic wildcard — the ≤ ~1 frame/sec
   bound is **pinned by the e2e churn canary** in `live-refresh.spec.ts`: ~200 writes over ~3s must
   reach the client as ≤ 8 frames while a mid-storm `/health` round-trip stays fast). Skill relevance is
@@ -108,7 +112,10 @@ truth) and visible-panel polling (laggy, wasteful over Tailscale).
   while unwatched still records activity, while an unchanged HEAD is a no-op. It runs inside the registration's guarded
   region, and a throw there — from it or from anything after `entries.set` — tears the fresh entry down
   (`stopWatch`) rather than leaving a registered watcher whose readiness never settles.
+- **Repo-metadata nudge from other modules:** `nudgeRepoMeta(workspaceId)` lets a non-watcher module
+  (today `host`'s `workspace.branchStatus`) push one repo-metadata nudge, so a finished background fetch
+  reaches the client without waiting for a filesystem event.
 - **Public surface (barrel):** `ensureWatch`, `stopWatch`, `stopAllWatches`, `setWatchPublisher`,
-  `setRepoMetaPublisher`, `setWatchStartedPublisher`, `setSkillPathClassifier`.
-- **Allowed deps:** `persistence` (workspace lookup), `log`; `contracts` (payload type); Bun/Node.
+  `setRepoMetaPublisher`, `setWatchStartedPublisher`, `setSkillPathClassifier`, `nudgeRepoMeta`.
+- **Allowed deps:**`persistence` (workspace lookup), `log`; `contracts` (payload type); Bun/Node.
 - **Forbidden:** `host`; sibling features; any pi package.

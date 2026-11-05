@@ -86,7 +86,7 @@ const codeOf = (promise: Promise<unknown>) =>
 		(error: { code?: string }) => error.code ?? "uncoded",
 	);
 
-test("config writes land in the defining file, validate like pi, and a project server added in ThinkRail is approved", async () => {
+test("config writes land in the defining file, validate like pi, and a project server added in UnityRail is approved", async () => {
 	const added = await request("mcp.add", {
 		workspaceId: "w1",
 		scope: "user",

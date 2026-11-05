@@ -133,8 +133,12 @@ import {
 	gitStatus,
 	ignoredPaths,
 	listBranches,
+	listBranchesAt,
 	listCommits,
+	listNestedRepoStatuses,
+	listWorktreeRepos,
 	originUrls,
+	ownerOf,
 	type PushTargetStatus,
 	prefetchBranch,
 	remoteRefOid,
@@ -221,7 +225,29 @@ import {
 	updateTodo,
 } from "../todos";
 import { forgetWorkspaceTurns, listTurns } from "../turns";
-import { ensureWatch, stopWatch } from "../watch";
+import {
+	unityClearConsole,
+	unityCompile,
+	unityConsole,
+	unityDoctor,
+	unityFind,
+	unityHierarchy,
+	unityInspect,
+	unityInstallBridge,
+	unityLinkModule,
+	unityOpen,
+	unityOpenEditor,
+	unityPlaymode,
+	unityProjectConfig,
+	unityScreenshot,
+	unitySelect,
+	unitySetProjectConfig,
+	unitySnapshot,
+	unityStatus,
+	unityTests,
+	unityUnlinkModule,
+} from "../unity";
+import { ensureWatch, nudgeRepoMeta, stopWatch } from "../watch";
 import {
 	createWorkspace,
 	ensureWorkspaceScratchDir,
@@ -638,7 +664,7 @@ const handlers: WsHandlers = {
 	},
 	"workspace.list": async (p) => {
 		const rows = (
-			await listWorkspaces(p.projectId, { includeDiffStats: p.includeDiffStats ?? true })
+			await listWorkspaces(p.projectId, { includeDiffStats: p.includeDiffStats ?? false })
 		).map((workspace) => ({ ...workspace, ...provisionInitialTerminal(workspace) }));
 		void scheduleLifecyclePass(p.projectId).catch(() =>
 			log.warn(`settled lifecycle pass failed for project ${p.projectId}`),
@@ -668,20 +694,43 @@ const handlers: WsHandlers = {
 		const fresh = shouldRefreshOpenReview(p.allowCached);
 		const origin = await originUrls(ws.worktreePath);
 		const splitPushUrl = origin.push !== origin.fetch ? origin.push : null;
-		const [outcome, measured, aheadOfBase] = await Promise.all([
-			findBranchReviewOutcome(ws.worktreePath, ws.branch, { fresh }),
-			(splitPushUrl
-				? countPushTargetDivergence(ws.worktreePath, ws.branch, splitPushUrl)
-				: countPushDivergence(ws.worktreePath, ws.branch, {
-						fetch: fresh && p.skipFetch !== true,
-					}).then(
-						(divergence): PushTargetStatus =>
-							divergence ? { published: true, ...divergence } : { published: false },
-					)
-			).catch(() => undefined),
+		// Local facts answer first; the fetch and the fresh review lookup finish in the background and
+		// nudge the client into one cached re-read.
+		const measure = async (): Promise<PushTargetStatus | undefined> => {
+			try {
+				if (splitPushUrl)
+					return await countPushTargetDivergence(ws.worktreePath, ws.branch, splitPushUrl);
+				const divergence = await countPushDivergence(ws.worktreePath, ws.branch);
+				return divergence ? { published: true, ...divergence } : { published: false };
+			} catch {
+				return undefined;
+			}
+		};
+		const [outcome, measured, aheadOfBase, nested] = await Promise.all([
+			findBranchReviewOutcome(ws.worktreePath, ws.branch, { fresh: false }),
+			measure(),
 			commitsAheadOf(ws.worktreePath, ws.baseBranch),
+			listNestedRepoStatuses(ws).catch(() => []),
 		]);
 		if (outcome.reliable) setWorkspaceReview(ws.id, outcome.value, ws.branch);
+		if (fresh) {
+			void (async () => {
+				if (!splitPushUrl && p.skipFetch !== true) {
+					try {
+						await countPushDivergence(ws.worktreePath, ws.branch, { fetch: true });
+					} catch {
+						// A network failure never rolls back the response: the client keeps local counts.
+					}
+				}
+				try {
+					const refreshed = await findBranchReviewOutcome(ws.worktreePath, ws.branch, {
+						fresh: true,
+					});
+					if (refreshed.reliable) setWorkspaceReview(ws.id, refreshed.value, ws.branch);
+				} catch {}
+				nudgeRepoMeta(p.workspaceId);
+			})();
+		}
 		return {
 			hasOrigin: origin.push !== null,
 			provider: origin.push ? providerFromRemoteUrl(origin.push) : null,
@@ -695,6 +744,7 @@ const handlers: WsHandlers = {
 			aheadOfBase,
 			onBase: onBaseBranch(ws),
 			review: openReviewForClient(outcome.value, ctx.protocolVersion),
+			...(nested.length > 0 ? { repos: nested } : {}),
 		};
 	},
 	"workspace.push": async (p) => {
@@ -738,7 +788,42 @@ const handlers: WsHandlers = {
 		return { ok: true } as const;
 	},
 	"editor.list": () => listAvailableEditors(),
-	"git.listBranches": (params) => listBranches(params.projectId),
+	"unity.snapshot": (p) => unitySnapshot(p.workspaceId),
+	"unity.status": (p) => unityStatus(p.workspaceId),
+	"unity.console": (p) => unityConsole(p.workspaceId, p),
+	"unity.compile": (p) => unityCompile(p.workspaceId, p.force === true),
+	"unity.playmode": (p) => unityPlaymode(p.workspaceId, p.action),
+	"unity.screenshot": (p) => unityScreenshot(p.workspaceId, p.view, p.width),
+	"unity.tests": (p) => unityTests(p.workspaceId, p.mode, p.filter),
+	"unity.hierarchy": (p) => unityHierarchy(p.workspaceId, p.scene),
+	"unity.inspect": (p) => unityInspect(p.workspaceId, p.path),
+	"unity.find": (p) => unityFind(p.workspaceId, p.query, p.type, p.limit),
+	"unity.open": (p) => unityOpen(p.workspaceId, p.path),
+	"unity.select": (p) => unitySelect(p.workspaceId, p.path),
+	"unity.clearConsole": (p) => unityClearConsole(p.workspaceId),
+	"unity.doctor": (p) => unityDoctor(p.workspaceId),
+	"unity.openEditor": (p) => unityOpenEditor(p.workspaceId),
+	"unity.installBridge": (p) => unityInstallBridge(p.workspaceId),
+	"unity.projectConfig": (p) => unityProjectConfig(p.workspaceId),
+	"unity.linkModule": (p) => unityLinkModule(p.workspaceId, p.name, p.path),
+	"unity.unlinkModule": (p) => unityUnlinkModule(p.workspaceId, p.path),
+	"unity.setProjectConfig": (p) =>
+		unitySetProjectConfig(p.workspaceId, {
+			...(p.projectRoot === undefined ? {} : { projectRoot: p.projectRoot }),
+			...(p.businessPath === undefined ? {} : { businessPath: p.businessPath }),
+			...(p.linkTarget === undefined ? {} : { linkTarget: p.linkTarget }),
+			...(p.modules === undefined ? {} : { modules: p.modules }),
+		}),
+	"git.listBranches": async (params) => {
+		if (params.workspaceId) {
+			const ws = getWorkspace(params.workspaceId);
+			const repo = (await listWorktreeRepos(ws)).find(
+				(candidate) => candidate.path === (params.repo ?? ""),
+			);
+			if (repo) return listBranchesAt(repo.worktreePath);
+		}
+		return listBranches(params.projectId);
+	},
 	"git.prefetch": async (p) => {
 		const { ok, moved } = await prefetchBranch(p.projectId, p.ref);
 		if (moved) nudgeBaseRefWorkspaces(p.projectId, p.ref);
@@ -791,13 +876,26 @@ const handlers: WsHandlers = {
 	"fs.readDir": async (p) => {
 		void ensureWatch(p.workspaceId);
 		const nodes = readDir(p.workspaceId, p.path);
-		const ignored = await ignoredPaths(
-			getWorkspace(p.workspaceId).worktreePath,
-			nodes.map((node) => node.path),
+		const ws = getWorkspace(p.workspaceId);
+		const repos = await listWorktreeRepos(ws);
+		const dir = p.path.replaceAll("\\", "/");
+		const repo = repos.find((candidate) => candidate.path === dir) ?? ownerOf(repos, dir).repo;
+		const nested = new Set(
+			repos.filter((candidate) => candidate.path !== "").map((candidate) => candidate.path),
 		);
-		return ignored.size === 0
-			? nodes
-			: nodes.map((node) => (ignored.has(node.path) ? { ...node, gitignored: true } : node));
+		const markedNodes = nodes.map((node) =>
+			nested.has(node.path) ? { ...node, nestedRepo: true } : node,
+		);
+		const base = repo.path === "" ? "" : `${repo.path}/`;
+		const relative = markedNodes
+			.filter((node) => node.path.startsWith(base))
+			.map((node) => node.path.slice(base.length));
+		const ignored = await ignoredPaths(repo.worktreePath, relative);
+		if (ignored.size === 0) return markedNodes;
+		const marked = new Set([...ignored].map((path) => `${base}${path}`));
+		return markedNodes.map((node) =>
+			marked.has(node.path) ? { ...node, gitignored: true } : node,
+		);
 	},
 	"fs.readFile": (p) => {
 		void ensureWatch(p.workspaceId);
@@ -1179,7 +1277,14 @@ const handlers: WsHandlers = {
 	},
 	"session.activityList": () => [],
 	"session.getMessages": (p) => {
-		return getSessionMessages(p.sessionId, p.workspaceId, getWorkspace(p.workspaceId).worktreePath);
+		return getSessionMessages(
+			p.sessionId,
+			p.workspaceId,
+			getWorkspace(p.workspaceId).worktreePath,
+			{
+				deferAttach: true,
+			},
+		);
 	},
 	"mcp.list": (params) => mcpList(params),
 	"mcp.add": (params) => mcpAdd(params),

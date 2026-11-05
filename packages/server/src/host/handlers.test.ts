@@ -100,6 +100,35 @@ function gitText(cwd: string, ...args: string[]): string {
 	return new TextDecoder().decode(result.stdout).trim();
 }
 
+async function waitFor<T>(run: () => Promise<T>, satisfied: (value: T) => boolean): Promise<T> {
+	const deadline = Date.now() + 15_000;
+	let last: T | undefined;
+	while (Date.now() < deadline) {
+		last = await run();
+		if (satisfied(last)) return last;
+		await new Promise((resolve) => setTimeout(resolve, 250));
+	}
+	throw new Error(`condition was not met in time; last value: ${JSON.stringify(last)}`);
+}
+
+type BranchStatusView = {
+	published?: boolean | null;
+	pushesElsewhere?: boolean;
+	ahead?: number;
+	behind?: number;
+};
+
+async function branchStatus(
+	workspaceId: string,
+	params?: { allowCached?: true; skipFetch?: true },
+): Promise<BranchStatusView> {
+	return (await handleRequest(
+		"workspace.branchStatus",
+		{ workspaceId, ...params },
+		CTX,
+	)) as BranchStatusView;
+}
+
 beforeEach(() => {
 	dataDir = mkdtempSync(join(tmpdir(), "trpi-handlers-test-"));
 	process.env.THINKRAIL_DATA_DIR = dataDir;
@@ -275,9 +304,11 @@ test("a CI poll re-reads the review without fetching origin; a focus read still 
 			CTX,
 		),
 	).toMatchObject({ published: true, behind: 0 });
-	expect(
-		await handleRequest("workspace.branchStatus", { workspaceId: workspace.id }, CTX),
-	).toMatchObject({ published: true, behind: 1 });
+	// The fresh read answers with local facts first; the background fetch lands behind: 1 soon after.
+	await waitFor(
+		() => branchStatus(workspace.id),
+		(status) => status.behind === 1,
+	);
 });
 
 test("a split origin measures the branch against where it is pushed, not where it is fetched", async () => {
@@ -316,9 +347,12 @@ test("a split origin measures the branch against where it is pushed, not where i
 	git(workspace.worktreePath, "fetch", "origin");
 	git(other, "push", "origin", "--delete", workspace.branch);
 
-	expect(
-		await handleRequest("workspace.branchStatus", { workspaceId: workspace.id }, CTX),
-	).toMatchObject({ published: true, pushesElsewhere: true, ahead: 0, behind: 0 });
+	expect(await branchStatus(workspace.id)).toMatchObject({
+		published: true,
+		pushesElsewhere: true,
+		ahead: 0,
+		behind: 0,
+	});
 
 	const pushed = join(dataDir, "pushed");
 	git(dataDir, "clone", "--branch", workspace.branch, pushRepo, pushed);
@@ -331,13 +365,11 @@ test("a split origin measures the branch against where it is pushed, not where i
 
 	git(workspace.worktreePath, "fetch", "--prune", "origin");
 
-	expect(
-		await handleRequest(
-			"workspace.branchStatus",
-			{ workspaceId: workspace.id, allowCached: true },
-			CTX,
-		),
-	).toMatchObject({ published: true, ahead: 0, behind: 1 });
+	expect(await branchStatus(workspace.id, { allowCached: true })).toMatchObject({
+		published: true,
+		ahead: 0,
+		behind: 1,
+	});
 });
 
 test("a split origin whose push repository can't be read reports publication as unknown", async () => {
@@ -524,6 +556,31 @@ test("extension.list reflects disabledExtensions written through settings.update
 			tools: ["web_search", "fetch_content", "get_search_content"],
 			hasChildExtensions: true,
 		},
+		{
+			name: "unity",
+			title: "Unity",
+			description: expect.any(String),
+			enabled: true,
+			tools: [
+				"unity_project",
+				"unity_doctor",
+				"unity_install_bridge",
+				"unity_open_editor",
+				"unity_compile",
+				"unity_console",
+				"unity_playmode",
+				"unity_screenshot",
+				"unity_tests",
+				"unity_verify",
+				"unity_status",
+				"unity_hierarchy",
+				"unity_inspect",
+				"unity_find",
+				"unity_open",
+				"unity_select",
+			],
+			hasChildExtensions: false,
+		},
 	]);
 	await handleRequest(
 		"settings.update",
@@ -534,12 +591,14 @@ test("extension.list reflects disabledExtensions written through settings.update
 		{ name: "visualize", enabled: false },
 		{ name: "ask-user-question", enabled: true },
 		{ name: "web-access", enabled: false },
+		{ name: "unity", enabled: true },
 	]);
 	await handleRequest("settings.update", { config: { disabledExtensions: [] } }, CTX);
 	expect(await handleRequest("extension.list", {}, CTX)).toMatchObject([
 		{ name: "visualize", enabled: true },
 		{ name: "ask-user-question", enabled: true },
 		{ name: "web-access", enabled: true },
+		{ name: "unity", enabled: true },
 	]);
 });
 

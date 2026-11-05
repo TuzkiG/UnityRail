@@ -120,7 +120,7 @@ function assertScopeWritable(ctx: PiPackageHostContext, scope: PiPackageScope): 
 	if (!ctx.cwd || !ctx.projectTrusted()) {
 		throw new CodedError(
 			"PACKAGE_UNTRUSTED",
-			"Repository packages need a trusted project before ThinkRail writes .pi/settings.json.",
+			"Repository packages need a trusted project before UnityRail writes .pi/settings.json.",
 		);
 	}
 }

@@ -171,3 +171,33 @@ test("/blob streams a multi-megabyte blob through a live server", async () => {
 		server.stop(true);
 	}
 });
+
+test("/blob resolves the repository that owns a nested path", async () => {
+	const lib = join(dataDir, "lib");
+	mkdirSync(lib);
+	const run = (...args: string[]) => {
+		const result = Bun.spawnSync(["git", "-C", lib, ...args], { stdout: "pipe", stderr: "ignore" });
+		if (!result.success) throw new Error(`git ${args.join(" ")} failed`);
+		return new TextDecoder().decode(result.stdout).trim();
+	};
+	run("init", "-b", "main");
+	run("config", "user.email", "t@thinkrail.test");
+	run("config", "user.name", "test");
+	run("config", "commit.gpgsign", "false");
+	writeFileSync(join(lib, "nested.md"), "# nested\n");
+	run("add", "-A");
+	run("commit", "-m", "init");
+	git("config", "protocol.file.allow", "always");
+	git("-c", "protocol.file.allow=always", "submodule", "add", "-q", "../lib", "libs/lib");
+	git("commit", "-m", "add submodule");
+	const nestedHead = Bun.spawnSync(["git", "-C", join(repo, "libs/lib"), "rev-parse", "HEAD"], {
+		stdout: "pipe",
+	})
+		.stdout.toString()
+		.trim();
+
+	const response = await serveBlob(`/blob/w1/${nestedHead}/libs%2Flib%2Fnested.md`);
+	expect(response.status).toBe(200);
+	expect(await response.text()).toBe("# nested\n");
+	expect((await serveBlob(`/blob/w1/${head}/libs%2Flib%2Fnested.md`)).status).toBe(404);
+});

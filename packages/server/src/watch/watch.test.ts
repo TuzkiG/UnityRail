@@ -149,6 +149,18 @@ test("isIgnoredPath skips .git and node_modules subtrees and .DS_Store noise", (
 	expect(isIgnoredPath("my_node_modules_tool/a.ts")).toBe(false);
 });
 
+test("isIgnoredPath skips the host's own state and Unity/IDE churn directories", () => {
+	expect(isIgnoredPath(".thinkrail/sessions/a.jsonl")).toBe(true);
+	expect(isIgnoredPath("Library/ScriptAssemblies/Assembly-CSharp.dll")).toBe(true);
+	expect(isIgnoredPath("Temp/UnityLockfile")).toBe(true);
+	expect(isIgnoredPath("Logs/Packages-Update.log")).toBe(true);
+	expect(isIgnoredPath("obj/Debug/Assembly-CSharp.dll")).toBe(true);
+	expect(isIgnoredPath("UserSettings/Layouts/default-6000.dwlt")).toBe(true);
+	expect(isIgnoredPath(".vs/UnityRail/v17/.suo")).toBe(true);
+	// A real source folder that merely shares a prefix stays watched.
+	expect(isIgnoredPath("Assets/Library.cs")).toBe(false);
+});
+
 let dataDir: string;
 let worktree: string;
 let payloads: WorkspaceFsChangedPayload[];

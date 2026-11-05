@@ -11,7 +11,7 @@ tags: [pi, extensions]
 
 ## Responsibility
 
-What ThinkRail owns around pi's package manager so Settings → Extensions can list and manage the pi
+What UnityRail owns around pi's package manager so Settings → Extensions can list and manage the pi
 packages, loose extension files and built-ins a chat loads: a **read-only catalog** that never installs
 and never runs extension code, the **settings views** every pi loader in the host goes through, pi's
 **package identity rule** for the host-wide package switch, and the install / remove / update / toggle
@@ -30,7 +30,7 @@ this module never spawns npm or git itself.
 3. **Writes are pi's format, top-level only.** Loose files and built-ins are toggled with pi's
    `±pattern` / `±builtin:<name>` entries; declarations are added and removed through pi's own
    `addSourceToSettings` / `removeSourceFromSettings`. Nothing inside a package is rewritten (see Deferred).
-4. **The identity is ThinkRail's key, never pi's input.** It keys `disabledPackages` and nothing else.
+4. **The identity is UnityRail's key, never pi's input.** It keys `disabledPackages` and nothing else.
 
 ## Files
 

@@ -1,5 +1,5 @@
 import { createReadStream, existsSync, rmSync, statSync, truncateSync } from "node:fs";
-import { readdir } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { clampThinkingLevel, getSupportedThinkingLevels, type Usage } from "@earendil-works/pi-ai";
@@ -1706,6 +1706,152 @@ async function listSessionInfosStrict(
 	return infos;
 }
 
+/**
+ * `firstPromptOf` parses a whole transcript, and a workspace with real history has many of them, so
+ * `session.list` would re-read every file on each call. The transcript's mtime+size identifies its
+ * content: a cache hit is the same answer without the parse, and any append invalidates it.
+ */
+const diskFirstPromptCache = new Map<
+	string,
+	{ mtimeMs: number; size: number; firstPrompt?: string }
+>();
+const DISK_FIRST_PROMPT_CACHE_LIMIT = 256;
+
+function diskSummaryState(sessionId: string): SessionState {
+	const saved = persistedCompletion(sessionId);
+	const completion = saved?.completion ?? null;
+	const handled = receipts()?.handledCompletionBySession[sessionId];
+	return {
+		execution: "idle",
+		runId: saved?.runId ?? null,
+		needsInput: null,
+		completion,
+		completionUnread:
+			completion !== null &&
+			completion.outcome !== "cancelled" &&
+			completion.completionId !== handled,
+		queuedCount: 0,
+		backgroundWork: false,
+	};
+}
+
+function userText(entry: unknown): string {
+	if (typeof entry !== "object" || entry === null) return "";
+	if (Reflect.get(entry, "type") !== "message") return "";
+	const message = Reflect.get(entry, "message");
+	if (typeof message !== "object" || message === null) return "";
+	if (Reflect.get(message, "role") !== "user") return "";
+	const content = Reflect.get(message, "content");
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+	return content
+		.map((part) =>
+			typeof part === "object" && part !== null && Reflect.get(part, "type") === "text"
+				? String(Reflect.get(part, "text") ?? "")
+				: "",
+		)
+		.join("");
+}
+
+const FIRST_PROMPT_HEAD_LINES = 200;
+
+/** `session.list` must not parse a whole transcript. The first user prompt is normally in the head;
+ * cap the scan so a multi-megabyte session costs a few lines, not a full open. */
+async function diskFirstPrompt(info: SessionInfo): Promise<{ firstPrompt?: string }> {
+	const key = resolve(info.path);
+	let mtimeMs = 0;
+	let size = 0;
+	try {
+		const stat = statSync(info.path);
+		mtimeMs = stat.mtimeMs;
+		size = stat.size;
+	} catch {
+		return {};
+	}
+	const cached = diskFirstPromptCache.get(key);
+	if (cached && cached.mtimeMs === mtimeMs && cached.size === size) {
+		return cached.firstPrompt === undefined ? {} : { firstPrompt: cached.firstPrompt };
+	}
+	let found: { firstPrompt?: string } = {};
+	const input = createReadStream(info.path, { encoding: "utf8" });
+	const lines = createInterface({ input, crlfDelay: Number.POSITIVE_INFINITY });
+	try {
+		let scanned = 0;
+		for await (const line of lines) {
+			if (scanned++ >= FIRST_PROMPT_HEAD_LINES) break;
+			if (!line.trim()) continue;
+			let entry: unknown;
+			try {
+				entry = JSON.parse(line);
+			} catch {
+				continue;
+			}
+			const head = firstPromptOfTexts([userText(entry)]);
+			if (head) {
+				found = { firstPrompt: head };
+				break;
+			}
+		}
+	} finally {
+		lines.close();
+		input.destroy();
+	}
+	diskFirstPromptCache.set(key, { mtimeMs, size, ...found });
+	if (diskFirstPromptCache.size > DISK_FIRST_PROMPT_CACHE_LIMIT) {
+		const oldest = diskFirstPromptCache.keys().next();
+		if (!oldest.done) diskFirstPromptCache.delete(oldest.value);
+	}
+	return found;
+}
+
+const DISK_STATE_CACHE_LIMIT = 512;
+
+/** The transcript decides the run and its outcome; the receipts decide whether that outcome is still
+ * unread, and they change without touching the file. A cached record is served with the live flag. */
+function refreshUnread(record: SessionStateRecord): SessionStateRecord {
+	const { state } = record;
+	if (state.completion === null) return record;
+	const handled = receipts()?.handledCompletionBySession[record.sessionId];
+	const completionUnread =
+		state.completion.outcome !== "cancelled" && state.completion.completionId !== handled;
+	if (completionUnread === state.completionUnread) return record;
+	return { ...record, state: { ...state, completionUnread } };
+}
+
+/** Opening a transcript to derive its state parses the whole branch, so a reconnect would re-pay it
+ * for every disk session. Transcript mtime+size identify the content: a hit is the same record. */
+const diskStateRecordCache = new Map<
+	string,
+	{ mtimeMs: number; size: number; record: SessionStateRecord }
+>();
+
+function diskStateRecordFor(
+	info: SessionInfo,
+	workspace: { id: string; projectId: string },
+	baseline: boolean,
+): SessionStateRecord {
+	const key = `${resolve(info.path)}\0${baseline ? "baseline" : "current"}`;
+	let mtimeMs = 0;
+	let size = 0;
+	try {
+		const stat = statSync(info.path);
+		mtimeMs = stat.mtimeMs;
+		size = stat.size;
+	} catch {}
+	const cached = diskStateRecordCache.get(key);
+	if (cached && cached.mtimeMs === mtimeMs && cached.size === size) {
+		return refreshUnread(cached.record);
+	}
+	const manager = SessionManager.open(info.path);
+	const record = diskStateRecord(info.id, workspace, manager, baseline);
+	diskStateRecordCache.set(key, { mtimeMs, size, record });
+	if (diskStateRecordCache.size > DISK_STATE_CACHE_LIMIT) {
+		const oldest = diskStateRecordCache.keys().next();
+		if (!oldest.done) diskStateRecordCache.delete(oldest.value);
+	}
+	return record;
+}
+
 async function listSessionsInternal(workspaceId: string, cwd: string): Promise<SessionSummary[]> {
 	const live: SessionSummary[] = [];
 	const liveIds = new Set<string>();
@@ -1718,32 +1864,43 @@ async function listSessionsInternal(workspaceId: string, cwd: string): Promise<S
 		liveIds.add(sessionId);
 	}
 	const infos = await listSessionInfosStrict(cwd, liveFiles);
-	const disk: SessionSummary[] = infos
-		.filter(
-			(info) =>
-				info.cwd === cwd && !liveIds.has(info.id) && !isSessionDeleted(info.id, workspaceId),
-		)
-		.map((info) => {
-			const manager = SessionManager.open(info.path);
-			return {
-				sessionId: info.id,
-				workspaceId,
-				title: info.name ?? "",
-				...firstPromptOf(manager.getEntries()),
-				model: null,
-				thinkingLevel: "medium" as ThinkingLevel,
-				isStreaming: false,
-				messageCount: info.messageCount,
-				updatedAt: info.modified.getTime(),
-				live: false,
-				state: stateFromDisk(info.id, manager),
-			};
-		});
+	const disk = await Promise.all(
+		infos
+			.filter(
+				(info) =>
+					info.cwd === cwd && !liveIds.has(info.id) && !isSessionDeleted(info.id, workspaceId),
+			)
+			.map(
+				async (info): Promise<SessionSummary> => ({
+					sessionId: info.id,
+					workspaceId,
+					title: info.name ?? "",
+					...(await diskFirstPrompt(info)),
+					model: null,
+					thinkingLevel: "medium" as ThinkingLevel,
+					isStreaming: false,
+					messageCount: info.messageCount,
+					updatedAt: info.modified.getTime(),
+					live: false,
+					state: diskSummaryState(info.id),
+				}),
+			),
+	);
 	return [...live, ...disk];
 }
 
+const listSessionsInflight = new Map<string, Promise<SessionSummary[]>>();
+
 export function listSessions(workspaceId: string, cwd: string): Promise<SessionSummary[]> {
-	return listSessionsInternal(workspaceId, cwd);
+	const key = `${workspaceId}\0${cwd}`;
+	const existing = listSessionsInflight.get(key);
+	if (existing) return existing;
+	const pending = listSessionsInternal(workspaceId, cwd);
+	const tracked = pending.finally(() => {
+		if (listSessionsInflight.get(key) === tracked) listSessionsInflight.delete(key);
+	});
+	listSessionsInflight.set(key, tracked);
+	return tracked;
 }
 
 export interface SessionStateWorkspace {
@@ -1817,16 +1974,23 @@ async function collectSessionStateSources(
 			) {
 				continue;
 			}
-			const manager = SessionManager.open(info.path);
-			const record = diskStateRecord(info.id, workspace, manager, baseline);
+			// `stateList` hydrates from the cached record; the manager is only opened by the rare
+			// `publish`/`branch` paths (mark read/unread), so a poll never re-parses history.
+			let manager: SessionManager | null = null;
+			const opened = (): SessionManager => {
+				manager ??= SessionManager.open(info.path);
+				return manager;
+			};
+			const record = diskStateRecordFor(info, workspace, baseline);
 			records.push({
 				record,
-				branch: () => manager.getBranch(),
+				branch: () => opened().getBranch(),
 				publish: () => {
+					const live = opened();
 					const current = {
 						...record,
-						state: stateFromDisk(info.id, manager),
-						title: manager.getSessionName() ?? "",
+						state: stateFromDisk(info.id, live),
+						title: live.getSessionName() ?? "",
 					};
 					publishState(current);
 					return current;
@@ -2030,7 +2194,130 @@ function persistedSessionModelRef(model: unknown): { provider: string; id: strin
 	return { provider, id };
 }
 
-async function openDiskSession(
+async function findSessionFile(cwd: string, sessionId: string): Promise<string | null> {
+	const dir = defaultSessionDirectory(cwd);
+	let names: string[];
+	try {
+		names = await readdir(dir);
+	} catch (error) {
+		if (hasErrorCode(error, "ENOENT")) return null;
+		throw new Error(`Session directory is unreadable: ${dir}`, { cause: error });
+	}
+	const suffix = `_${sessionId}.jsonl`;
+	for (const name of names) {
+		if (!name.endsWith(".jsonl")) continue;
+		if (name !== `${sessionId}.jsonl` && !name.endsWith(suffix)) continue;
+		const path = join(dir, name);
+		const identity = await readSessionFileIdentity(path);
+		if (identity?.id === sessionId && resolve(identity.cwd) === resolve(cwd)) return path;
+	}
+	return null;
+}
+
+/** Target one transcript by its session id. The filename carries the id, so a restore reads one header
+ * instead of every session file's header and full body; the strict list stays as the legacy fallback
+ * (and keeps its unreadable-transcript diagnostic). */
+async function sessionFileForId(cwd: string, sessionId: string): Promise<string | null> {
+	const targeted = await findSessionFile(cwd, sessionId);
+	if (targeted) return targeted;
+	const infos = await listSessionInfosStrict(cwd);
+	return (
+		infos.find((candidate) => candidate.id === sessionId && candidate.cwd === cwd)?.path ?? null
+	);
+}
+
+function assertDiskSession(sessionManager: SessionManager, sessionId: string, cwd: string): void {
+	if (
+		sessionManager.getSessionId() !== sessionId ||
+		resolve(sessionManager.getCwd()) !== resolve(cwd)
+	)
+		throw new Error(`Unknown session: ${sessionId}`);
+}
+
+interface OpenedDiskSession {
+	manager: SessionManager;
+	path: string;
+}
+
+const diskOpens = new Map<string, Promise<OpenedDiskSession>>();
+
+/** One open+repair per session while a disk read and an attach race. Repair appends entries, so two
+ * independent managers repairing the same dangling call would leave duplicate acks. */
+function openDiskManager(sessionId: string, cwd: string): Promise<OpenedDiskSession> {
+	const key = `${sessionId} ${resolve(cwd)}`;
+	const existing = diskOpens.get(key);
+	if (existing) return existing;
+	const pending = (async () => {
+		const path = await sessionFileForId(cwd, sessionId);
+		if (!path) throw new Error(`Unknown session: ${sessionId}`);
+		const manager = SessionManager.open(path);
+		assertDiskSession(manager, sessionId, cwd);
+		repairDanglingToolCalls(manager, enabledInteractiveTools());
+		return { manager, path };
+	})().finally(() => {
+		if (diskOpens.get(key) === pending) diskOpens.delete(key);
+	});
+	diskOpens.set(key, pending);
+	return pending;
+}
+
+interface DiskTranscript {
+	manager: SessionManager;
+	summary: SessionSummary;
+	messages: TranscriptMessage[];
+}
+
+/** Read a transcript for display without building the live agent session (resource loader, extensions,
+ * MCP, tools). That construction is what makes a cold restore slow; it still starts in the background
+ * so the first prompt waits for it, while reading the chat does not. */
+async function readDiskSession(
+	sessionId: string,
+	workspaceId: string,
+	cwd: string,
+): Promise<DiskTranscript> {
+	const { manager, path } = await openDiskManager(sessionId, cwd);
+	const context = manager.buildSessionContext();
+	let model: WireModel | null = null;
+	try {
+		const generation = await getPiRuntimeGeneration();
+		const persisted = persistedSessionModelRef(context.model);
+		let resolved: Model<string> | undefined;
+		if (persisted) {
+			try {
+				resolved = resolvePersistedModel(generation.runtime, persisted);
+			} catch {
+				resolved = preferredDefaultModel(settledAvailableModels(generation.runtime));
+			}
+		} else {
+			resolved = preferredDefaultModel(settledAvailableModels(generation.runtime));
+		}
+		if (resolved) model = sessionWireModel(resolved, generation);
+	} catch {}
+	let updatedAt = Date.now();
+	try {
+		updatedAt = (await stat(path)).mtimeMs;
+	} catch {}
+	const summary: SessionSummary = {
+		sessionId,
+		workspaceId,
+		title: manager.getSessionName() ?? "",
+		...firstPromptOf(manager.getEntries()),
+		model,
+		thinkingLevel: context.thinkingLevel as ThinkingLevel,
+		isStreaming: false,
+		messageCount: context.messages.length,
+		updatedAt,
+		live: false,
+		state: stateFromDisk(sessionId, manager),
+	};
+	const messages = context.messages.filter((message) =>
+		isTranscriptMessageRole(message.role),
+	) as TranscriptMessage[];
+	return { manager, summary, messages };
+}
+
+async function createDiskSession(
+	sessionManager: SessionManager,
 	sessionId: string,
 	workspaceId: string,
 	cwd: string,
@@ -2041,17 +2328,12 @@ async function openDiskSession(
 		!sessionCanAttach(sessionId, workspaceId)
 	)
 		throw new Error(`Unknown session: ${sessionId}`);
-	const info = (await listSessionInfosStrict(cwd)).find(
-		(candidate) => candidate.id === sessionId && candidate.cwd === cwd,
-	);
-	if (!info) throw new Error(`Unknown session: ${sessionId}`);
 	if (sessions.has(sessionId)) return;
 	const generation = await getPiRuntimeGeneration();
 	const settingsManager = buildSessionSettings(
 		cwd,
 		skillAdmissionResolver(workspaceId).piResourceTrusted,
 	);
-	const sessionManager = SessionManager.open(info.path);
 	const persistedModel = persistedSessionModelRef(sessionManager.buildSessionContext().model);
 	let exactModel: Model<string> | undefined;
 	if (persistedModel) {
@@ -2063,7 +2345,6 @@ async function openDiskSession(
 				exactModel = preferredDefaultModel(settledAvailableModels(generation.runtime));
 		}
 	}
-	repairDanglingToolCalls(sessionManager, enabledInteractiveTools());
 	await createParentSession(
 		{
 			cwd,
@@ -2075,6 +2356,40 @@ async function openDiskSession(
 		generation,
 		lifecycleToken,
 	);
+}
+
+async function openDiskSession(
+	sessionId: string,
+	workspaceId: string,
+	cwd: string,
+	lifecycleToken: WorkspaceLifecycleToken,
+): Promise<void> {
+	if (
+		!workspaceAcceptsSessions(workspaceId, lifecycleToken) ||
+		!sessionCanAttach(sessionId, workspaceId)
+	)
+		throw new Error(`Unknown session: ${sessionId}`);
+	if (sessions.has(sessionId)) return;
+	const { manager } = await openDiskManager(sessionId, cwd);
+	await createDiskSession(manager, sessionId, workspaceId, cwd, lifecycleToken);
+}
+
+function attachOpenedDiskSession(
+	sessionManager: SessionManager,
+	sessionId: string,
+	workspaceId: string,
+	cwd: string,
+	lifecycleToken: WorkspaceLifecycleToken,
+): Promise<void> {
+	if (sessions.has(sessionId)) return Promise.resolve();
+	let pending = attaching.get(sessionId);
+	if (!pending) {
+		pending = serializeSessionFileOperation(sessionId, () =>
+			createDiskSession(sessionManager, sessionId, workspaceId, cwd, lifecycleToken),
+		).finally(() => attaching.delete(sessionId));
+		attaching.set(sessionId, pending);
+	}
+	return pending;
 }
 
 async function ensureSessionAttachedInternal(
@@ -2093,9 +2408,7 @@ async function ensureSessionAttachedInternal(
 		if (live.workspaceId !== workspaceId) throw new Error(`Unknown session: ${sessionId}`);
 		return true;
 	}
-	const known = (await listSessionInfosStrict(cwd)).some(
-		(candidate) => candidate.id === sessionId && candidate.cwd === cwd,
-	);
+	const known = (await sessionFileForId(cwd, sessionId)) !== null;
 	if (!known || !workspaceAcceptsSessions(workspaceId, lifecycleToken)) return false;
 	await attachDiskSession(sessionId, workspaceId, cwd, lifecycleToken);
 	if (!sessions.has(sessionId))
@@ -2115,6 +2428,7 @@ async function getSessionMessagesInternal(
 	sessionId: string,
 	workspaceId: string,
 	cwd: string,
+	options: { deferAttach?: boolean } = {},
 ): Promise<{ summary: SessionSummary; messages: TranscriptMessage[] }> {
 	const lifecycleToken = captureWorkspaceLifecycle(workspaceId);
 	if (
@@ -2122,23 +2436,48 @@ async function getSessionMessagesInternal(
 		!sessionCanAttach(sessionId, workspaceId)
 	)
 		throw new Error(`Unknown session: ${sessionId}`);
-	let entry = sessions.get(sessionId);
-	if (entry && entry.workspaceId !== workspaceId) throw new Error(`Unknown session: ${sessionId}`);
-	if (!entry) {
+	const entry = sessions.get(sessionId);
+	if (entry) {
+		if (entry.workspaceId !== workspaceId) throw new Error(`Unknown session: ${sessionId}`);
+		return { summary: summaryOf(sessionId, entry), messages: transcriptMessages(entry.session) };
+	}
+	if (!options.deferAttach) {
 		await attachDiskSession(sessionId, workspaceId, cwd, lifecycleToken);
 		if (!sessionCanAttach(sessionId, workspaceId)) throw new Error(`Unknown session: ${sessionId}`);
-		entry = sessions.get(sessionId);
-		if (!entry) throw new Error(`Unknown session: ${sessionId}`);
+		const attached = sessions.get(sessionId);
+		if (!attached) throw new Error(`Unknown session: ${sessionId}`);
+		return {
+			summary: summaryOf(sessionId, attached),
+			messages: transcriptMessages(attached.session),
+		};
 	}
-	return { summary: summaryOf(sessionId, entry), messages: transcriptMessages(entry.session) };
+	const disk = await readDiskSession(sessionId, workspaceId, cwd);
+	if (
+		!workspaceAcceptsSessions(workspaceId, lifecycleToken) ||
+		!sessionCanAttach(sessionId, workspaceId)
+	)
+		throw new Error(`Unknown session: ${sessionId}`);
+	const attached = sessions.get(sessionId);
+	if (attached) {
+		if (attached.workspaceId !== workspaceId) throw new Error(`Unknown session: ${sessionId}`);
+		return {
+			summary: summaryOf(sessionId, attached),
+			messages: transcriptMessages(attached.session),
+		};
+	}
+	void attachOpenedDiskSession(disk.manager, sessionId, workspaceId, cwd, lifecycleToken).catch(
+		(error) => log.warn(`deferred session attach failed for ${sessionId}`, error as Error),
+	);
+	return { summary: disk.summary, messages: disk.messages };
 }
 
 export function getSessionMessages(
 	sessionId: string,
 	workspaceId: string,
 	cwd: string,
+	options: { deferAttach?: boolean } = {},
 ): Promise<{ summary: SessionSummary; messages: TranscriptMessage[] }> {
-	return getSessionMessagesInternal(sessionId, workspaceId, cwd);
+	return getSessionMessagesInternal(sessionId, workspaceId, cwd, options);
 }
 
 export async function respondToTool(

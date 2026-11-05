@@ -17,6 +17,7 @@ import {
 	canonicalPath,
 	changedFileArgs,
 	currentBranch,
+	forgetWorktreeRepos,
 	git,
 	gitAsync,
 	headShaAt,
@@ -33,6 +34,9 @@ import { dataDir, loadProjects, loadWorkspaces, saveWorkspaces } from "../persis
 import { getProjects, listProjects } from "../projects";
 
 const log = logger("workspaces");
+
+const CREATE_NETWORK_BUDGET_MS = 50_000;
+const CREATE_NETWORK_MIN_MS = 5_000;
 
 export type WorkspaceLifecycleEvent =
 	| { kind: "created"; workspace: Workspace }
@@ -171,13 +175,13 @@ export async function openExistingWorktree(
 		(candidate) => candidate.id !== projectId && canonicalPath(candidate.path) === wantedPath,
 	);
 	if (projectOwner)
-		throw new Error("This worktree is already open under another ThinkRail project");
+		throw new Error("This worktree is already open under another UnityRail project");
 
 	const all = loadWorkspaces();
 	const existing = all.find((workspace) => canonicalPath(workspace.worktreePath) === wantedPath);
 	if (existing) {
 		if (existing.projectId === projectId) return existing;
-		throw new Error("This worktree is already open under another ThinkRail project");
+		throw new Error("This worktree is already open under another UnityRail project");
 	}
 
 	const displayName =
@@ -236,6 +240,9 @@ export async function createWorkspace(
 	baseRef?: string,
 ): Promise<Workspace> {
 	const project = openProjectById(projectId);
+	const startedAt = Date.now();
+	const remainingNetworkMs = () =>
+		Math.max(CREATE_NETWORK_MIN_MS, CREATE_NETWORK_BUDGET_MS - (Date.now() - startedAt));
 
 	const displayName = name ? toDisplayName(name) : null;
 	const branch = displayName
@@ -259,7 +266,7 @@ export async function createWorkspace(
 		const fetched = await gitAsync(
 			project.path,
 			["fetch", remoteName, "--", baseBranch.slice(`${remoteName}/`.length)],
-			{ network: true },
+			{ network: true, timeoutMs: remainingNetworkMs() },
 		);
 		if (baseMissing())
 			throw new Error(
@@ -282,6 +289,18 @@ export async function createWorkspace(
 		remoteBase ?? baseBranch,
 	]);
 	if (!added.ok) throw new Error(`git worktree add failed: ${added.err}`);
+
+	if (existsSync(join(project.path, ".gitmodules"))) {
+		const submodules = await gitAsync(
+			worktreePath,
+			["submodule", "update", "--init", "--recursive"],
+			{ network: true, timeoutMs: remainingNetworkMs() },
+		);
+		if (!submodules.ok) {
+			discardCreatedWorktree(project.path, worktreePath, branch);
+			throw new Error(`Could not initialize submodules: ${submodules.err || "git failed"}`);
+		}
+	}
 
 	const workspace: Workspace = {
 		id: randomUUID(),
@@ -408,7 +427,7 @@ export function renameWorkspace(
 
 	if (ws.kind === "default") throw new Error("The Default workspace cannot be renamed");
 	if (ws.kind === "external")
-		throw new Error("An existing worktree cannot be renamed by ThinkRail");
+		throw new Error("An existing worktree cannot be renamed by UnityRail");
 	const displayName = toDisplayName(requestedName);
 	if (!displayName) throw new Error(`Invalid workspace name: ${requestedName}`);
 	const wanted = opts.branch === undefined ? "" : branchSlug(opts.branch);
@@ -671,8 +690,23 @@ export function forgetWorkspace(id: string): Workspace | null {
 	saveWorkspaces(all.filter((w) => w.id !== id));
 	observedActivityAt.delete(id);
 	observedHeadSha.delete(id);
+	forgetWorktreeRepos(id);
 	emit({ kind: "removed", projectId: ws.projectId, id: ws.id });
 	return ws;
+}
+
+function discardCreatedWorktree(projectPath: string, worktreePath: string, branch: string): void {
+	const removed = git(projectPath, ["worktree", "remove", "--force", "--force", worktreePath]);
+	if (!removed.ok) {
+		try {
+			rmSync(worktreePath, { recursive: true, force: true });
+		} catch (error) {
+			log.warn(`could not remove an incomplete workspace at ${worktreePath}`, error as Error);
+		}
+	}
+	const deleted = git(projectPath, ["branch", "-D", branch]);
+	if (!deleted.ok) log.warn(`could not delete the failed workspace branch ${branch}`);
+	git(projectPath, ["worktree", "prune"]);
 }
 
 export function reclaimWorktree(ws: Workspace): void {

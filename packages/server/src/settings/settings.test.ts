@@ -801,14 +801,19 @@ test("custom preset updates validate the complete catalog and permit empty struc
 	);
 });
 
-test("a custom preset may place every layout tool, the TODO List included", () => {
+test("a custom preset may place every layout tool, the TODO List and Unity included", () => {
 	const withTools: LayoutPreset = {
 		...preset(),
 		right: {
 			visible: true,
 			width: 0.28,
 			groups: [
-				{ id: "custom-right", weight: 1, folded: false, tools: ["specs", "plan", "review"] },
+				{
+					id: "custom-right",
+					weight: 1,
+					folded: false,
+					tools: ["specs", "plan", "review", "unity"],
+				},
 			],
 		},
 	};

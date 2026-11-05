@@ -18,8 +18,30 @@ const STARTUP_NUDGE_MS = 750;
 const MAX_PREWARM_ONLY_WATCHES = 8;
 
 const IGNORED_SEGMENTS = new Set([".git", "node_modules"]);
+/**
+ * Unity/IDE generated folders are only recognized near the workspace root (the workspace itself or one
+ * project folder deep), so a real `Assets/Scripts/Library` keeps producing change events. `.thinkrail` is
+ * the host's own state and never feeds back into fs ticks.
+ */
+const ROOT_NOISE_SEGMENTS = new Set([
+	".thinkrail",
+	"Library",
+	"Temp",
+	"Logs",
+	"obj",
+	"Build",
+	"Builds",
+	"UserSettings",
+	"MemoryCaptures",
+	".vs",
+	".idea",
+]);
+const ROOT_NOISE_DEPTH = 2;
 const IGNORED_NAMES = new Set([".DS_Store"]);
 const REPO_META_DEBOUNCE_MS = 300;
+/** A failed watcher is rebuilt with exponential backoff instead of dying silently. */
+const WATCH_REBUILD_BASE_MS = 2_000;
+const WATCH_REBUILD_MAX_MS = 30_000;
 
 type WatchPublisher = (payload: WorkspaceFsChangedPayload) => void;
 type SkillPathClassifier = (relativePath: string) => boolean;
@@ -101,6 +123,11 @@ function deliver(sink: string, workspaceId: string, send: () => void): void {
 	}
 }
 
+/** Lets another module (a background branchStatus fetch) push a repo-meta nudge for one workspace. */
+export function nudgeRepoMeta(workspaceId: string): void {
+	deliver("repo-meta", workspaceId, () => publishRepoMeta?.(workspaceId));
+}
+
 function scheduleRepoMeta(workspaceId: string, watcher: FSWatcher): void {
 	const entry = entries.get(workspaceId);
 	if (entry && entry.watcher !== watcher) return;
@@ -117,6 +144,7 @@ function scheduleRepoMeta(workspaceId: string, watcher: FSWatcher): void {
 export function isIgnoredPath(relPath: string): boolean {
 	const segments = relPath.split(/[\\/]/);
 	if (segments.some((s) => IGNORED_SEGMENTS.has(s))) return true;
+	if (segments.slice(0, ROOT_NOISE_DEPTH).some((s) => ROOT_NOISE_SEGMENTS.has(s))) return true;
 	const name = segments[segments.length - 1];
 	return name !== undefined && IGNORED_NAMES.has(name);
 }
@@ -135,6 +163,30 @@ interface WatchEntry {
 }
 
 const entries = new Map<string, WatchEntry>();
+const rebuildAttempts = new Map<string, number>();
+const rebuildTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleWatchRebuild(workspaceId: string, prewarm: boolean): void {
+	const workspaces = loadWorkspaces();
+	if (!workspaces.some((workspace) => workspace.id === workspaceId)) return;
+	if (rebuildTimers.has(workspaceId)) return;
+	const attempt = rebuildAttempts.get(workspaceId) ?? 0;
+	const delay = Math.min(WATCH_REBUILD_BASE_MS * 2 ** Math.min(attempt, 4), WATCH_REBUILD_MAX_MS);
+	rebuildAttempts.set(workspaceId, attempt + 1);
+	log.warn(`worktree watcher failed for workspace ${workspaceId}; rebuilding in ${delay}ms`);
+	const timer = setTimeout(() => {
+		rebuildTimers.delete(workspaceId);
+		void ensureWatch(workspaceId, prewarm ? { prewarm: true } : undefined);
+	}, delay);
+	rebuildTimers.set(workspaceId, timer);
+}
+
+function clearWatchRebuild(workspaceId: string): void {
+	rebuildAttempts.delete(workspaceId);
+	const timer = rebuildTimers.get(workspaceId);
+	if (timer) clearTimeout(timer);
+	rebuildTimers.delete(workspaceId);
+}
 
 function settleReady(entry: WatchEntry): void {
 	if (entry.readySettled) return;
@@ -155,7 +207,10 @@ export function ensureWatch(
 	const prewarm = options?.prewarm === true;
 	const workspaces = loadWorkspaces();
 	for (const id of [...entries.keys()]) {
-		if (!workspaces.some((w) => w.id === id)) stopWatch(id);
+		if (!workspaces.some((w) => w.id === id)) {
+			stopWatch(id);
+			clearWatchRebuild(id);
+		}
 	}
 	const ws = workspaces.find((w) => w.id === workspaceId);
 	if (!ws) return alreadyReady;
@@ -206,8 +261,8 @@ export function ensureWatch(
 			coalescer.add(rel, skillChange);
 		});
 		watcher.on("error", () => {
-			log.warn(`worktree watcher failed for workspace ${workspaceId}`);
 			stopWatch(workspaceId);
+			scheduleWatchRebuild(workspaceId, prewarm);
 		});
 		let resolveReady: (result: WorkspaceWatchReadyResult) => void = () => {};
 		const ready = new Promise<WorkspaceWatchReadyResult>((resolve) => {
@@ -226,6 +281,7 @@ export function ensureWatch(
 			metaWatcher: null,
 		};
 		entries.set(workspaceId, entry);
+		clearWatchRebuild(workspaceId);
 		publishWatchStarted?.(workspaceId);
 		if (entry.prewarmOnly) evictExcessPrewarmOnlyWatches();
 		entry.nudgeTimer = setTimeout(() => {

@@ -26,7 +26,9 @@ channel fan-out, and the process-boot wrapper both launchers share.
   (`git.readBlobStreamAtAsync` behind a 40/64-hex `oid` — a diff range's `resolvedOriginalOid`, so the URL
   names immutable content and answers `Cache-Control: public, max-age=31536000, immutable`; the Git
   primitive requires a blob, so trees/commits/gitlinks are 404 alongside a bad id/oid/escape/absent
-  path). Before opening a blob body, the route performs a bounded `git cat-file -s`; objects above
+  path). The route resolves the path's **owning nested repository** through `git.repoForPath`, so a
+  nested HEAD or turn tree addresses the submodule's object store rather than the root repository's; the
+  same `relpath` still names the file inside that repository. Before opening a blob body, the route performs a bounded `git cat-file -s`; objects above
   `BLOB_SIZE_LIMIT` (64 MiB — the size of the largest image, PDF or notebook a review surface renders
   in one piece, and the bound on what one `change.revert` receipt may pin) are refused with 413. An
   accepted blob is **streamed**: only its 8 KiB sniff head is awaited for the headers and the rest relays
@@ -649,10 +651,14 @@ enabled/confirmed choice before entering analytics attribution.
   await (opening a PR is work, so it reactivates a parked row) and persists any returned PR against the
   exact post-dirty-read branch reported by `openPr` (then strips that host-only context from the wire), so
   an external checkout switch during the mutation can neither drop nor misattach the created PR; accepting
-  a button/auto plan review stamps activity synchronously too. **Review refresh:** after a
+  a button/auto plan review stamps activity synchronously too. **Light list:** `workspace.list` answers
+  without the per-workspace `git diff --shortstat` fan-out unless the client asks for it
+  (`includeDiffStats: true`); those spawns cost seconds each on a large repository and no first paint needs
+  the numbers, while the plan header requests `workspace.diffStats` for the one workspace it shows.
+  **Review refresh:** after a
   `workspace.list` reply and on a five-minute timer the host refreshes the `review` snapshot of the rows
   whose PR state can still change the partition — live rows on every pass, **idle-settled rows at most
-  every 30 minutes** (a PR opened for a dormant branch from outside ThinkRail must still bring it back,
+  every 30 minutes** (a PR opened for a dormant branch from outside UnityRail must still bring it back,
   but dormant branches are the long tail and must stay cheap), and never rows parked by the user (the
   override wins regardless) or a merged/closed snapshot with a valid terminal time (an incomplete settled
   answer remains live and refreshable; a reopened complete review is caught on activation) — bounded to a
@@ -666,17 +672,24 @@ enabled/confirmed choice before entering analytics attribution.
   review, because such a client reads any review as an open PR and its plan pane would offer *Push
   updates* that creates a new PR — the host snapshot itself still records the true state. **Branch status / push / generate (v87):**
   `workspace.branchStatus` composes the same review lookup + divergence as `openReview` with `git`'s
-  `commitsAheadOf` (ahead of the base), `pr`'s `onBaseBranch`, and the provider of origin's push URL (`originUrls`, as `pr.open` reads it); for an
+  `commitsAheadOf` (ahead of the base), `pr`'s `onBaseBranch`, and the provider of origin's push URL (`originUrls`, as `pr.open` reads it). The answer is **local-first**: the push divergence and review
+  lookup run without a network fetch, so a slow/offline origin can no longer stall the first paint; a fresh
+  read then refreshes the origin fetch and the provider lookup in the background and ends with one
+  `watch.nudgeRepoMeta` so the client's cached re-read observes the new facts. For an
   origin whose push URL differs from its fetch URL the divergence is `countPushTargetDivergence` against the
   push repository, so the counts describe the repository the Push action delivers to — `published` is the divergence answer itself (its remote ref exists), so the two never disagree; when
   the measurement fails it falls back to the tracking ref only for a single-URL origin, and a split origin
-  reports `published: null` (unknown) rather than the fetch repository's answer; `workspace.push` stamps activity
+  reports `published: null` (unknown) rather than the fetch repository's answer; it also appends `repos`
+  from `git.listNestedRepoStatuses` (the discovery cache plus local `git status --branch`, no fetch; a
+  nested read failure is skipped), so the topbar can merge nested branch facts with the root card;
+  `workspace.push` stamps activity
   like `pr.open` and drops the worktree's review cache through `pr`; `pr.generate` is composed here —
   `pr` gathers the bounded input (`prDraftInput`), `assist` drafts — so `pr` gains no `assist` edge. **Review
   actions (v88):** `pr.ready` / `pr.merge` / `pr.reopen` / `workspace.deleteRemoteBranch` delegate to `pr` and
   stamp activity like a push; the snapshot follows on the client's next fresh `workspace.branchStatus`
   (a merged review needs the provider's merge time, which only the lookup has). `skipFetch` on
-  `workspace.branchStatus` skips only the origin fetch, never the review lookup. **Backfill:**
+  `workspace.branchStatus` suppresses the background origin fetch, never the review lookup or the
+  background review refresh. **Backfill:**
   the same post-list pass gives records without `lastActiveAt` their
   stamp from the newest chat's `updatedAt` (`listSessions`), else the worktree's `.git` gitfile mtime
   (managed and external worktrees alike — only the Default row, whose `.git` is the repository itself,
@@ -711,7 +724,7 @@ enabled/confirmed choice before entering analytics attribution.
   buffered bytes stays latched, and a latch whose socket is already gone is left to `close`/`open`.
   Reloading the client always recovered (open clears the flag and resumes), which is why this hid so long.
 - The host is the single place features are wired together — features never reach back into it.
-- **A font upload must carry `X-ThinkRail-Request: font-upload`** (`USER_FONT_UPLOAD_HEADER`), else 403.
+- **A font upload must carry `X-UnityRail-Request: font-upload`** (`USER_FONT_UPLOAD_HEADER`), else 403.
   The host has no auth, no Origin check and no CORS ([[architecture]] Decision 7). A cross-origin upload
   needs a CORS preflight — by the `PUT` method, and by this non-simple header whatever the method — which
   the route answers 405 with no `Access-Control-*` headers, so another website's write never leaves the

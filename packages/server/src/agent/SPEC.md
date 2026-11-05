@@ -90,7 +90,7 @@ re-opened transcripts provider-valid.
     mutates, drains, or recreates existing sessions. A live session keeps its original runtime generation. A disk session
     attached after activation keeps its saved model when that model is available in the current runtime.
     If it is unavailable, Pi chooses its settings default, then its ordered provider defaults, then the
-    first available model; this need not match ThinkRail's AppConfig default or the saved provider.
+    first available model; this need not match UnityRail's AppConfig default or the saved provider.
     The exception is a model pi still lists but the account does not serve (`modelAvailability` filtered
     it), which pi would otherwise restore verbatim; the host passes `preferredDefaultModel` instead.
     Opening does not change the saved model. An ordinary physical-model fallback becomes durable when
@@ -308,7 +308,7 @@ re-opened transcripts provider-valid.
     behind that flush's `setTimeout(0)` instead was rejected: it leans on cross-module timer order and
     still flashes whenever the flush runs late. The one remaining flash is a wake pi defers: a result
     landing during the `agent_settled` emission, after this listener published idle. Only a settle handler
-    could deliver one there; ThinkRail's are synchronous and command exits arrive as I/O callbacks. A completion that does not wake the parent (user stop) releases the hold
+    could deliver one there; UnityRail's are synchronous and command exits arrive as I/O callbacks. A completion that does not wake the parent (user stop) releases the hold
     on that republish; a delivery gated by a reload or trash hold also releases first, and its later wake
     clears the unread again. Disk-only sessions have no live work and never hold. The same fact is published as
     `backgroundWork`, so clients show the idle chat as working (contracts' `isSessionWorking`) instead of
@@ -373,7 +373,7 @@ re-opened transcripts provider-valid.
     entry) / `getSessionStats` (+ contextUsage) / `getSessionCommands` /
     `listAvailableModels` / `listSettledModels` (the same snapshot without starting a refresh) / **`clampThinkingForModel`** (pi's `clampThinkingLevel` for a `{model, level}`
     pair — `model.clampThinking`; the host uses it so defaults and live-session effort changes follow Pi).
-    Earlier, #394 showed ThinkRail's `available[0]` differed from Pi's pick and hit a proxy 400. ThinkRail
+    Earlier, #394 showed UnityRail's `available[0]` differed from Pi's pick and hit a proxy 400. UnityRail
     now resolves new-chat defaults host-side from `AppConfig`, falling back to `preferredDefaultModel`
     (pi's provider default, then the first available model) when the saved default is unavailable,
     without rewriting that setting. `available[0]` alone was catalog order — `openai/gpt-4`, an 8K-context
@@ -402,12 +402,20 @@ re-opened transcripts provider-valid.
     session's own exact `SessionManager.getSessionFile()` path is excluded from that disk preflight: its
     in-memory entry is already authoritative, and pi may truncate/rewrite that path while the host lists,
     so treating the transient physical state as a detached corrupt chat would blank every chat on reload) +
-    `getSessionMessages(sessionId, workspaceId, cwd)` (re-opens a disk session into the manager if
-    not live, first resolving any model named by the transcript in the active process runtime,
+    `getSessionMessages(sessionId, workspaceId, cwd, { deferAttach? })` (re-opens a disk session into the
+    manager if not live, first resolving any model named by the transcript in the active process runtime,
     retrying pi's renamed providers under their current ids; when
     that model is unavailable, PI selects the current default without persisting a model change on open;
     PI records the replacement when the user sends a message. Legacy transcripts with no persisted model
-    reference also use PI's model resolver—then returns `{ summary, messages }` —
+    reference also use PI's model resolver. **The disk lookup is targeted**: pi names each transcript
+    `<timestamp>_<sessionId>.jsonl`, so the read lists the session directory and reads only the matching
+    file's header (the strict every-file scan stays as the legacy fallback and keeps its unreadable-file
+    diagnostic). The **host's `session.getMessages` passes `deferAttach`**: it returns the disk
+    `SessionSummary` (`live: false`, the persisted model, the compaction-aware messages) and starts the
+    normal single-flighted attach in the background, so a cold restore paints the chat without waiting for
+    the resource loader, extensions, MCP, or tools. The first prompt — or any `session.resources` read —
+    awaits that same attach before running, and a failed background attach is logged and retried on demand.
+    The direct function remains blocking unless asked to defer—then returns `{ summary, messages }` —
     `TranscriptMessage[]`: the pi-canonical subset **plus
     `custom` messages**, which carry the `tool-response` replies (and the retired `ask-user-answers` form in
     older transcripts) an interactive tool's card pairs by tool call id, **plus `compactionSummary`**, pi's durable marker for the messages compaction summarized away —
@@ -415,7 +423,7 @@ re-opened transcripts provider-valid.
     client a chat that starts mid-conversation with nothing to explain the gap. Which roles those are is
     **not decided here**: the filter is contracts' `isTranscriptMessageRole`, shared with `history`'s index
     so the two cannot drift and shift `messageIndex`), plus **`ensureSessionAttached(sessionId, workspaceId, cwd)`** — the same single-flighted
-    re-open with no transcript read, for a caller that only needs the session *promptable* again (the
+    re-open with no transcript read, using the same targeted lookup, for a caller that only needs the session *promptable* again (the
     review send's follow-up into an existing chat). It answers **`false` only when the id names no transcript
     in that cwd** — the sole case a caller may recover from by starting a new chat — and **throws** on
     every other re-open failure, so a merely-unreadable session can never be mistaken for an absent one
@@ -747,7 +755,7 @@ re-opened transcripts provider-valid.
     compaction keep every rule with no re-read of `SKILL.md`: without the carry-over the agent recovered
     by re-reading after each compaction (pi's summary told it to), so compliance alone did not tell the
     two apart.
-  - `delegation` — ThinkRail's embedding of the portable **`pi-delegation`** core +
+  - `delegation` — UnityRail's embedding of the portable **`pi-delegation`** core +
     **`pi-subagents`** layer ([[module-pi-delegation]], [[module-pi-subagents]]): binds what only
     the host knows — the delegation root under the data dir (`<dataDir>/delegation`),
     `scope = workspaceId`, and the manager's `liveParentContext` projection (`ParentContext`, core
@@ -850,7 +858,7 @@ re-opened transcripts provider-valid.
     restart, as it does on Pi `reload()`.
     **Installed pi packages** have a switch of the same global shape, `setDisabledPackagesResolver`
     (the `disabledPackages` setting; keys are [[submodule-server-agent-packages]] identities, since pi has
-    no "whole package off" concept and the user chose a ThinkRail setting over writing pi filter entries).
+    no "whole package off" concept and the user chose a UnityRail setting over writing pi filter entries).
     It is applied where pi reads declarations, not where it emits resources: every `SettingsManager`
     the host opens comes from [[submodule-server-agent-packages]]' **`createPiSettings(cwd, agentDir,
     { projectTrusted, packages })`**, whose `packages` view is `all` (the host's own reads and writes:
@@ -995,7 +1003,7 @@ re-opened transcripts provider-valid.
     automatic **portable cross-agent skill aliases**, then loads the three bundled pi packages —
     **`pi-spec-graph`** (the `spec_*`
     tools + its `before_agent_start` rule), **`pi-thinkrail-workflow`** (the workflow-router rule +
-    workflow skills), and **`pi-todos`** (the `todo_*` tools + its skill) — and the **ThinkRail extensions
+    workflow skills), and **`pi-todos`** (the `todo_*` tools + its skill) — and the **UnityRail extensions
     from the server registry** ([[submodule-server-extensions]]; `visualize`, `ask-user-question`, and
     `web-access` with `pi-web-access`'s tools and `librarian` skill) as named inline extensions. Existing personal aliases are Claude
     (`${CLAUDE_CONFIG_DIR:-~/.claude}/skills`), Codex (`${CODEX_HOME:-~/.codex}/skills`), Copilot
@@ -1012,8 +1020,8 @@ re-opened transcripts provider-valid.
     needs a fresh session); classification still only counts dirs that actually exist. Still never arbitrary
     dot-directory scanning, plugin caches, commands, or nested downward discovery. Pi remains the parser:
     vendor-only macros/hooks/models/subagents/metadata are not emulated. First-name-wins precedence is
-    Pi native/configured/shared → ThinkRail-bundled → personal aliases → project aliases, so a repo can
-    never shadow your own or ThinkRail's skills; source metadata preserves truthful `project` / `user` scope.
+    Pi native/configured/shared → UnityRail-bundled → personal aliases → project aliases, so a repo can
+    never shadow your own or UnityRail's skills; source metadata preserves truthful `project` / `user` scope.
     **Admission gate (`skillAdmission`):** committed **project-scoped** aliases are attacker-controlled for a
     clone and injected into the system prompt, so per-skill they resolve to `load` / `untrusted` /
     `pending-ack` / `disabled` from an **admission context** — the project's `trusted` + `acknowledgedSkills`
@@ -1039,7 +1047,7 @@ re-opened transcripts provider-valid.
     unclassified load. Personal and bundled resources are never trust-gated (only the enable/disable layer), and
     this gate is scoped to the compatibility aliases. pi-native project resources (`.pi/` settings, extensions,
     skills, prompts and themes, `SYSTEM.md`, ancestor `.agents/skills`) follow pi-level trust instead: pi gates
-    them on the project-trusted flag ThinkRail derives from `Project.piResourceTrust` and re-applies before
+    them on the project-trusted flag UnityRail derives from `Project.piResourceTrust` and re-applies before
     every load (MCP servers › Trust).
     `listSkillCommands(cwd, admission)` reuses the same gated inputs through a short-lived skills-only
     `DefaultResourceLoader` (no model/session/transcript, no extension factories) for pre-workspace
@@ -1053,7 +1061,7 @@ re-opened transcripts provider-valid.
       **lazily on first use** (never at module load: the resolve requires `node_modules`, which a
       compiled binary lacks). The workspace packages' `pi.skills` manifests aren't auto-discovered for
       file-path entries — their `skills/` dirs (`pi-spec-graph`, `pi-thinkrail-workflow`, `pi-todos`), the
-      host's own skills (`packages/server/skills`: ThinkRail-only guidance such as
+      host's own skills (`packages/server/skills`: UnityRail-only guidance such as
       `managing-mcp-servers`, which would be wrong under vanilla pi and so cannot live in a portable
       package) plus the registry extensions' owner-resolved skill roots are wired via
       **`additionalSkillPaths`**; `build-support`'s `skillRoots` lists the same host root for both bundles.
@@ -1110,7 +1118,7 @@ re-opened transcripts provider-valid.
     process-global while `resolve()` output is per cwd, so two workspaces flapped it on alternating
     reloads, and its first observation had to be suppressed, hiding exactly the first-chat install.
     In every mode, the optional Central artifact remains an external filesystem path loaded by PI's public
-    Jiti seam; it is never bundled, staged, or copied into ThinkRail. Both modes append
+    Jiti seam; it is never bundled, staged, or copied into UnityRail. Both modes append
     `extensionFactories`: a **headless-search policy** (`headlessSearch.ts`, a `tool_call` hook defaulting
     `web_search`'s `workflow` to `"none"`, since pi-web-access would otherwise open a browser curator on
     the host machine and block on it). It is host-owned and unconditional, never part of the `web-access`
@@ -1121,7 +1129,7 @@ re-opened transcripts provider-valid.
     caller's `extraFactories`** — per-session host bindings (the workspace-bound subagents extension),
     value-imported so dev and the compiled binary take the same path. pi's own built-in extensions
     (`llama.cpp`, `codemode`, `tool-search`, `mcp`) are loaded only by pi's CLI; an SDK host opts in per
-    factory. ThinkRail opts into **`mcp` and `tool-search`** with pi's own descriptors
+    factory. UnityRail opts into **`mcp` and `tool-search`** with pi's own descriptors
     (`{ name, factory, replaceable: true, builtin: true }`, so a user-installed `/mcp` extension replaces
     them and `-builtin:mcp` in pi settings disables them) — registered only once the protections in the MCP
     section below had landed, so no build ever started servers without them; there is no runtime flag
@@ -1159,7 +1167,7 @@ re-opened transcripts provider-valid.
   the **`setMcpPolicyResolver`** seam (host wires `workspaceId` → the project's MCP approvals, overrides
   and tool grants, derived by `mcpPolicyOf(project)`) and its writer twin **`setMcpToolGrantWriter`**; the MCP management surface — `listMcpServers`,
   `mcpOwnershipGuard` (resolves pi settings, then answers synchronously who manages MCP instead of
-  ThinkRail — what `listMcpServers` reports as `handledElsewhere` — so the host checks it in the same call
+  UnityRail — what `listMcpServers` reports as `handledElsewhere` — so the host checks it in the same call
   stack as every management mutation), `refreshMcpStatus`,
   `setMcpStatusPublisher`, `mcpSessionView` / `liveSessionIdsOf`, `dispatchSessionMcpCommand` (with an
   optional `notify` that takes the dispatch's notifications instead of the chat), `reconnectMcpServer`,
@@ -1202,7 +1210,7 @@ re-opened transcripts provider-valid.
   value-imported by the host embedding); `pi-background-commands` (the session-bound command
   capability, likewise value-imported by its host embedding); `pi-spec-graph` +
   `pi-thinkrail-workflow` + `pi-todos` (the bundled pi packages — parent sessions load the set through
-  resource-loader paths or launcher factories; delegated children value-import `pi-spec-graph`); the sibling `extensions` registry module (the ThinkRail extensions' inline factories and
+  resource-loader paths or launcher factories; delegated children value-import `pi-spec-graph`); the sibling `extensions` registry module (the UnityRail extensions' inline factories and
   skill roots — `agent` never imports an `@thinkrail/ext-*` package or its pi package directly; the barrel
   stays Node-loadable for the workflow harness ([[module-workflow-tests]]) because a registry extension
   over raw third-party `.ts` loads it lazily, see [[module-ext-web-access]]); `typebox` (the host tools' parameter schemas); `jsonc-parser` (targeted
@@ -1261,7 +1269,7 @@ token used as an API key. `anthropicExtraUsage.ts` decides with pi's public auth
 `checkAuth("anthropic").type === "oauth"`, otherwise `getAuth` returns an `apiKey` with the
 subscription prefix. A failed lookup means no warning. The check is gated on the session's
 `settingsManager.getWarnings().anthropicExtraUsage !== false`, which is pi's own setting, default on,
-shared with the pi CLI. There is no ThinkRail copy of the setting.
+shared with the pi CLI. There is no UnityRail copy of the setting.
 
 - **Once per session per host run.** The entry's `extraUsageWarned` flag is set only after the async
   check passes, the entry is still registered with the same provider, and the setting is *still* on.
@@ -1282,7 +1290,7 @@ shared with the pi CLI. There is no ThinkRail copy of the setting.
 - **Don't warn again** (`provider.disableWarning`): `disableAnthropicExtraUsageWarning` writes pi's
   *global* `warnings.anthropicExtraUsage = false` (other global warnings are kept) and flushes. Live
   sessions need no reload, because the publish-time disk read sees it. Re-enabling is pi's
-  `/settings` or `settings.json`; ThinkRail has no switch by design. `globalProviderWarnings()` feeds
+  `/settings` or `settings.json`; UnityRail has no switch by design. `globalProviderWarnings()` feeds
   `ProviderStatusReport.warnings`, which gates the sign-in dialog notice. Both global helpers open pi's
   `SettingsManager` with `projectTrusted: false`. Otherwise a malformed `.pi/settings.json` in the
   host's cwd would surface through `drainErrors()` and fail a global write that actually succeeded.
@@ -1326,7 +1334,11 @@ when no text exists. A live entry caches the answer either way — found or abse
 entries appended since its last scan, and only when `getEntryCount()` grew, so the per-event state publish
 never rescans a transcript whose user turns are all packages or images. The value is
 read-only: no write path accepts it, `renameSession` and `onlyIfUnnamed` are untouched, and a named chat
-still carries it so a client can show the title and keep the prompt as a tooltip.
+still carries it so a client can show the title and keep the prompt as a tooltip. **`session.list` never
+opens a disk transcript in full**: the disk first prompt is a bounded head scan (200 lines, cached by
+mtime+size), and a disk row's state comes from the persisted lifecycle completion rather than
+`stateFromDisk`'s branch walk. Concurrent lists for the same workspace share one in-flight read. A
+multi-megabyte chat therefore costs a header read, not a full parse, on every workspace load.
 
 ## Chat Resources integration
 
@@ -1429,7 +1441,7 @@ settings or workspaces edge. The owning parent graph records this package depend
 ## MCP servers
 
 pi's built-in MCP is the only MCP engine: connections, OAuth, exposure, resources, result truncation and
-the `/mcp` command stay pi's; ThinkRail owns what a multi-session GUI host owes around it.
+the `/mcp` command stay pi's; UnityRail owns what a multi-session GUI host owes around it.
 
 - **Registration.** The two built-in descriptors above, per parent session only, built by the session's
   `createMcpSessionHost` together with the call guard and a status invalidation callback. The manager
@@ -1443,12 +1455,12 @@ the `/mcp` command stay pi's; ThinkRail owns what a multi-session GUI host owes 
   Central-exclusion loader mode both built-ins go through the per-reload path re-resolution described
   under `extensions`, so `-builtin:*` applies there too.
 - **Configuration** ([[submodule-server-agent-mcp]]). pi's `mcp.json` files are the source of truth
-  (`~/.pi/agent/mcp.json`, trusted `.pi/mcp.json`). The loader ThinkRail supplies is a port of pi's
+  (`~/.pi/agent/mcp.json`, trusted `.pi/mcp.json`). The loader UnityRail supplies is a port of pi's
   `loadMcpConfig` + validation (parity tests run the same fixtures through pi's installed loader, re-checked
   on every pi bump) because pi does not export them; it also applies
   the project record's enablement/exposure overrides, drops repo-defined entries the user has not approved,
   and normalizes `codemode` exposure to `deferred` in memory while codemode is absent. Config writers are
-  ThinkRail's (synchronous temp-file rename, unknown keys kept, only the defining file touched, no symlinked
+  UnityRail's (synchronous temp-file rename, unknown keys kept, only the defining file touched, no symlinked
   `.pi/` paths, secret literals masked in every UI). Servers registered by third-party extensions bypass
   the loader; the `mcp` descriptor's factory registers its own `session_start` / `mcp_servers_change`
   handlers ahead of pi's so `tool_search` is active before pi checks reachability whenever

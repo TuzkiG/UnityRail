@@ -1,5 +1,6 @@
 export {
 	ensureWatch,
+	nudgeRepoMeta,
 	setRepoMetaPublisher,
 	setSkillPathClassifier,
 	setWatchPublisher,

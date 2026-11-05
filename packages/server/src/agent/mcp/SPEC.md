@@ -10,7 +10,7 @@ tags: [mcp, pi]
 
 ## Responsibility
 
-What ThinkRail owns around pi's built-in MCP: at the configuration layer, reading the two `mcp.json`
+What UnityRail owns around pi's built-in MCP: at the configuration layer, reading the two `mcp.json`
 files exactly as pi does, editing them safely from a long-lived multi-client process, and the two
 host-only derivations — the exposure normalization that stands in for codemode, and the per-entry
 fingerprint behind repo-server approvals; at the session layer, the per-session host extension that
@@ -166,7 +166,7 @@ without bypassing approvals or treating an occupied name as absent.
   `{ extensions, shutdown }`: pi's two built-in descriptors (`mcp` = `createMcpExtension`, `tool-search`),
   `replaceable: true, builtin: true` exactly like pi's CLI; their names are `HOST_BUILTIN_EXTENSION_NAMES`,
   which the pi packages catalog lists as the host's "pi built-in" rows (pi's `codemode` and `llama.cpp`
-  are not loaded by ThinkRail and never appear). Optional host callbacks deliver Settings
+  are not loaded by UnityRail and never appear). Optional host callbacks deliver Settings
   authorization URLs through `openUrl` and invalidate status after mutating commands. Ordinary chats
   never open a browser on the host. The `mcp` factory first registers its own
   `session_start` / `mcp_servers_change` handlers that activate `tool_search` whenever

@@ -3134,6 +3134,77 @@ test("disposing a session mid-run reports pi's stale-boundary errors at debug, n
 	}
 });
 
+test("deferred transcript hydration returns disk messages before the live session attaches", async () => {
+	setSessionManagerFactory((cwd) => SessionManager.create(cwd));
+	try {
+		fauxA.setResponses([
+			fauxAssistantMessage("FIRST_REPLY"),
+			fauxAssistantMessage("DEFERRED_REPLY"),
+		]);
+		const cwd = tmpCwd("trpi-deferred-hydrate-");
+		const session = await createSession({
+			cwd,
+			workspaceId: "ws-deferred-hydrate",
+			model: toWireModel(fauxA.getModel()),
+		});
+		await promptSession(session.sessionId, "persist me");
+		await removeSession(session.sessionId);
+		expect(hasSession(session.sessionId)).toBe(false);
+
+		const hydrated = await getSessionMessages(session.sessionId, "ws-deferred-hydrate", cwd, {
+			deferAttach: true,
+		});
+		expect(hydrated.summary).toMatchObject({
+			sessionId: session.sessionId,
+			live: false,
+			isStreaming: false,
+		});
+		expect(hydrated.messages.some((message) => message.role === "user")).toBe(true);
+
+		for (let attempt = 0; attempt < 200 && !hasSession(session.sessionId); attempt++) {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		}
+		expect(hasSession(session.sessionId)).toBe(true);
+		expect(
+			(await getSessionMessages(session.sessionId, "ws-deferred-hydrate", cwd)).summary.live,
+		).toBe(true);
+		await promptSession(session.sessionId, "continue");
+		expect(seen(session.sessionId)).toContain("DEFERRED_REPLY");
+		await removeSession(session.sessionId);
+	} finally {
+		setSessionManagerFactory(() => SessionManager.inMemory());
+	}
+}, 20_000);
+
+test("a targeted transcript restore ignores an unrelated broken session file", async () => {
+	setSessionManagerFactory((cwd) => SessionManager.create(cwd));
+	try {
+		const cwd = tmpCwd("trpi-targeted-restore-");
+		const dir = defaultSessionDirFor(process.env.PI_CODING_AGENT_DIR ?? "", cwd);
+		const fixture = writeFixtureSession(dir, {
+			id: "targeted-restore-session",
+			cwd,
+			messages: [{ role: "user", text: "targeted read", timestamp: Date.now() }],
+		});
+		writeFileSync(join(dir, `${Date.now()}_broken.jsonl`), '{"type":"session"}\nnot json\n');
+		const hydrated = await getSessionMessages(fixture.id, "ws-targeted-restore", cwd, {
+			deferAttach: true,
+		});
+		expect(hydrated.summary).toMatchObject({
+			sessionId: fixture.id,
+			live: false,
+			firstPrompt: "targeted read",
+		});
+		for (let attempt = 0; attempt < 200 && !hasSession(fixture.id); attempt++) {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		}
+		expect(hasSession(fixture.id)).toBe(true);
+		await removeSession(fixture.id);
+	} finally {
+		setSessionManagerFactory(() => SessionManager.inMemory());
+	}
+}, 20_000);
+
 test("listSessions reports a workspace's live sessions; getSessionMessages returns its transcript", async () => {
 	fauxA.setResponses([fauxAssistantMessage("HYDRATE_REPLY")]);
 	const cwd = tmpCwd("trpi-hyd-");

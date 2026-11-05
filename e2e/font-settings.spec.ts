@@ -17,13 +17,13 @@ import { CODE_FACE } from "./fixtures/typography";
 import { E2eWire } from "./fixtures/wire";
 
 const FONTS_DIR = join(E2E_DATA_DIR, "fonts");
-const FIXTURE_FAMILY = "ThinkRail Fixture Sans";
+const FIXTURE_FAMILY = "UnityRail Fixture Sans";
 const FIXTURE_FILE = {
-	name: "ThinkRailFixture-Regular.ttf",
+	name: "UnityRailFixture-Regular.ttf",
 	mimeType: "font/ttf",
 	buffer: fixtureFont(FIXTURE_FAMILY),
 };
-const ABSENT_FAMILY = "ThinkRail Absent Mono";
+const ABSENT_FAMILY = "UnityRail Absent Mono";
 const FONT_TOKENS = [
 	"--tr-font-family-interface",
 	"--tr-font-family-code",

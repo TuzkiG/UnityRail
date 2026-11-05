@@ -24,6 +24,8 @@ import {
 	diffBaseRef,
 	readBlobAt,
 	readBlobBytesAt,
+	repoForPath,
+	repoForPathSync,
 	resolveCommitOid,
 	resolveDiffRange,
 } from "../git";
@@ -340,28 +342,64 @@ export async function addComment(input: AddCommentInput): Promise<ReviewComment>
 		throw new Error(`A ${input.kind} comment requires an anchor path.`);
 	if (input.kind === "review" && input.anchor)
 		throw new Error("A review-level comment carries no anchor.");
-	let anchor = input.anchor
+	const raw = input.anchor
 		? {
 				...input.anchor,
 				path: anchorPath(input.workspaceId, input.anchor.path),
 				selectors: validateSelectors(input.anchor.selectors),
 			}
 		: null;
-	if (anchor?.side === "base") {
+	const owner = raw ? await repoForPath(input.workspaceId, raw.path) : null;
+	let anchor = raw;
+	if (anchor && owner) {
+		if (owner.repo.path === "") {
+			const { repo: _repo, ...rest } = anchor;
+			anchor = rest;
+		} else anchor = { ...anchor, repo: owner.repo.path };
+	}
+	if (anchor?.side === "base" && owner) {
 		const ws = getWorkspace(input.workspaceId);
-		const originalRef = (await resolveDiffRange(ws, input.scope)).originalRef;
-		if (!originalRef)
-			throw new Error("This diff has no base side to comment on (nothing precedes the change).");
-		const baseRef = resolveCommitOid(ws.worktreePath, originalRef);
-		if (!baseRef)
-			throw new Error(`Can't pin the base side of this diff: ${originalRef} names no commit.`);
-		const bytes = readBlobBytesAt(ws.worktreePath, baseRef, anchor.path);
-		if (bytes === null)
-			throw new Error(`The base (${baseRef}) has no ${anchor.path} to comment on.`);
-		anchor = captureAnchor(
-			{ ...anchor, baseRef, ...(input.scope ? { scope: input.scope } : {}) },
-			capturableContent(bytes),
-		);
+		const scopeKind = input.scope?.kind ?? "branch";
+		if (owner.repo.path !== "") {
+			let baseRef: string | null;
+			if (scopeKind === "turn" && input.scope?.kind === "turn") {
+				baseRef =
+					input.scope.nestedTrees?.find((pair) => pair.repo === owner.repo.path)?.baseTree ?? null;
+			} else if (scopeKind === "branch" || scopeKind === "uncommitted") {
+				baseRef = resolveCommitOid(owner.repo.worktreePath, "HEAD");
+			} else {
+				baseRef = null;
+			}
+			if (!baseRef)
+				throw new Error("This diff has no base side to comment on (nothing precedes the change).");
+			const bytes = readBlobBytesAt(owner.repo.worktreePath, baseRef, owner.pathInRepo);
+			if (bytes === null)
+				throw new Error(`The base (${baseRef}) has no ${anchor.path} to comment on.`);
+			anchor = captureAnchor(
+				{
+					...anchor,
+					repo: owner.repo.path,
+					baseRef,
+					...(input.scope ? { scope: input.scope } : {}),
+				},
+				capturableContent(bytes),
+			);
+		} else {
+			const originalRef = (await resolveDiffRange(ws, input.scope)).originalRef;
+			if (!originalRef)
+				throw new Error("This diff has no base side to comment on (nothing precedes the change).");
+			const baseRef =
+				scopeKind === "turn" ? originalRef : resolveCommitOid(ws.worktreePath, originalRef);
+			if (!baseRef)
+				throw new Error(`Can't pin the base side of this diff: ${originalRef} names no commit.`);
+			const bytes = readBlobBytesAt(ws.worktreePath, baseRef, anchor.path);
+			if (bytes === null)
+				throw new Error(`The base (${baseRef}) has no ${anchor.path} to comment on.`);
+			anchor = captureAnchor(
+				{ ...anchor, baseRef, ...(input.scope ? { scope: input.scope } : {}) },
+				capturableContent(bytes),
+			);
+		}
 	}
 	return mutateSnapshot(input.workspaceId, (snapshot) => {
 		let captured = anchor;
@@ -500,7 +538,10 @@ export async function buildSendPackage(
 		baseBranch: diffBaseRef(ws),
 		comments,
 		readFile: (path) => readWorktreeFile(ws.worktreePath, path),
-		readBase: (ref, path) => readBlobAt(ws.worktreePath, ref, path),
+		readBase: (ref, path) => {
+			const owner = repoForPathSync(workspaceId, path);
+			return readBlobAt(owner.repo.worktreePath, ref, owner.pathInRepo);
+		},
 	});
 }
 

@@ -99,6 +99,10 @@ test("a Git LFS pointer is text with its own media type, whatever the file is na
 		text: true,
 		mime: "application/vnd.git-lfs",
 	});
+	expect(classifyBytes(BYTES.encode(pointer.replaceAll("\n", "\r\n")))).toEqual({
+		text: true,
+		mime: "application/vnd.git-lfs",
+	});
 	expect(resourceMeta(BYTES.encode(pointer), "assets/photo.png").mime).toBe(
 		"application/vnd.git-lfs",
 	);

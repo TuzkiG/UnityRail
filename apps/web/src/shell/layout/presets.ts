@@ -77,9 +77,9 @@ export const BUILTIN_LAYOUT_PRESETS: readonly LayoutPreset[] = [
 		id: "balanced",
 		name: "Balanced",
 		center: group("balanced-primary"),
-		left: side(true, 0.18, [{ id: "balanced-left", tools: ["projects"] }]),
+		left: side(true, 0.18, [{ id: "balanced-left", tools: ["projects", "unity-project"] }]),
 		right: side(true, 0.28, [
-			{ id: "balanced-right-top", tools: ["specs", "files"], weight: 1.25 },
+			{ id: "balanced-right-top", tools: ["specs", "files", "unity"], weight: 1.25 },
 			{ id: "balanced-right-bottom", tools: ["plan", "review"] },
 		]),
 		bottom: bottom(true, [{ id: "balanced-bottom", tools: [] }]),
@@ -88,15 +88,27 @@ export const BUILTIN_LAYOUT_PRESETS: readonly LayoutPreset[] = [
 		id: "focus",
 		name: "Focus",
 		center: group("focus-primary"),
-		left: side(false, 0.18, [{ id: "focus-left", tools: ["projects"] }]),
+		left: side(false, 0.18, [{ id: "focus-left", tools: ["projects", "unity-project"] }]),
 		right: side(false, 0.26, [{ id: "focus-right", tools: ["specs", "files", "review"] }]),
 		bottom: bottom(false, [{ id: "focus-bottom", tools: [] }]),
+	},
+	{
+		id: "unity",
+		name: "Unity",
+		center: group("unity-primary"),
+		left: side(true, 0.16, [{ id: "unity-left", tools: ["projects", "unity-project"] }]),
+		right: side(true, 0.32, [
+			{ id: "unity-right-main", tools: ["unity"], weight: 1.5 },
+			{ id: "unity-right-files", tools: ["files", "review"] },
+			{ id: "unity-right-plan", tools: ["plan", "specs"] },
+		]),
+		bottom: bottom(true, [{ id: "unity-bottom", tools: [] }]),
 	},
 	{
 		id: "review",
 		name: "Review",
 		center: split("review-center", "vertical", group("review-primary"), group("review-secondary")),
-		left: side(true, 0.16, [{ id: "review-left", tools: ["projects"] }]),
+		left: side(true, 0.16, [{ id: "review-left", tools: ["projects", "unity-project"] }]),
 		right: side(true, 0.32, [
 			{ id: "review-right-main", tools: ["review"], weight: 1.4 },
 			{ id: "review-right-reference", tools: ["specs", "files"] },
@@ -109,6 +121,7 @@ const BUILTIN_PRESET_NAME_KEYS: Readonly<Record<string, MessageKey>> = {
 	balanced: "workbench.preset.balanced",
 	focus: "workbench.preset.focus",
 	review: "workbench.preset.review",
+	unity: "workbench.preset.unity",
 };
 
 export function layoutPresetName(t: Translator, preset: LayoutPreset): string {

@@ -204,7 +204,7 @@ test("a stdio server added through the form connects in a chat, is disabled ther
 		await openMcpSettings(page);
 		const settings = page.getByTestId("settings-mcp");
 		await expect(settings.getByTestId("mcp-confirm-banner")).toHaveText(
-			"ThinkRail asks in the chat before MCP calls that may change data. Always allow trusts a tool in every chat of this project; those tools are listed on their server below.",
+			"UnityRail asks in the chat before MCP calls that may change data. Always allow trusts a tool in every chat of this project; those tools are listed on their server below.",
 		);
 		await settings.getByTestId("mcp-empty-add").click();
 		const dialog = page.getByTestId("mcp-add-dialog");
@@ -219,7 +219,12 @@ test("a stdio server added through the form connects in a chat, is disabled ther
 		await expect(dialog.getByTestId("mcp-run-review")).toHaveCount(0);
 		await dialog.getByTestId("mcp-form-value-value").fill(`\${HOME}`);
 		await dialog.getByTestId("mcp-add-submit").click();
-		await expect(dialog.getByTestId("mcp-run-item")).toContainText(STDIO_SERVER);
+		// The command review renders the invocation with backslashes escaped; unescape before comparing.
+		const runText = ((await dialog.getByTestId("mcp-run-item").textContent()) ?? "").replaceAll(
+			"\\\\",
+			"\\",
+		);
+		expect(runText).toContain(STDIO_SERVER);
 		await dialog.getByTestId("mcp-add-confirm").click();
 		await expect(dialog).toBeHidden();
 		await expect(settings.getByTestId("mcp-feedback")).toHaveText(
@@ -386,9 +391,11 @@ test("a repository-defined server flags the chat, waits for approval and starts 
 
 		await row.getByTestId("mcp-server-action").click();
 		const dialog = page.getByTestId("mcp-approve-dialog");
-		await expect(dialog.getByTestId("mcp-approve-run")).toContainText(
-			`${STDIO_SERVER} --api-key ***`,
-		);
+		const approveText = (
+			(await dialog.getByTestId("mcp-approve-run").textContent()) ?? ""
+		).replaceAll("\\\\", "\\");
+		expect(approveText).toContain(STDIO_SERVER);
+		expect(approveText).toContain("--api-key ***");
 		const env = dialog.getByTestId("mcp-approve-env");
 		await expect(env).toContainText(`FIXTURE_HOME=\${HOME}`);
 		await expect(env).toContainText("FIXTURE_SECRET=<literal value hidden>");

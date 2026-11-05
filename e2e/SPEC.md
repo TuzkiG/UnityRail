@@ -11,7 +11,7 @@ tags: [testing, playwright, e2e]
 
 ## Responsibility
 
-The real-browser system gate for ThinkRail's host/UI integration: build the shipped web client, boot an
+The real-browser system gate for UnityRail's host/UI integration: build the shipped web client, boot an
 isolated host, seed real git and persistence fixtures, drive Chromium through the wire, and clean up every
 machine-global resource it used. The default suite excludes provider-backed `@agent` tests; those remain
 explicit, authenticated, on-demand runs.
@@ -53,7 +53,11 @@ unchanged. The no-agent, agent, and full runners own the trees they launch. When
 an internal parent-owner marker leaves full as the only signal manager; standalone no-agent and agent runners
 retain ownership. On POSIX, the owner snapshots every descendant PID with its safe non-runner process group,
 forwards SIGINT/SIGTERM to each tracked group exactly once and individually only to PIDs without such a group,
-then force-kills those same non-overlapping targets after a bounded grace even if the root exited. Windows
+then force-kills those same non-overlapping targets after a bounded grace even if the root exited. Windows lane data lives beside the repository (`.e2e-data/` under the repo's parent) instead of the
+profile temp folder: a fixture project must not inherit the machine owner's personal `.agents/skills`
+through the trust walk (the host's hermetic HOME is the lane's own, so `projectTrust`'s personal-dir
+exclusion cannot see the real profile), and a "plain folder" fixture must stay outside any git
+repository. Windows
 first snapshots and retains
 descendant PIDs through PowerShell's `Get-CimInstance Win32_Process`, gracefully falls back when unavailable,
 and uses `taskkill /T` before a root fallback; force targets every retained PID with `taskkill /T /F`. Managed
@@ -233,13 +237,13 @@ only hydrated application client: the native webview cannot take over exclusive 
 write shared placement while the test page is asserting it. The desktop adapter writes the control file
 only after Playwright finishes, then requires normal graceful application exit.
 
-This is separate from `smoke:desktop`: native smoke loads the actual packaged ThinkRail UI in the system
+This is separate from `smoke:desktop`: native smoke loads the actual packaged UnityRail UI in the system
 webview, requires DOM-ready plus host health, and quits through the real Electrobun lifecycle. Linux runs
 that smoke under Xvfb with software rendering enabled only in the test environment. The split proves both
 the native-window path and broad browser behavior without introducing two competing clients.
 
 JetBrains Central coverage uses a stateful, independently authored fake executable implementing only the
-argv/exit/postcondition surface ThinkRail invokes (`--version`, `status`, `quota --json`, `add pi`,
+argv/exit/postcondition surface UnityRail invokes (`--version`, `status`, `quota --json`, `add pi`,
 `remove pi`, `login`, `update --install`). Its control file holds **space-separated tokens**, because the version a probe reports,
 whether credentials exist, and how an action fails are independent facts about a host: a single-valued control
 made real combinations unrepresentable, and a state that cannot be reached is a failure mode nothing asserts

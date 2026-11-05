@@ -13,6 +13,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { LocationBar } from "./LocationBar";
 import {
 	checksSummary,
+	nestedRepoSummary,
 	pluralCommits,
 	projectInitial,
 	remoteCounts,
@@ -275,6 +276,49 @@ const unpublished = (over: Partial<BranchStatus> = {}): BranchStatus => {
 	const { ahead: _ahead, behind: _behind, ...rest } = status({ published: false, ...over });
 	return rest;
 };
+
+test("nested repositories add a count to the branch pill and summarize their local state", () => {
+	const html = render(
+		worktree,
+		null,
+		status({
+			repos: [
+				{ path: "libs/lib", branch: "main", upstream: "origin/main", ahead: 2, behind: 1 },
+				{ path: "embed", branch: "deadbee", detached: true },
+			],
+		}),
+	);
+	expect(testids(html)).toContain("scope-nested-count");
+	expect(html).toContain('data-testid="scope-nested-count"');
+	expect(nestedRepoSummary(currentTranslator(), { path: "embed", branch: "main" })).toBe(
+		"No upstream branch",
+	);
+	expect(
+		nestedRepoSummary(currentTranslator(), {
+			path: "libs/lib",
+			branch: "main",
+			upstream: "origin/main",
+			ahead: 0,
+			behind: 0,
+		}),
+	).toBe("In sync with origin/main");
+	expect(
+		nestedRepoSummary(currentTranslator(), {
+			path: "libs/lib",
+			branch: "main",
+			upstream: "origin/main",
+			ahead: 2,
+			behind: 1,
+		}),
+	).toBe("↑2 · ↓1");
+	expect(
+		nestedRepoSummary(currentTranslator(), {
+			path: "embed",
+			branch: "deadbee",
+			detached: true,
+		}),
+	).toBe("Detached HEAD");
+});
 
 test("v87: Remote and Pull request render for a review-free branch with the next action", () => {
 	const html = render(worktree, null, unpublished());

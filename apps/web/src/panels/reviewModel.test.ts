@@ -7,7 +7,9 @@ import {
 	fileSummaries,
 	fileThreads,
 	groupComments,
+	groupReviewFiles,
 	lineRef,
+	reviewFileLabel,
 	reviewFileSurface,
 	reviewFlagForPaths,
 	reviewFlags,
@@ -221,6 +223,26 @@ test("a file comparison is reviewed on both files, and its flag is the strongest
 	expect(reviewFlagForPaths(flags, ["a.html", "b.html"])).toBe("draft");
 	expect(reviewFlagForPaths(flags, ["a.html"])).toBe("sent");
 	expect(reviewFlagForPaths(flags, ["c.html"])).toBeNull();
+});
+
+test("a nested file's summary names its repository, so the panel groups it under that header", () => {
+	const summaries = fileSummaries([
+		comment({ id: "a1" }),
+		comment({
+			id: "b1",
+			anchor: { path: "embed/x.txt", side: "worktree", repo: "embed", selectors: [] },
+		}),
+		comment({ id: "r1", kind: "review", anchor: null }),
+	]);
+	expect(summaries).toEqual([
+		{ path: null, total: 1, drafts: 1, resolved: 0 },
+		{ path: "embed/x.txt", repo: "embed", total: 1, drafts: 1, resolved: 0 },
+		{ path: "src/a.ts", total: 1, drafts: 1, resolved: 0 },
+	]);
+	const groups = groupReviewFiles(summaries);
+	expect(groups.map((group) => group.repo)).toEqual(["", "embed"]);
+	expect(groups[1]?.files.map(reviewFileLabel)).toEqual(["x.txt"]);
+	expect(groups[0]?.files.map(reviewFileLabel)).toEqual(["", "src/a.ts"]);
 });
 
 test("threads are the same when every thread matches, so an unrelated comment keeps a file's array", () => {

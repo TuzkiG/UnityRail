@@ -4,7 +4,6 @@ import { Button } from "@thinkrail/ui/button";
 import { LoadingRegion } from "@thinkrail/ui/skeleton";
 import { ToggleSegment } from "@thinkrail/ui/toggle-segment";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { firstClickOnly } from "../lib";
 import {
 	type CenterNavigationStamp,
 	type ChangesTab,
@@ -25,14 +24,12 @@ import {
 import { errorText, getTransport } from "../transport";
 import { BranchPicker } from "./BranchPicker";
 import { useBranchList } from "./branches";
-import { ChangeRowActions } from "./ChangeRowActions";
+import { ChangedFileList } from "./ChangedFileList";
 import { ChangesScopeMenu } from "./ChangesScopeMenu";
 import { ChangesTree } from "./ChangesTree";
-import { changesTabId, scopeKey, splitPath, statusNameClass } from "./changesModel";
-import { DiffStatBadge } from "./DiffStatBadge";
+import { changesTabId, scopeKey } from "./changesModel";
 import { openChangesTab, openDiffInTab } from "./openTabs";
 import { RememberedScrollArea } from "./RememberedScrollArea";
-import { ViewedMark } from "./ViewedMark";
 
 function selectReviewTab(
 	state: { tabsByWorkspace: Record<string, EditorTab[]> },
@@ -46,11 +43,13 @@ function selectReviewTab(
 
 export function ChangesPanel({
 	workspaceId,
+	repo,
 	status,
 	error,
 	reload,
 }: {
 	workspaceId: string;
+	repo: string;
 	status: GitStatus | null;
 	error: string | null;
 	reload: () => void;
@@ -63,7 +62,22 @@ export function ChangesPanel({
 	const scope = useAppStore((s) => selectDiffScope(s, workspaceId));
 	const workspace = useAppStore((s) => selectWorkspaceById(s, workspaceId));
 	const baseRef = useAppStore((s) => selectDiffBaseRef(s, workspaceId));
-	const viewKey = `${scopeKey(scope)}:${baseRef}`;
+	const branchList = useBranchList(workspace?.projectId ?? null, undefined, {
+		workspaceId,
+		...(repo ? { repo } : {}),
+	});
+	const repoBaseRef =
+		repo && scope.kind === "branch"
+			? (scope.baseRef ?? branchList.branches?.upstream ?? branchList.branches?.defaultBranch ?? "")
+			: "";
+	// The effective scope is what every read uses, so a nested branch scope needs no second persist:
+	// the host resolves the sub-repository's own upstream when `baseRef` is absent.
+	const effectiveScope =
+		repo && scope.kind === "branch"
+			? { ...scope, repo, ...(repoBaseRef ? { baseRef: repoBaseRef } : {}) }
+			: scope;
+	const selectedBaseRef = repo ? (scope.kind === "branch" ? repoBaseRef : "") : baseRef;
+	const viewKey = `${scopeKey(effectiveScope)}:${selectedBaseRef}`;
 	const [highlight, setHighlight] = useState<{ key: string; path: string } | null>(null);
 	const highlighted = highlight?.key === viewKey ? highlight.path : null;
 	const setHighlighted = useCallback(
@@ -74,7 +88,7 @@ export function ChangesPanel({
 		const tab = selectActiveEditorTab(state, workspaceId);
 		return tab?.kind === "diff" && !isFileComparison(tab) ? tab : null;
 	});
-	const reviewTabId = changesTabId(workspaceId, scope);
+	const reviewTabId = changesTabId(workspaceId, effectiveScope);
 	const reviewActivePath = useAppStore(
 		(state) => selectReviewTab(state, workspaceId, reviewTabId)?.activePath,
 	);
@@ -88,14 +102,11 @@ export function ChangesPanel({
 	const collapsedList = useAppStore((s) => selectFilesTreeView(s, workspaceId).changedCollapsed);
 	const collapsed = useMemo(() => new Set(collapsedList), [collapsedList]);
 
-	const {
-		branches,
-		failed: branchesFailed,
-		refreshing: branchesRefreshing,
-		refresh: refreshBranches,
-	} = useBranchList(workspace?.projectId ?? null);
-
 	const pointAt = async (ref: string) => {
+		if (repo) {
+			setDiffScope(workspaceId, { kind: "branch", repo, baseRef: ref });
+			return;
+		}
 		try {
 			await getTransport().request("workspace.setDiffBase", { id: workspaceId, ref });
 		} catch (error) {
@@ -112,12 +123,14 @@ export function ChangesPanel({
 		) => {
 			setHighlighted(path);
 			if (intent === "keep") {
-				void openDiffInTab(workspaceId, scope, path, intent, navigation, { claimPreview });
+				void openDiffInTab(workspaceId, effectiveScope, path, intent, navigation, {
+					claimPreview,
+				});
 				return;
 			}
-			void openChangesTab(workspaceId, scope, { revealPath: path }, intent, navigation);
+			void openChangesTab(workspaceId, effectiveScope, { revealPath: path }, intent, navigation);
 		},
-		[workspaceId, scope, setHighlighted],
+		[workspaceId, effectiveScope, setHighlighted],
 	);
 
 	useEffect(() => {
@@ -130,7 +143,7 @@ export function ChangesPanel({
 			: selectWorkspaceNavTick(currentState, workspaceId) !== changesRequest.navTick;
 		if (want === null) {
 			if (!overtaken) {
-				void openChangesTab(workspaceId, scope, {}, "preview", changesRequest.navigation);
+				void openChangesTab(workspaceId, effectiveScope, {}, "preview", changesRequest.navigation);
 			}
 		} else {
 			if (!status) return;
@@ -139,7 +152,7 @@ export function ChangesPanel({
 			else setHighlighted(match ? match.path : want);
 		}
 		useAppStore.getState().clearChangesRequest();
-	}, [changesRequest, status, workspaceId, openDiff, scope, setHighlighted]);
+	}, [changesRequest, status, workspaceId, openDiff, effectiveScope, setHighlighted]);
 
 	useEffect(() => {
 		if (activeDiffTab || reviewTabActive) setHighlighted(null);
@@ -149,7 +162,7 @@ export function ChangesPanel({
 		reviewTabActive && reviewActivePath !== undefined
 			? reviewActivePath === path
 			: activeDiffTab
-				? activeDiffTab.path === path && scopeKey(activeDiffTab.scope) === scopeKey(scope)
+				? activeDiffTab.path === path && scopeKey(activeDiffTab.scope) === scopeKey(effectiveScope)
 				: highlighted === path;
 	const isViewed = (path: string) => viewed.has(path);
 
@@ -163,22 +176,29 @@ export function ChangesPanel({
 			>
 				<div className="mr-auto flex min-w-0 items-center gap-4">
 					<ChangesScopeMenu
-						key={`${workspaceId}:${baseRef}`}
+						key={`${workspaceId}:${selectedBaseRef}`}
 						workspaceId={workspaceId}
-						scope={scope}
-						onSelectScope={(next) => setDiffScope(workspaceId, next)}
+						scope={effectiveScope}
+						onSelectScope={(next) =>
+							setDiffScope(
+								workspaceId,
+								repo && next.kind === "branch"
+									? { ...next, repo, ...(repoBaseRef ? { baseRef: repoBaseRef } : {}) }
+									: next,
+							)
+						}
 					/>
 					{workspace ? (
 						<div className="flex min-w-0 max-w-[200px]">
 							<BranchPicker
-								branches={branches}
-								failed={branchesFailed}
-								selected={baseRef}
-								refreshing={branchesRefreshing}
+								branches={branchList.branches}
+								failed={branchList.failed}
+								selected={selectedBaseRef}
+								refreshing={branchList.refreshing}
 								label={t("changes.panel.versus")}
 								testid="changes-target-picker"
 								onSelect={(ref) => void pointAt(ref)}
-								onRefresh={refreshBranches}
+								onRefresh={branchList.refresh}
 							/>
 						</div>
 					) : null}
@@ -196,94 +216,57 @@ export function ChangesPanel({
 					onClick={() => setChangesView("tree")}
 				/>
 			</div>
-			<RememberedScrollArea
-				key={`${changesView}:${viewKey}`}
-				workspaceId={workspaceId}
-				view={changesView === "tree" ? "changedTree" : "changedList"}
-				scope={viewKey}
-				className="min-h-0 flex-1"
-				viewportClassName="p-panel-inset"
-			>
-				{status === null && error !== null ? (
-					<div data-testid="changes-error" className="flex flex-col items-start gap-4 px-8 py-4">
-						<p className="tr-text-metadata text-feedback-error">
-							{t("changes.readFailed", { error })}
+			{changesView === "tree" || status === null || status.changes.length === 0 ? (
+				<RememberedScrollArea
+					key={`${changesView}:${viewKey}`}
+					workspaceId={workspaceId}
+					view={changesView === "tree" ? "changedTree" : "changedList"}
+					scope={viewKey}
+					className="min-h-0 flex-1"
+					viewportClassName="p-panel-inset"
+				>
+					{status === null && error !== null ? (
+						<div data-testid="changes-error" className="flex flex-col items-start gap-4 px-8 py-4">
+							<p className="tr-text-metadata text-feedback-error">
+								{t("changes.readFailed", { error })}
+							</p>
+							<Button variant="ghost" size="s" data-testid="changes-retry" onClick={reload}>
+								{t("common.retry")}
+							</Button>
+						</div>
+					) : status === null ? (
+						<LoadingRegion rows={5} className="px-8 py-4" />
+					) : status.changes.length === 0 ? (
+						<p data-testid="changes-empty" className="px-8 py-4 tr-text-metadata text-text-muted">
+							{t("changes.empty")}
 						</p>
-						<Button variant="ghost" size="s" data-testid="changes-retry" onClick={reload}>
-							{t("common.retry")}
-						</Button>
-					</div>
-				) : status === null ? (
-					<LoadingRegion rows={5} className="px-8 py-4" />
-				) : status.changes.length === 0 ? (
-					<p data-testid="changes-empty" className="px-8 py-4 tr-text-metadata text-text-muted">
-						{t("changes.empty")}
-					</p>
-				) : changesView === "tree" ? (
-					<ChangesTree
+					) : (
+						<ChangesTree
+							changes={status.changes}
+							onOpen={(path, intent, claimPreview) =>
+								openDiff(path, intent, undefined, claimPreview)
+							}
+							isActive={isActive}
+							isViewed={isViewed}
+							isCollapsed={(path) => collapsed.has(path)}
+							onSetCollapsed={(path, next) =>
+								useAppStore.getState().setChangedTreeCollapsed(workspaceId, [path], next)
+							}
+						/>
+					)}
+				</RememberedScrollArea>
+			) : (
+				<div className="flex min-h-0 flex-1 flex-col p-panel-inset">
+					<ChangedFileList
+						workspaceId={workspaceId}
+						scope={viewKey}
 						changes={status.changes}
-						onOpen={(path, intent, claimPreview) => openDiff(path, intent, undefined, claimPreview)}
 						isActive={isActive}
 						isViewed={isViewed}
-						isCollapsed={(path) => collapsed.has(path)}
-						onSetCollapsed={(path, next) =>
-							useAppStore.getState().setChangedTreeCollapsed(workspaceId, [path], next)
-						}
+						onOpen={(path, intent, claimPreview) => openDiff(path, intent, undefined, claimPreview)}
 					/>
-				) : (
-					<ul className="motion-safe:animate-reveal">
-						{status.changes.map((change) => {
-							const { dir, base } = splitPath(change.path);
-							return (
-								<li key={change.path}>
-									<ChangeRowActions
-										path={change.path}
-										active={isActive(change.path)}
-										onView={() => openDiff(change.path, "preview")}
-										onOpenTab={() => openDiff(change.path, "keep")}
-									>
-										{({ onContextMenu }) => (
-											<button
-												type="button"
-												onContextMenu={onContextMenu}
-												data-testid="change-item"
-												data-status={change.status}
-												data-active={isActive(change.path) ? true : undefined}
-												data-viewed={isViewed(change.path) ? true : undefined}
-												onClick={firstClickOnly(() => openDiff(change.path, "preview"))}
-												onDoubleClick={() => openDiff(change.path, "keep", undefined, true)}
-												title={change.path}
-												className="flex h-panel-row min-w-0 flex-1 items-center gap-8 px-4 text-left tr-text-ui"
-											>
-												<span
-													className={`flex min-w-0 flex-1 items-baseline ${isViewed(change.path) ? "opacity-60" : ""}`}
-												>
-													{dir ? (
-														<span
-															data-testid="change-path-dir"
-															className="min-w-0 shrink truncate text-text-muted"
-														>
-															{dir}
-														</span>
-													) : null}
-													<span
-														data-testid="change-path-base"
-														className={`max-w-full shrink-0 truncate ${statusNameClass(change.status) || "text-text-muted"}`}
-													>
-														{base}
-													</span>
-												</span>
-												{isViewed(change.path) ? <ViewedMark /> : null}
-												<DiffStatBadge added={change.added ?? 0} removed={change.removed ?? 0} />
-											</button>
-										)}
-									</ChangeRowActions>
-								</li>
-							);
-						})}
-					</ul>
-				)}
-			</RememberedScrollArea>
+				</div>
+			)}
 		</div>
 	);
 }

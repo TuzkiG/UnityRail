@@ -13,7 +13,7 @@ export function seedWorkspace(seed: WorkspaceSeed): string {
 	mkdirSync(cwd, { recursive: true });
 	gitQuiet(cwd, "init", "-b", "main");
 	gitQuiet(cwd, "config", "user.email", "workflow-tests@thinkrail.test");
-	gitQuiet(cwd, "config", "user.name", "ThinkRail Workflow Tests");
+	gitQuiet(cwd, "config", "user.name", "UnityRail Workflow Tests");
 	gitQuiet(cwd, "config", "commit.gpgsign", "false");
 	if (typeof seed === "function") seed(cwd);
 	else seedKind(cwd, seed);

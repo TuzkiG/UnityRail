@@ -15,7 +15,13 @@ import {
 	TodoStore,
 } from "pi-todos/core";
 import { suggestPlanSummary } from "../assist";
-import { gitStatus, listCommits, readCommitSubject, resolveListedCommit } from "../git";
+import {
+	gitStatus,
+	listCommits,
+	listWorktreeReposSync,
+	readCommitSubject,
+	resolveListedCommit,
+} from "../git";
 import { getWorkspace } from "../workspaces";
 import { enqueueTodoMutation, settleChangeArtifacts, unattributedChanges } from "./artifacts";
 import { dropItemBaseline, readBaselines, removeSessionBaselines } from "./baselines";
@@ -36,6 +42,52 @@ import {
 
 function storeFor(workspaceId: string, sessionId: string): TodoStore {
 	return new TodoStore(getWorkspace(workspaceId).worktreePath, sessionId);
+}
+
+/** Workspace-relative roots of the workspace's nested repositories, for a package that has to say
+ * which Git state a changed path belongs to. */
+export function nestedRepos(workspaceId: string): string[] {
+	return listWorktreeReposSync(getWorkspace(workspaceId))
+		.map((repo) => repo.path)
+		.filter((path) => path !== "");
+}
+
+function ownerRepoOf(repos: readonly string[], path: string): string {
+	let owner = "";
+	for (const repo of repos) {
+		if (repo && (path === repo || path.startsWith(`${repo}/`)) && repo.length > owner.length)
+			owner = repo;
+	}
+	return owner;
+}
+
+/** A plan step's paths are workspace-relative, so the change set names each nested repository's own
+ * paths — otherwise the reviewer cannot tell which repository, and which Git state, they belong to. */
+function changeSetLine(item: StoredItem, repos: readonly string[]): string {
+	const shas = commitShas(item);
+	const root: string[] = [];
+	const nested = new Map<string, string[]>();
+	for (const artifact of item.artifacts ?? []) {
+		if (artifact.kind !== "change" || !artifact.path) continue;
+		const repo = ownerRepoOf(repos, artifact.path);
+		if (!repo) {
+			root.push(artifact.path);
+			continue;
+		}
+		const held = nested.get(repo);
+		if (held) held.push(artifact.path);
+		else nested.set(repo, [artifact.path]);
+	}
+	const head =
+		shas.length > 0
+			? `commit${shas.length === 1 ? "" : "s"} ${shas.map((s) => s.slice(0, 12)).join(", ")}`
+			: "changed paths";
+	const listed = [
+		...root,
+		...[...nested].map(([repo, paths]) => `${paths.join(", ")} (repo ${repo})`),
+	];
+	if (listed.length === 0) return head;
+	return `${head}${shas.length > 0 ? "; uncommitted paths: " : ": "}${listed.join(", ")}`;
 }
 
 const commitFilesCache = new Map<string, GitFileChange[]>();
@@ -406,7 +458,7 @@ export function startTodoReview(params: { workspaceId: string; sessionId: string
 	const shas = commitShas(item);
 	markReviewPending(root, params.sessionId, params.id, shas);
 	return {
-		pkg: renderReviewPackage(item, params.sessionId, record),
+		pkg: renderReviewPackage(item, params.sessionId, record, nestedRepos(params.workspaceId)),
 		reviewedSha: shas.at(-1) ?? "",
 	};
 }
@@ -487,17 +539,11 @@ export function renderReviewPackage(
 	item: StoredItem,
 	workerSessionId: string,
 	prior: TodoReviewRecord | undefined,
+	repos: readonly string[] = [],
 ): string {
 	const shas = commitShas(item);
 	const seen = new Set(prior?.reviewedShas ?? []);
 	const fresh = shas.filter((s) => !seen.has(s));
-	const paths = (item.artifacts ?? []).flatMap((a) =>
-		a.kind === "change" && a.path ? [a.path] : [],
-	);
-	const changeSet =
-		shas.length > 0
-			? `commit${shas.length === 1 ? "" : "s"} ${shas.map((s) => s.slice(0, 12)).join(", ")}${paths.length > 0 ? `; uncommitted paths: ${paths.join(", ")}` : ""}`
-			: `changed paths: ${paths.join(", ")}`;
 	const rereview = prior && fresh.length > 0 && fresh.length < shas.length;
 	// Facts-only reference — the reviewer role and output contract live in host/reviewerRole; see planReview.SPEC.
 	const adopted = adoptedCommitSha(item.id);
@@ -512,7 +558,7 @@ export function renderReviewPackage(
 		...(item.verification
 			? [`Worker's verification claim: ${item.verification} (verify the claim, don't trust it)`]
 			: ["Worker reported NO verification — weigh that in your review."]),
-		`Change set: ${changeSet}`,
+		`Change set: ${changeSetLine(item, repos)}`,
 		...(rereview
 			? [
 					`RE-REVIEW: only ${fresh.map((s) => s.slice(0, 12)).join(", ")} is new since the last verdict — review only that delta. Earlier findings the fix addressed are resolved by the worker or excluded as stale; approve is blocked only by what's still open.`,
@@ -544,7 +590,12 @@ export function requestTodoFix(params: {
 		requestId: randomUUID(),
 	};
 	const previous = putReviewRecord(root, params.sessionId, params.id, requested);
-	return { pkg: renderFixPackage(item, feedback), itemTitle: item.title, previous, requested };
+	return {
+		pkg: renderFixPackage(item, feedback, nestedRepos(params.workspaceId)),
+		itemTitle: item.title,
+		previous,
+		requested,
+	};
 }
 
 export function rollbackTodoFix(
@@ -561,15 +612,12 @@ export function rollbackTodoFix(
 	);
 }
 
-export function renderFixPackage(item: StoredItem, feedback: string): string {
-	const shas = commitShas(item);
-	const paths = (item.artifacts ?? []).flatMap((a) =>
-		a.kind === "change" && a.path ? [a.path] : [],
-	);
-	const changeSet =
-		shas.length > 0
-			? `commit${shas.length === 1 ? "" : "s"} ${shas.map((s) => s.slice(0, 12)).join(", ")}${paths.length > 0 ? `; uncommitted paths: ${paths.join(", ")}` : ""}`
-			: `changed paths: ${paths.join(", ")}`;
+export function renderFixPackage(
+	item: StoredItem,
+	feedback: string,
+	repos: readonly string[] = [],
+): string {
+	const changeSet = changeSetLine(item, repos);
 	const lines = [
 		`The user reviewed your completed step ${item.id} ("${item.title}") and asked for a fix.`,
 		"",

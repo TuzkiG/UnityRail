@@ -22,7 +22,7 @@ export function seedFixtureRepo(): void {
 	const git = (...args: string[]) => gitQuiet(E2E_FIXTURE_REPO, ...args);
 	git("init", "-b", "main");
 	git("config", "user.email", "e2e@thinkrail.test");
-	git("config", "user.name", "ThinkRail E2E");
+	git("config", "user.name", "UnityRail E2E");
 	git("config", "commit.gpgsign", "false");
 	writeFileSync(join(E2E_FIXTURE_REPO, "README.md"), "# sample-project\n");
 	writeFileSync(join(E2E_FIXTURE_REPO, "notes.txt"), "plain-text-fixture\n");

@@ -16,7 +16,12 @@ bytes are** — the one byte-level classification every content read in the host
 ## Boundary
 
 - **Owns:** `readDir`/`readFile(workspaceId, path)` — every path resolved + contained to the worktree
-  root; `.git` hidden; directories sorted first. `readDir` reports worktree-relative paths with `/`
+  root, except that a directory link (Windows junction or POSIX symlink) whose target is a Git
+  repository is readable through its link path; a link to anything else still cannot escape. `.git`
+  hidden; directories sorted first (a linked Git repository reports `kind: "dir"`). `readDir` reports
+  worktree-relative paths with `/`
+  (the host then decorates those nodes with `gitignored` and `nestedRepo`; `readDir` itself stays a plain
+  listing)
   separators on every OS — the same form git status and watch events use — so a browser can match a
   listed node to a changed path (Windows' `relative()` would otherwise yield `src\auth`). (`.thinkrail/` is **not** hidden — it is shown like any
   other dir, so future host-managed content there stays visible; its ephemeral `context/` is kept out of
@@ -24,7 +29,8 @@ bytes are** — the one byte-level classification every content read in the host
   decoded only when it is text, so `content` is `""` for a byte-only resource and the client fetches
   those bytes over the host's `/files` route instead of receiving mojibake.
   **`resolveWorktreeFile(workspaceId, path)`** returns the
-  contained absolute path for the host to stream a file's raw bytes over HTTP (the `/files/…` route
+  absolute path for the host to stream a file's raw bytes over HTTP (the `/files/…` route; the same
+  linked-Git-repository exception applies)
   serving relative images in the markdown viewer, the `/blob` route's containment check) and for the
   `changes` module's atomic writes. Lexical escapes, `.git`, and an existing symlink chain whose resolved
   target leaves the worktree are refused; missing leaf paths are allowed so a deleted file can be

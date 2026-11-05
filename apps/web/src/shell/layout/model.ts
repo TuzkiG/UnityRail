@@ -78,34 +78,42 @@ export function createLayoutId(prefix: string): string {
 
 export const LAYOUT_TOOLS: readonly LayoutToolId[] = [
 	"projects",
+	"unity-project",
 	"specs",
 	"files",
 	"review",
 	"plan",
+	"unity",
 ];
 
 export const LAYOUT_TOOL_DEFAULT_SIDES: Record<LayoutToolId, LayoutSide> = {
 	projects: "left",
+	"unity-project": "left",
 	specs: "right",
 	files: "right",
 	review: "right",
 	plan: "right",
+	unity: "right",
 };
 
 const LAYOUT_TOOL_NAMES: Record<LayoutToolId, string> = {
 	projects: "Projects",
+	"unity-project": "Unity Project",
 	specs: "Specs",
 	files: "Files",
 	review: "Review",
 	plan: "TODO List",
+	unity: "Unity",
 };
 
 const LAYOUT_TOOL_NAME_KEYS = {
 	projects: "workbench.tool.projects",
+	"unity-project": "workbench.tool.unityProject",
 	specs: "workbench.tool.specs",
 	files: "workbench.tool.files",
 	review: "workbench.tool.review",
 	plan: "workbench.tool.plan",
+	unity: "workbench.tool.unity",
 } as const satisfies Record<LayoutToolId, MessageKey>;
 
 export type ChatFirstPrompts = Readonly<Record<string, string>>;

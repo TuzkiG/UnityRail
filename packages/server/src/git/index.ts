@@ -4,6 +4,7 @@ export {
 	diffBaseRef,
 	resolveCommitOid,
 	resolveDiffRange,
+	resolveUncommittedRange,
 } from "./diffScope";
 export {
 	canonicalPath,
@@ -18,6 +19,7 @@ export {
 	gitUncommittedPaths,
 	headShaAt,
 	listBranches,
+	listBranchesAt,
 	listCommits,
 	listCommitsSince,
 	listRemotes,
@@ -39,4 +41,18 @@ export {
 export { git, gitAsync, gitAsyncBytes, gitAsyncStream, nonInteractiveGitEnv } from "./gitExec";
 export { ignoredPaths } from "./ignored";
 export { assertSafeRef, isSafeRef, remoteNameOf, remoteTrackingRef } from "./refs";
-export { snapshotWorktree } from "./snapshot";
+export {
+	forgetWorktreeRepos,
+	listNestedRepoStatuses,
+	listWorktreeRepos,
+	listWorktreeReposSync,
+	ownerOf,
+	repoForPath,
+	repoForPathSync,
+	type WorktreeRepo,
+} from "./repos";
+export {
+	type NestedSnapshot,
+	snapshotNestedWorktrees,
+	snapshotWorktree,
+} from "./snapshot";

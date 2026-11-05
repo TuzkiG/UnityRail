@@ -3,6 +3,7 @@ import {
 	RiChatNewLine as MessageSquarePlus,
 	RiTerminalBoxLine as SquareTerminal,
 } from "@remixicon/react";
+import { UNITY_PROTOCOL_VERSION } from "@thinkrail/contracts";
 import type { MessageKey } from "@thinkrail/locales";
 import { t, useT } from "@thinkrail/locales/react";
 import { Button, IconButton } from "@thinkrail/ui/button";
@@ -34,6 +35,8 @@ import { ReviewPanel, selectActiveReviewedPath } from "../panels/ReviewPanel";
 import { reviewFlagForPaths, reviewFlags, tabReviewPaths } from "../panels/reviewModel";
 import { SpecsPanel } from "../panels/SpecsPanel";
 import { TerminalWorkbenchBody, useTerminalClose } from "../panels/TerminalWorkbench";
+import { UnityPanel } from "../panels/UnityPanel";
+import { UnityProjectPanel } from "../panels/UnityProjectPanel";
 import { useWorkspaceReview } from "../panels/useWorkspaceReview";
 import { useWorkspaceSpecs } from "../panels/useWorkspaceSpecs";
 import { useLoadWorkspaceTurns } from "../panels/useWorkspaceTurns";
@@ -313,6 +316,7 @@ function useTerminalReservation(workspaceId: string): void {
 export function WorkspaceWorkbench({ workspaceId }: { workspaceId: string }) {
 	const t = useT();
 	const status = useAppStore((state) => state.status);
+	const protocolVersion = useAppStore((state) => state.protocolVersion);
 	const connectionGeneration = useAppStore((state) => state.connectionGeneration);
 	const canRenameChat = useAppStore(selectCanRenameChat);
 	const document = useAppStore((state) => state.layoutDocumentsByWorkspace[workspaceId]);
@@ -649,7 +653,21 @@ export function WorkspaceWorkbench({ workspaceId }: { workspaceId: string }) {
 					<SpecsPanel workspaceId={workspaceId} failed={specs.failed} onRetry={specs.reload} />
 				</QuietScrollArea>
 			),
+			"unity-project": <UnityProjectPanel key={workspaceId} workspaceId={workspaceId} />,
 			files: <FilesPanel key={workspaceId} workspaceId={workspaceId} />,
+			unity:
+				protocolVersion !== null && protocolVersion >= UNITY_PROTOCOL_VERSION ? (
+					<UnityPanel key={workspaceId} workspaceId={workspaceId} />
+				) : (
+					<div
+						data-testid="unity-host-outdated"
+						className="flex h-full items-center justify-center p-16"
+					>
+						<p className="max-w-md text-center text-text-muted tr-text-ui">
+							{t("unity.panel.needsNewerHost")}
+						</p>
+					</div>
+				),
 			review: <ReviewPanel key={workspaceId} workspaceId={workspaceId} failed={review.failed} />,
 			plan: railPlanSessionId ? (
 				<ErrorBoundary
@@ -682,7 +700,15 @@ export function WorkspaceWorkbench({ workspaceId }: { workspaceId: string }) {
 			);
 		}
 		return bodies;
-	}, [railPlanSessionId, review.failed, specs.failed, specs.reload, t, workspaceId]);
+	}, [
+		railPlanSessionId,
+		review.failed,
+		specs.failed,
+		specs.reload,
+		t,
+		workspaceId,
+		protocolVersion,
+	]);
 	const renderToolBody = useCallback((tool: LayoutToolId) => toolBodies[tool], [toolBodies]);
 
 	const isDefault = workspace != null && isDefaultWorkspace(workspace);

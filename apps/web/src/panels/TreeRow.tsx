@@ -17,8 +17,11 @@ export function TreeRow({
 	subtle = false,
 	dataStatus,
 	dataViewed,
+	dataRepo,
+	dataSubmodule,
 	label,
 	labelClassName,
+	leading,
 	trailing,
 	highlight = "self",
 	onClick,
@@ -34,8 +37,11 @@ export function TreeRow({
 	subtle?: boolean;
 	dataStatus?: string | undefined;
 	dataViewed?: boolean;
+	dataRepo?: string | undefined;
+	dataSubmodule?: boolean | undefined;
 	label: string;
 	labelClassName?: string;
+	leading?: ReactNode;
 	trailing?: ReactNode;
 	highlight?: "self" | "wrapper";
 	onClick?: ((event: MouseEvent) => void) | undefined;
@@ -56,6 +62,8 @@ export function TreeRow({
 			data-active={active ? true : undefined}
 			data-status={dataStatus}
 			data-viewed={dataViewed ? true : undefined}
+			data-repo={dataRepo}
+			data-submodule={dataSubmodule ? true : undefined}
 			onClick={onClick}
 			onDoubleClick={onDoubleClick}
 			onContextMenu={onContextMenu}
@@ -73,11 +81,12 @@ export function TreeRow({
 				<span className="size-14 shrink-0" />
 			)}
 			<span className="flex min-w-0 flex-1 items-center gap-4">
-				{kind === "dir" ? (
-					<Folder className={`size-14 shrink-0 ${tone}`} />
-				) : (
-					<FileIcon className={`size-14 shrink-0 ${tone}`} />
-				)}
+				{leading ??
+					(kind === "dir" ? (
+						<Folder className={`size-14 shrink-0 ${tone}`} />
+					) : (
+						<FileIcon className={`size-14 shrink-0 ${tone}`} />
+					))}
 				<span className={`min-w-0 flex-1 truncate ${labelClassName ?? ""}`}>{label}</span>
 			</span>
 			{trailing}

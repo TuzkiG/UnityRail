@@ -315,20 +315,39 @@ function isWorkspaceView(value: unknown): value is WorkspaceViewState {
 		if (!isRecord(scope) || typeof scope.kind !== "string") return false;
 		switch (scope.kind) {
 			case "branch":
+				return (
+					hasOnlyKeys(scope, ["kind", "repo", "baseRef"]) &&
+					(scope.repo === undefined || typeof scope.repo === "string") &&
+					(scope.baseRef === undefined || typeof scope.baseRef === "string")
+				);
 			case "uncommitted":
 				return hasOnlyKeys(scope, ["kind"]);
 			case "commit":
 				return hasOnlyKeys(scope, ["kind", "sha"]) && typeof scope.sha === "string";
 			case "pinned":
 				return hasOnlyKeys(scope, ["kind", "baseRef"]) && typeof scope.baseRef === "string";
-			case "turn":
+			case "turn": {
+				if (
+					!hasOnlyKeys(scope, ["kind", "id", "baseTree", "headTree", "startedAt", "nestedTrees"]) ||
+					typeof scope.id !== "string" ||
+					typeof scope.baseTree !== "string" ||
+					typeof scope.headTree !== "string" ||
+					typeof scope.startedAt !== "number"
+				)
+					return false;
+				if (scope.nestedTrees === undefined) return true;
 				return (
-					hasOnlyKeys(scope, ["kind", "id", "baseTree", "headTree", "startedAt"]) &&
-					typeof scope.id === "string" &&
-					typeof scope.baseTree === "string" &&
-					typeof scope.headTree === "string" &&
-					typeof scope.startedAt === "number"
+					Array.isArray(scope.nestedTrees) &&
+					scope.nestedTrees.every(
+						(pair) =>
+							isRecord(pair) &&
+							hasOnlyKeys(pair, ["repo", "baseTree", "headTree"]) &&
+							typeof pair.repo === "string" &&
+							typeof pair.baseTree === "string" &&
+							typeof pair.headTree === "string",
+					)
 				);
+			}
 			default:
 				return false;
 		}

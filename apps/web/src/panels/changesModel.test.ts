@@ -6,10 +6,14 @@ import {
 	buildChangeMarks,
 	buildChangesTree,
 	type ChangeTreeDir,
+	changesForRepo,
 	changesTabId,
 	changeTreeFolderPaths,
 	diffTabId,
 	estimatedSectionHeight,
+	groupChangesByRepo,
+	repoChangeTree,
+	reviewChangeRows,
 	scopeKey,
 	scopeLabel,
 	scopeTitle,
@@ -67,8 +71,76 @@ test("buildChangesTree treats missing counts as zero", () => {
 	expect(tree[0]).toMatchObject({ kind: "file", name: "bin.png", added: 0, removed: 0 });
 });
 
+test("changesForRepo keeps the whole set at the workspace root and filters one nested root", () => {
+	const rows = [
+		change("README.md"),
+		change("libs/lib/a.ts", { repo: "libs/lib" }),
+		change("vendor/x.ts", { repo: "vendor" }),
+	];
+	expect(changesForRepo(rows, "").map((row) => row.path)).toEqual([
+		"README.md",
+		"libs/lib/a.ts",
+		"vendor/x.ts",
+	]);
+	expect(changesForRepo(rows, "libs/lib").map((row) => row.path)).toEqual(["libs/lib/a.ts"]);
+	expect(changesForRepo(rows, "missing")).toEqual([]);
+});
+
+test("groupChangesByRepo keeps root changes first and groups nested repositories", () => {
+	const groups = groupChangesByRepo([
+		change("libs/lib/src/a.ts", { repo: "libs/lib", added: 2, removed: 1 }),
+		change("README.md"),
+		change("libs/lib/b.ts", { repo: "libs/lib" }),
+		change("vendor/x.ts", { repo: "vendor", added: 1, removed: 0 }),
+	]);
+	expect(groups.map((group) => group.repo)).toEqual(["", "libs/lib", "vendor"]);
+	expect(groups[1]).toMatchObject({ added: 3, removed: 1 });
+	expect(groups[1]?.changes.map((row) => row.path)).toEqual(["libs/lib/src/a.ts", "libs/lib/b.ts"]);
+});
+
+test("reviewChangeRows names a nested repository once and keeps its files contiguous", () => {
+	const rows = reviewChangeRows([
+		change("embed/x.txt", { repo: "embed" }),
+		change("src/a.ts"),
+		change("libs/lib/y.txt", { repo: "libs/lib" }),
+		change("embed/z.txt", { repo: "embed" }),
+	]);
+	expect(rows.map((row) => row.change.path)).toEqual([
+		"src/a.ts",
+		"embed/x.txt",
+		"embed/z.txt",
+		"libs/lib/y.txt",
+	]);
+	expect(rows.map((row) => row.group?.repo ?? null)).toEqual([null, "embed", null, "libs/lib"]);
+	expect(rows[1]?.group).toMatchObject({ repo: "embed", added: 2, removed: 0 });
+});
+
+test("repoChangeTree strips the repository prefix from the group's tree only", () => {
+	const [group] = groupChangesByRepo([
+		change("libs/lib/src/a.ts", { repo: "libs/lib", added: 2, removed: 1 }),
+	]);
+	if (!group) throw new Error("expected a group");
+	const node = repoChangeTree(group);
+	expect(node).toMatchObject({ kind: "dir", name: "libs/lib", repo: true });
+	const src = node.children[0] as ChangeTreeDir;
+	expect(src.name).toBe("src");
+	expect(src.children[0]).toMatchObject({
+		kind: "file",
+		name: "a.ts",
+		path: "libs/lib/src/a.ts",
+	});
+});
+
+test("buildChangesTree keeps a submodule marker on a gitlink row", () => {
+	const tree = buildChangesTree([{ path: "clean", status: "untracked", submodule: true }]);
+	expect(tree[0]).toMatchObject({ kind: "file", path: "clean", submodule: true });
+});
+
 test("scopeKey + diffTabId: the scope is part of a diff tab's identity", () => {
 	expect(scopeKey({ kind: "branch" })).toBe("branch");
+	expect(scopeKey({ kind: "branch", repo: "Assets/Game", baseRef: "origin/main" })).toBe(
+		"branch:Assets/Game:origin/main",
+	);
 	expect(scopeKey({ kind: "uncommitted" })).toBe("uncommitted");
 	expect(scopeKey({ kind: "commit", sha: "abc123" })).toBe("commit:abc123");
 	expect(scopeKey({ kind: "pinned", baseRef: "abc123" })).toBe("pinned:abc123");

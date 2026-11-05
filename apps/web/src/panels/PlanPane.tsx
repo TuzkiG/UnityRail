@@ -895,6 +895,22 @@ export default function PlanPane({
 		if (connection !== "connected" || hasRuntime) return;
 		hydrateSessionRuntime(workspaceId, sessionId).catch(() => {});
 	}, [connection, hasRuntime, workspaceId, sessionId]);
+	// `workspace.list` no longer pays one `git diff --shortstat` per row; the badge asks for its own
+	// workspace only, once, and the store keeps the numbers through later list refreshes.
+	const missingDiffStats = workspace != null && workspace.diffStats === undefined;
+	useEffect(() => {
+		if (!missingDiffStats) return;
+		let cancelled = false;
+		void getTransport()
+			.request("workspace.diffStats", { id: workspaceId })
+			.then((diffStats) => {
+				if (!cancelled) useAppStore.getState().setWorkspaceDiffStats(workspaceId, diffStats);
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, [missingDiffStats, workspaceId]);
 	const protocolVersion = useAppStore((s) => s.protocolVersion);
 	const workspaceSettlingSupported = useAppStore((s) => s.workspaceSettlingSupported);
 	const canReview = supportsPlanReview(protocolVersion);

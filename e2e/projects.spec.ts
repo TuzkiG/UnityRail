@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import {
@@ -102,7 +102,7 @@ function seedSecondRepo(): string {
 	mkdirSync(repo, { recursive: true });
 	git(repo, "init", "-b", "main");
 	git(repo, "config", "user.email", "e2e@thinkrail.test");
-	git(repo, "config", "user.name", "ThinkRail E2E");
+	git(repo, "config", "user.name", "UnityRail E2E");
 	git(repo, "config", "commit.gpgsign", "false");
 	writeFileSync(join(repo, "README.md"), "# second project\n");
 	git(repo, "add", "-A");
@@ -132,7 +132,7 @@ test("opens a project from an explicit host path", async ({ page }) => {
 
 	const dialog = page.getByTestId("open-project-path-dialog");
 	await expect(dialog).toBeVisible();
-	await expect(dialog).toContainText("computer running ThinkRail");
+	await expect(dialog).toContainText("computer running UnityRail");
 	await expect(dialog.getByTestId("open-project-picker-error")).toHaveCount(0);
 	const input = dialog.getByTestId("open-project-path-input");
 	await expect(input).toBeFocused();
@@ -208,6 +208,8 @@ test("opening a non-git folder offers to initialise a repo, then opens it end-to
 	await page.goto("/");
 	await expect(page.getByTestId("connection-status")).toHaveAttribute("data-status", "connected");
 
+	console.log("PICKER_POINTER_BEFORE_CLICK =", readFileSync(E2E_PICK_DIR_POINTER, "utf8").trim());
+	console.log("PLAIN_DIR =", E2E_PLAIN_DIR);
 	await page.getByTestId("add-project-menu").click();
 	await page.getByTestId("menu-open-project").click();
 	const confirmInit = page.getByTestId("confirm-init-repo");
@@ -504,8 +506,8 @@ test("project context actions stay compact and close/reopen is lossless across c
 	await page.getByTestId("confirm-close-project").click();
 	await expect(page.getByTestId("project-item")).toHaveCount(0);
 	await expect(observer.getByTestId("project-item")).toHaveCount(0);
-	await expect(page.getByTestId("welcome-title")).toHaveText("ThinkRail");
-	await expect(observer.getByTestId("welcome-title")).toHaveText("ThinkRail");
+	await expect(page.getByTestId("welcome-title")).toHaveText("UnityRail");
+	await expect(observer.getByTestId("welcome-title")).toHaveText("UnityRail");
 	await expect(page.getByTestId("add-project-menu")).toBeFocused();
 
 	await page.getByTestId("add-project-menu").click();

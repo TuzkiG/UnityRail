@@ -9,10 +9,13 @@ import {
 	RiFileLine,
 	RiFolder2Fill,
 	RiFolder2Line,
+	RiGamepadFill,
+	RiGamepadLine,
 	RiGitPullRequestFill,
 	RiGitPullRequestLine,
 	RiLayout2Fill,
 	RiLayout2Line,
+	RiLinkM,
 	RiListCheck3,
 	RiTaskFill,
 	RiTaskLine,
@@ -53,6 +56,10 @@ export function tabIcon(tab: LayoutTab, active = false, cls = "size-14 shrink-0"
 					return active ? <RiDiscussFill className={cls} /> : <RiDiscussLine className={cls} />;
 				case "plan":
 					return active ? <RiTaskFill className={cls} /> : <RiTaskLine className={cls} />;
+				case "unity-project":
+					return <RiLinkM className={cls} />;
+				case "unity":
+					return active ? <RiGamepadFill className={cls} /> : <RiGamepadLine className={cls} />;
 				default:
 					return active ? <RiLayout2Fill className={cls} /> : <RiLayout2Line className={cls} />;
 			}

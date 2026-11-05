@@ -28,10 +28,18 @@ import {
 import { errorText, wsErrorCode } from "../transport";
 import { ChangesFileSection } from "./ChangesFileSection";
 import { ChangesReviewGuide, guideSteps } from "./ChangesReviewGuide";
-import { LARGE_SCOPE_FILES, scopeKey, scopeLabel, sectionCollapsedByDefault } from "./changesModel";
+import {
+	type ChangeRepoGroup,
+	LARGE_SCOPE_FILES,
+	reviewChangeRows,
+	scopeKey,
+	scopeLabel,
+	sectionCollapsedByDefault,
+} from "./changesModel";
 import { DiffStatBadge } from "./DiffStatBadge";
 import { peekGitStatus, readGitStatus } from "./gitStatusCache";
 import { HeaderIconButton } from "./HeaderIconButton";
+import { NestedRepoTag } from "./NestedRepoTag";
 import { ownsReviewShortcut } from "./reviewShortcuts";
 import { SendAllReviewsButton } from "./SendReviewButton";
 import { createSectionContentCache } from "./sectionContentCache";
@@ -45,6 +53,19 @@ const NEXT_UNREVIEWED_KEY = "j";
 interface ReviewListContext {
 	tailHeight: number;
 	fileCount: number;
+}
+
+function ReviewRepoHeader({ group }: { group: ChangeRepoGroup }) {
+	return (
+		<div
+			data-testid="changes-review-repo-group"
+			data-repo={group.repo}
+			className="flex h-panel-row items-center justify-between gap-4 border-border-default border-b bg-container-sidebar-bg px-12"
+		>
+			<NestedRepoTag repo={group.repo} />
+			<DiffStatBadge added={group.added} removed={group.removed} />
+		</div>
+	);
 }
 
 function ReviewListFooter({ context }: { context?: ReviewListContext }) {
@@ -135,7 +156,13 @@ export function ChangesReviewPane({ tab }: { tab: ChangesTab }) {
 		readKey,
 	);
 
-	const files = useMemo(() => status?.changes ?? [], [status]);
+	const rows = useMemo(() => reviewChangeRows(status?.changes ?? []), [status]);
+	const files = useMemo(() => rows.map((row) => row.change), [rows]);
+	const groupAtPath = useMemo(
+		() =>
+			new Map(rows.flatMap((row) => (row.group ? [[row.change.path, row.group] as const] : []))),
+		[rows],
+	);
 	const viewedSet = useMemo(() => new Set(tab.viewed), [tab.viewed]);
 	const isCollapsed = useCallback(
 		(change: GitFileChange) => tab.collapsed[change.path] ?? sectionCollapsedByDefault(change),
@@ -449,6 +476,7 @@ export function ChangesReviewPane({ tab }: { tab: ChangesTab }) {
 								>
 									{currentIndex + 1} / {files.length}
 								</span>
+								{current.repo ? <NestedRepoTag repo={current.repo} /> : null}
 								<HeaderIconButton
 									testid="changes-review-next"
 									label={t("changes.review.nextFile")}
@@ -547,25 +575,31 @@ export function ChangesReviewPane({ tab }: { tab: ChangesTab }) {
 									onScroll={spyActiveSection}
 									rangeChanged={spyActiveSection}
 									totalListHeightChanged={onTotalListHeightChanged}
-									itemContent={(_index, change) => (
-										<ChangesFileSection
-											workspaceId={workspaceId}
-											tabId={tab.id}
-											scope={scope}
-											tabView={tab.view}
-											ignoreWhitespace={ignoreWhitespace}
-											section={tab.sections[change.path]}
-											keptList={tab.kept[change.path]}
-											change={change}
-											mode="stacked"
-											collapsed={isCollapsed(change)}
-											collapsedByDefault={sectionCollapsedByDefault(change)}
-											viewed={viewedSet.has(change.path)}
-											cache={cache}
-											onToggleCollapsed={toggleCollapsed}
-											onSetViewed={setPathViewed}
-										/>
-									)}
+									itemContent={(_index, change) => {
+										const group = groupAtPath.get(change.path);
+										return (
+											<>
+												{group ? <ReviewRepoHeader group={group} /> : null}
+												<ChangesFileSection
+													workspaceId={workspaceId}
+													tabId={tab.id}
+													scope={scope}
+													tabView={tab.view}
+													ignoreWhitespace={ignoreWhitespace}
+													section={tab.sections[change.path]}
+													keptList={tab.kept[change.path]}
+													change={change}
+													mode="stacked"
+													collapsed={isCollapsed(change)}
+													collapsedByDefault={sectionCollapsedByDefault(change)}
+													viewed={viewedSet.has(change.path)}
+													cache={cache}
+													onToggleCollapsed={toggleCollapsed}
+													onSetViewed={setPathViewed}
+												/>
+											</>
+										);
+									}}
 									context={{ tailHeight, fileCount: files.length }}
 									components={REVIEW_LIST_COMPONENTS}
 								/>

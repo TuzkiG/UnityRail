@@ -311,7 +311,15 @@ export function matchTurnReceipt(
 	const last = runs.at(-1);
 	if (!first || !last) return null;
 	const byPath = new Map<string, GitFileChange>();
-	for (const run of runs) for (const change of run.changes) byPath.set(change.path, change);
+	const nested = new Map<string, NonNullable<TurnChangeSet["nestedTrees"]>[number]>();
+	for (const run of runs) {
+		for (const change of run.changes) byPath.set(change.path, change);
+		for (const pair of run.nestedTrees ?? []) {
+			const held = nested.get(pair.repo);
+			if (held) held.headTree = pair.headTree;
+			else nested.set(pair.repo, { ...pair });
+		}
+	}
 	return {
 		scope: {
 			kind: "turn",
@@ -319,6 +327,7 @@ export function matchTurnReceipt(
 			baseTree: first.baseTree,
 			headTree: last.headTree,
 			startedAt: first.startedAt,
+			...(nested.size > 0 ? { nestedTrees: [...nested.values()] } : {}),
 		},
 		changes: [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path)),
 	};

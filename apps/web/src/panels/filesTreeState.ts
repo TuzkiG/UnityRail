@@ -57,6 +57,7 @@ export function parseFilesTreeDocument(raw: string | null): Record<string, Files
 			changedCollapsed: pathList(view.changedCollapsed),
 			scroll: scrollEntries(view.scroll),
 			seenActivePath: typeof view.seenActivePath === "string" ? view.seenActivePath : null,
+			...(typeof view.repo === "string" && view.repo ? { repo: view.repo } : {}),
 		};
 	}
 	return views;

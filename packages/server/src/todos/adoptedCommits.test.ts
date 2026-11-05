@@ -109,7 +109,7 @@ test("a commit owned by a todo item is NOT adopted (no double-counting)", async 
 	const store = new TodoStore(repo, SESSION);
 	writeFileSync(join(repo, "owned.ts"), "export const b = 2;\n");
 	const owned = gitCommitPaths("w1", "feat: owned step", ["owned.ts"]);
-	if (!owned) throw new Error("commit failed");
+	if (!owned?.sha) throw new Error("commit failed");
 	store.add({
 		title: "owned step",
 		artifacts: [{ kind: "commit", sha: owned.sha, label: "owned step" }],
@@ -148,7 +148,7 @@ test("review resolution rejects a commit:<sha> outside base..HEAD or owned by an
 	const store = new TodoStore(repo, SESSION);
 	writeFileSync(join(repo, "owned.ts"), "export const b = 2;\n");
 	const owned = gitCommitPaths("w1", "feat: owned step", ["owned.ts"]);
-	if (!owned) throw new Error("commit failed");
+	if (!owned?.sha) throw new Error("commit failed");
 	store.add({
 		title: "owned step",
 		artifacts: [{ kind: "commit", sha: owned.sha, label: "owned step" }],

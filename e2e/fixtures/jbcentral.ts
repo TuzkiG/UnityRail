@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, type Locator, type Page } from "@playwright/test";
 import { JBCENTRAL_STATUS_TTL_MS } from "@thinkrail/shared/jbcentral";
+import { windowsGitBash } from "./executables";
 import {
 	E2E_CENTRAL_EXTENSION_SOURCE,
 	E2E_CENTRAL_LOG,
@@ -50,7 +51,10 @@ export function assertOnlyReviewedArgv(): void {
 }
 
 export function runCentralOnHost(...argv: string[]): void {
-	execFileSync(join(E2E_FAKE_BIN_DIR, "central"), argv, {
+	const script = join(E2E_FAKE_BIN_DIR, "central");
+	const command = process.platform === "win32" ? windowsGitBash() : script;
+	const args = process.platform === "win32" ? [script, ...argv] : argv;
+	execFileSync(command, args, {
 		env: {
 			PATH: "/usr/bin:/bin",
 			HOME: E2E_HOME_DIR,
@@ -66,7 +70,21 @@ export function setCentralInstalled(installed: boolean): void {
 	const live = join(E2E_FAKE_BIN_DIR, "central");
 	const hidden = join(E2E_FAKE_BIN_DIR, "central.uninstalled");
 	if (installed === existsSync(live)) return;
-	execFileSync("mv", [installed ? hidden : live, installed ? live : hidden]);
+	renameCentralStub(installed ? hidden : live, installed ? live : hidden);
+}
+
+/**
+ * Moves the POSIX stub and its Windows `.cmd` launcher together: the launcher resolves through PATHEXT
+ * even when the stub is gone, so a hidden stub must hide its launcher too or the host still discovers
+ * `central` and reports a probe failure instead of "absent".
+ */
+export function renameCentralStub(from: string, to: string): void {
+	execFileSync("mv", [from, to]);
+	if (process.platform === "win32") {
+		const fromShim = `${from}.cmd`;
+		const toShim = `${to}.cmd`;
+		if (existsSync(fromShim)) execFileSync("mv", [fromShim, toShim]);
+	}
 }
 
 export async function connectCentral(page: Page): Promise<void> {

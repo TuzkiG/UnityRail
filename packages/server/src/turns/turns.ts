@@ -1,5 +1,5 @@
 import type { GitDiffScope, PiEvent, TurnChangeSet } from "@thinkrail/contracts";
-import { gitStatus, snapshotWorktree } from "../git";
+import { gitStatus, type NestedSnapshot, snapshotNestedWorktrees, snapshotWorktree } from "../git";
 import { logger } from "../log";
 import { loadTurns, loadWorkspaces, saveTurns } from "../persistence";
 
@@ -7,11 +7,16 @@ const log = logger("turns");
 const TURNS_PER_WORKSPACE = 30;
 const DRAIN_TIMEOUT_MS = 5_000;
 
+interface RunSnapshot {
+	root: string | null;
+	nested: NestedSnapshot[];
+}
+
 interface PendingRun {
 	workspaceId: string;
 	worktreePath: string;
 	startedAt: number;
-	baseTree: Promise<string | null>;
+	base: Promise<RunSnapshot>;
 }
 
 type TurnPublisher = (turn: TurnChangeSet) => void;
@@ -28,6 +33,7 @@ export function turnScope(turn: TurnChangeSet): Extract<GitDiffScope, { kind: "t
 		baseTree: turn.baseTree,
 		headTree: turn.headTree,
 		startedAt: turn.startedAt,
+		...(turn.nestedTrees ? { nestedTrees: turn.nestedTrees } : {}),
 	};
 }
 
@@ -68,16 +74,16 @@ export class TurnTracker {
 			if (this.pending.has(sessionId)) return Promise.resolve();
 			const target = this.resolve(sessionId);
 			if (!target) return Promise.resolve();
-			const baseTree = this.snapshot(target.worktreePath).catch(() => null);
-			this.pending.set(sessionId, { ...target, startedAt: this.now(), baseTree });
-			return baseTree.then(() => {});
+			const base = this.capture(target.worktreePath);
+			this.pending.set(sessionId, { ...target, startedAt: this.now(), base });
+			return base.then(() => {});
 		}
 		if (event.type !== "agent_settled") return Promise.resolve();
 		const run = this.pending.get(sessionId);
 		this.pending.delete(sessionId);
 		if (!run) return Promise.resolve();
-		const headTree = this.snapshot(run.worktreePath);
-		const job = this.settle(sessionId, run, headTree).catch((error) => {
+		const head = this.capture(run.worktreePath);
+		const job = this.settle(sessionId, run, head).catch((error) => {
 			log.warn(`turn change set was not recorded for ${sessionId}`, error as Error);
 		});
 		this.recording.add(job);
@@ -96,20 +102,38 @@ export class TurnTracker {
 		clearTimeout(timer);
 	}
 
+	private capture(worktreePath: string): Promise<RunSnapshot> {
+		const root = this.snapshot(worktreePath).catch(() => null);
+		const nested = snapshotNestedWorktrees(worktreePath).catch(() => []);
+		return Promise.all([root, nested]).then(([rootTree, nestedTrees]) => ({
+			root: rootTree,
+			nested: nestedTrees,
+		}));
+	}
+
 	private async settle(
 		sessionId: string,
 		run: PendingRun,
-		head: Promise<string | null>,
+		head: Promise<RunSnapshot>,
 	): Promise<void> {
-		const [baseTree, headTree] = await Promise.all([run.baseTree, head]);
-		if (!baseTree || !headTree || headTree === baseTree) return;
+		const [base, current] = await Promise.all([run.base, head]);
+		if (!base.root || !current.root) return;
+		const baseNested = new Map(base.nested.map((entry) => [entry.repo, entry.tree]));
+		const nestedTrees = current.nested.flatMap((entry) => {
+			const before = baseNested.get(entry.repo);
+			return before && before !== entry.tree
+				? [{ repo: entry.repo, baseTree: before, headTree: entry.tree }]
+				: [];
+		});
+		if (current.root === base.root && nestedTrees.length === 0) return;
 		const id = `${sessionId}:${run.startedAt}`;
 		const status = await gitStatus(run.workspaceId, {
 			kind: "turn",
 			id,
-			baseTree,
-			headTree,
+			baseTree: base.root,
+			headTree: current.root,
 			startedAt: run.startedAt,
+			...(nestedTrees.length > 0 ? { nestedTrees } : {}),
 		});
 		if (status.changes.length === 0) return;
 		if (!loadWorkspaces().some((workspace) => workspace.id === run.workspaceId)) return;
@@ -119,8 +143,9 @@ export class TurnTracker {
 			sessionId,
 			startedAt: run.startedAt,
 			settledAt: this.now(),
-			baseTree,
-			headTree,
+			baseTree: base.root,
+			headTree: current.root,
+			...(nestedTrees.length > 0 ? { nestedTrees } : {}),
 			changes: status.changes,
 		};
 		recordTurn(turn);

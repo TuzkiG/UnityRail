@@ -105,7 +105,7 @@ blocks in order into rows; `ChatTurnView` dispatches on row kind:
   (`data-testid="chat-compaction"`). Hydration/reopen starts directly from that same durable form. Both forms
   share the **"Context compacted"** title; only facts unavailable after reload disappear.
 - `markdown` — a non-empty assistant text block (react-markdown + remark-gfm + shiki). Safe
-  worktree-relative links in assistant prose open the target in ThinkRail through `ChatTurnView`'s existing
+  worktree-relative links in assistant prose open the target in UnityRail through `ChatTurnView`'s existing
   workspace-file callback; absolute paths are accepted only when they normalize inside the active worktree,
   while URL schemes, protocol-relative URLs, fragments, and unsafe/outside paths retain ordinary safe
   new-tab anchor behavior. Percent-encoded file paths are decoded once before validation, so encoded
@@ -291,7 +291,9 @@ blocks in order into rows; `ChatTurnView` dispatches on row kind:
   the user message before starting the run, so no clock-skew allowance belongs here: shifting the
   interval backwards steals receipts when prompts are less than a second apart. The canonical user echo
   replaces the optimistic message while retaining its row identity and attachment labels, so live receipts
-  use the host clock even when the browser clock differs. When a round has a receipt
+  use the host clock even when the browser clock differs. When a round spans several turns, the merged
+  scope carries each nested repository's **first base tree and last head tree** (`nestedTrees`), so the
+  chat chip and the Changes turn scope read the same submodule snapshots. When a round has a receipt
   the files chip lists *those* paths with per-file `+/−` counts and reads `N files changed · +a −r` —
   tool arguments miss shell writes, formatters and renames, while the snapshot is what the agent actually
   left behind (see the server `turns` SPEC). Tool paths are canonicalized against the workspace before
@@ -912,7 +914,7 @@ both message orders. *Rejected:* keeping the modal for non-MCP extensions — ev
   action. Its **Skills** button is the presentational **`SkillsButton`**
   primitive — a `BookOpen` pill, badged when a skill dir changed on disk — also shared with
   `NewWorkspaceDialog` so the two triggers cannot drift), and **`SkillsDialog`** (the **Skills manager**: a catalog
-  grouped by source with **sticky section headers** — the first-party **ThinkRail** and **Pi** groups lead
+  grouped by source with **sticky section headers** — the first-party **UnityRail** and **Pi** groups lead
   (above the All-plugins master, which governs only the plugin groups), then Personal / **a group per
   installed Claude plugin** / the repo's Project skills last — each with its admission verdict,
   project-trust (the same `projectTrust` derivation and copy as the Welcome notice — `useProjectTrustSummary`
@@ -951,6 +953,13 @@ both message orders. *Rejected:* keeping the modal for non-MCP extensions — ev
   overflow then scrolls inside the textarea. Attachment chips, completion menus, slot hints, and QueueStrip
   keep their existing separate chrome. The slot-highlight backdrop must follow every dynamic textarea box
   change with the exact box-model and scroll-sync invariants under Template slots below.
+- **Unity Editor selection chip** (`Composer`, `UnitySelectionChip.tsx`) — the Editor's live selection rides
+  the attachment strip as a leading `composer-unity-selection` chip (`name` + `type`, full path and scene
+  in the tooltip). `useUnitySelection.ts` polls the status-only `unity.status` while the chat is mounted —
+  the project model never crosses that poll — and stops for a workspace that is not a Unity project. The
+  chip is informational: the selection reaches the model through the Unity extension's
+  `before_agent_start` system-prompt section ([[module-ext-unity]]), never through the message text, so it
+  has no dismiss control and a send's content and reconciliation stay untouched.
 - **Composer trailing controls** (`Composer`) — the footer's right-hand cluster is **one solid object and
   ghosts**, no borders: History is `IconButton ghost m` (its `label` supplies the tooltip), Stop is
   `Button ghost m` (`■ Stop`, muted text lifting on a hover wash), and the send a single
@@ -965,7 +974,7 @@ both message orders. *Rejected:* keeping the modal for non-MCP extensions — ev
   splits) labels and keycap hide and the send pill collapses to an icon, so the model pill keeps its room.
   Labels use `ui.action`.
 - **Anthropic extra-usage notice** (`ExtraUsageNotice.tsx`, props-driven). It warns that Claude Pro/Max
-  auth bills ThinkRail's usage per token as extra usage. Both variants link only claude.ai's usage page.
+  auth bills UnityRail's usage per token as extra usage. Both variants link only claude.ai's usage page.
   There is no "Details" link: no pi doc explains the billing (pi's providers.md has no Claude Pro/Max
   section), and Anthropic's help pages cover usage limits, not the third-party rule. The notice's own
   sentence is the explanation. The `chat` variant sits above
@@ -1607,7 +1616,9 @@ Unknown custom messages retain their existing behavior.
   **`useTranscriptSync.ts`** (successful-compaction + connection-generation canonical transcript
   reconciliation), `SkillsDialog.tsx`, **`useProjectTrustSummary.ts`** (the trust-summary read the Skills
   dialog shares with `panels/ProjectTrustNotice` and New Workspace; its pure derivation and copy live in the
-  store-free `projectTrust.ts`), `TemplateEditorDialog.tsx`,
+  store-free `projectTrust.ts`), **`useUnitySelection.ts`** (the status-only Editor-selection poll behind the
+  composer chip; it stops on a non-Unity workspace and keeps the last chip through a failed read),
+  `TemplateEditorDialog.tsx`,
   `SubagentTranscriptDialog.tsx`, **`useModelPreferences.ts`** (pinned / recents / default pair:
   the store read plus the `settings.update` writes every picker mount shares), and **`modelVisibility.ts`**
   (the hidden-models persistence seam `main.tsx` starts once: hydrates `store.hiddenModels` and writes it

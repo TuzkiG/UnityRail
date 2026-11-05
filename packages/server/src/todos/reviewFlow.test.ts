@@ -19,6 +19,7 @@ import {
 	listTodos,
 	removeTodo,
 	renderFixPackage,
+	renderReviewPackage,
 	requestTodoFix,
 	reviewedShaSuperseded,
 	rollbackTodoFix,
@@ -81,7 +82,7 @@ afterEach(() => {
 function committedItem(store: TodoStore, title: string, file: string): { id: string; sha: string } {
 	writeFileSync(join(repo, file), "export {};\n");
 	const committed = gitCommitPaths("w1", title, [file]);
-	if (!committed) throw new Error("commit failed");
+	if (!committed?.sha) throw new Error("commit failed");
 	const todo = store.add({
 		title,
 		artifacts: [{ kind: "commit", sha: committed.sha, label: title }],
@@ -158,7 +159,7 @@ test("approve records the watermark; a later revision commit reads as the unrevi
 	// A fix cycle appends a second commit — only IT is the unreviewed delta.
 	writeFileSync(join(repo, "impl2.ts"), "export {};\n");
 	const second = gitCommitPaths("w1", "feat: step", ["impl2.ts"]);
-	if (!second) throw new Error("commit failed");
+	if (!second?.sha) throw new Error("commit failed");
 	store.update(id, {
 		artifacts: [
 			{ kind: "commit", sha, label: "step" },
@@ -181,7 +182,7 @@ test("an agent verdict watermarks the START-time shas — a commit landed mid-re
 	// The worker lands another commit WHILE the reviewer's turn is streaming.
 	writeFileSync(join(repo, "impl2.ts"), "export {};\n");
 	const second = gitCommitPaths("w1", "feat: step", ["impl2.ts"]);
-	if (!second) throw new Error("commit failed");
+	if (!second?.sha) throw new Error("commit failed");
 	store.update(id, {
 		artifacts: [
 			{ kind: "commit", sha, label: "step" },
@@ -328,6 +329,28 @@ test("renderFixPackage names changed paths for the fallback change set", () => {
 	};
 	const pkg = renderFixPackage(item, "fix it");
 	expect(pkg).toContain("changed paths: a.ts, b.ts");
+});
+
+test("renderReviewPackage names a nested repository for its own changed paths", () => {
+	const item = {
+		id: "t_2",
+		title: "step",
+		status: "done" as const,
+		origin: "agent" as const,
+		artifacts: [
+			{ kind: "change" as const, path: "src/a.ts" },
+			{ kind: "change" as const, path: "embed/x.txt" },
+		],
+		createdAt: "2026-01-01T00:00:00Z",
+		updatedAt: "2026-01-01T00:00:00Z",
+	};
+	expect(renderReviewPackage(item, SESSION, undefined, ["embed"])).toContain(
+		"changed paths: src/a.ts, embed/x.txt (repo embed)",
+	);
+	expect(renderFixPackage(item, "fix it", ["embed"])).toContain(
+		"changed paths: src/a.ts, embed/x.txt (repo embed)",
+	);
+	expect(renderFixPackage(item, "fix it")).toContain("changed paths: src/a.ts, embed/x.txt");
 });
 
 test("review sidecar meta: pending marks; decoration ships reviewing/reviewedBy", async () => {

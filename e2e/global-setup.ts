@@ -14,7 +14,11 @@ import {
 	waitForCentralTarget,
 	writeE2eAgentSettings,
 } from "./fixtures/centralAgent";
-import { writeFakeGh, writeHermeticE2eShell } from "./fixtures/executables";
+import {
+	writeFakeGh,
+	writeHermeticE2eShell,
+	writeWindowsCommandShim,
+} from "./fixtures/executables";
 import {
 	E2E_CENTRAL_BAD_EXTENSION_SOURCE,
 	E2E_CENTRAL_EXTENSION_SOURCE,
@@ -64,7 +68,7 @@ export default function globalSetup(config?: FullConfig): void | Promise<void> {
 			JSON.stringify({ acceptedMessages: 0, nextInvitationAt: 10, dismissed: true }),
 		);
 		mkdirSync(E2E_HOME_DIR, { recursive: true });
-		writeFileSync(join(E2E_HOME_DIR, ".zshrc"), "# ThinkRail e2e isolated shell\n");
+		writeFileSync(join(E2E_HOME_DIR, ".zshrc"), "# UnityRail e2e isolated shell\n");
 
 		for (const rc of [".zshrc", ".bashrc"]) writeFileSync(join(E2E_HOME_DIR, rc), "");
 
@@ -73,6 +77,7 @@ export default function globalSetup(config?: FullConfig): void | Promise<void> {
 			const target = join(E2E_FAKE_BIN_DIR, command);
 			copyFileSync(new URL(`./fixtures/bin/${command}`, import.meta.url), target);
 			chmodSync(target, 0o755);
+			writeWindowsCommandShim(E2E_FAKE_BIN_DIR, command);
 		}
 		writeHermeticE2eShell(E2E_FAKE_BIN_DIR, process.env.SHELL ?? "/bin/bash");
 		writeFakeGh(E2E_FAKE_BIN_DIR, E2E_GH_SCENARIO, E2E_GH_LOG);

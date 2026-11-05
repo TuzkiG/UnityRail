@@ -12,6 +12,7 @@ import {
 	gitStatus,
 	gitUncommittedPaths,
 	listBranches,
+	listBranchesAt,
 	listCommits,
 	listCommitsSince,
 	prefetchBranch,
@@ -227,6 +228,19 @@ test("gitDiffFile stamps both sides with their byte identity and never decodes a
 test("gitDiffFile refuses a path escaping the worktree", async () => {
 	seedWorkspace();
 	await expect(gitDiffFile("w1", "../outside.txt")).rejects.toThrow("Path escapes the worktree");
+});
+
+test("listBranchesAt reads a repository by path, so a nested worktree lists its own branches", async () => {
+	const nested = join(dataDir, "nested-repo");
+	mkdirSync(nested);
+	git(nested, "init", "-b", "nested-only");
+	git(nested, "config", "commit.gpgsign", "false");
+	git(nested, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-m", "init");
+	git(nested, "branch", "board_modify");
+	const branches = await listBranchesAt(nested);
+	expect(branches.local.sort()).toEqual(["board_modify", "nested-only"]);
+	expect(branches.defaultBranch).toBe("nested-only");
+	expect(branches.remote).toEqual([]);
 });
 
 test("listBranches with no remote returns local branches and falls back to the repo HEAD", async () => {

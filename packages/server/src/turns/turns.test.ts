@@ -304,3 +304,38 @@ test("shutdown's drain waits for a recording only up to its bound", async () => 
 	expect(drained).toBe("drained");
 	head.resolve(null);
 });
+
+test("a turn snapshots nested repositories and exposes their changes in the turn scope", async () => {
+	const lib = join(dataDir, "lib");
+	mkdirSync(lib);
+	git(lib, "init", "-b", "main");
+	git(lib, "config", "user.email", "t@thinkrail.test");
+	git(lib, "config", "user.name", "test");
+	git(lib, "config", "commit.gpgsign", "false");
+	writeFileSync(join(lib, "a.txt"), "base\n");
+	git(lib, "add", "-A");
+	git(lib, "commit", "-m", "init");
+	git(repo, "config", "protocol.file.allow", "always");
+	git(repo, "-c", "protocol.file.allow=always", "submodule", "add", "-q", "../lib", "libs/lib");
+	git(repo, "commit", "-m", "add submodule");
+
+	let clock = 2_000;
+	const tracker = new TurnTracker(resolve, () => (clock += 1));
+	await tracker.observe("s1", start);
+	writeFileSync(join(repo, "libs/lib/a.txt"), "changed\n");
+	await tracker.observe("s1", settle);
+
+	const [turn] = listTurns("w1");
+	if (!turn) throw new Error("expected a turn");
+	expect(turn.changes.map((change) => change.path)).toEqual(["libs/lib/a.txt"]);
+	expect(turn.nestedTrees).toHaveLength(1);
+	expect(turn.nestedTrees?.[0]?.repo).toBe("libs/lib");
+
+	const scope = turnScope(turn);
+	const status = await gitStatus("w1", scope);
+	expect(status.changes.map((change) => change.path)).toEqual(["libs/lib/a.txt"]);
+	const diff = await gitDiffFile("w1", "libs/lib/a.txt", scope);
+	expect(diff.original).toBe("base\n");
+	expect(diff.modified).toBe("changed\n");
+	expect(diff.originalOid).toBe(turn.nestedTrees?.[0]?.baseTree ?? null);
+}, 30_000);

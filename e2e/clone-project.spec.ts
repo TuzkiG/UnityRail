@@ -98,8 +98,13 @@ test("Welcome clones a local repository at depth 1 and opens Project Home withou
 		name: "source",
 		depth: 1,
 	});
-	expect(readFileSync(join(destination, "README.md"), "utf8")).toBe("# Local clone fixture\n");
-	expect(readFileSync(join(destination, "history.txt"), "utf8")).toBe("latest revision\n");
+	// Windows git applies core.autocrlf on checkout; content equality is line-ending-insensitive.
+	expect(readFileSync(join(destination, "README.md"), "utf8").replaceAll("\r\n", "\n")).toBe(
+		"# Local clone fixture\n",
+	);
+	expect(readFileSync(join(destination, "history.txt"), "utf8").replaceAll("\r\n", "\n")).toBe(
+		"latest revision\n",
+	);
 	expect(gitText(destination, "rev-parse", "HEAD").trim()).toBe(fixture.head);
 	expect(gitText(destination, "rev-list", "--count", "HEAD").trim()).toBe("1");
 	expect(gitText(destination, "rev-parse", "--is-shallow-repository").trim()).toBe("true");

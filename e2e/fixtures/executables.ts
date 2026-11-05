@@ -1,7 +1,9 @@
 import { chmodSync, existsSync, writeFileSync } from "node:fs";
-import { delimiter, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LOGIN_ENV_MARKER } from "@thinkrail/shared/shellEnv";
+
+const POSIX_SYSTEM_DIRS = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"];
 
 export function resolveBunExecutable(env: NodeJS.ProcessEnv = process.env): string {
 	const name = process.platform === "win32" ? "bun.exe" : "bun";
@@ -14,15 +16,69 @@ export function resolveBunExecutable(env: NodeJS.ProcessEnv = process.env): stri
 	return executable;
 }
 
+/**
+ * Git for Windows' install root. The interpreter a Windows host needs for both `git` and the POSIX
+ * terminal specs (coreutils, `sh`) is this distribution's, and it is only discoverable from the
+ * runner's own PATH — never from the hermetic PATH this resolves for the host.
+ */
+let gitRoot: string | null = null;
+
+function windowsGitRoot(): string {
+	if (gitRoot) return gitRoot;
+	const executable = (process.env.PATH ?? "")
+		.split(delimiter)
+		.filter(Boolean)
+		.map((directory) => join(directory, "git.exe"))
+		.find(existsSync);
+	if (!executable) throw new Error("git executable not found to build the e2e host PATH");
+	for (let directory = dirname(executable); ; directory = dirname(directory)) {
+		const complete =
+			existsSync(join(directory, "usr", "bin", "bash.exe")) &&
+			existsSync(join(directory, "mingw64", "bin", "git.exe"));
+		if (complete) {
+			gitRoot = directory;
+			return directory;
+		}
+		if (dirname(directory) === directory)
+			throw new Error(`no Git for Windows install root above ${executable}`);
+	}
+}
+
+export function windowsGitBash(): string {
+	// Git for Windows' `bin/bash.exe` is a launcher whose child is the real shell, which the host's
+	// idle-tab probe reads as a running process; the PTY shell is the distribution's own `usr/bin` one.
+	return windowsPath(join(windowsGitRoot(), "usr", "bin", "bash.exe"));
+}
+
+/** A Windows PATH entry: native consumers accept `/`, and the terminal's login shell converts them. */
+function windowsPath(path: string): string {
+	return path.replaceAll("\\", "/");
+}
+
+function windowsSystemDirs(): string[] {
+	const root = windowsGitRoot();
+	const dirs = [join(root, "mingw64", "bin"), join(root, "usr", "bin")];
+	const systemRoot = process.env.SystemRoot ?? process.env.windir;
+	// The host's own child-process probe spawns `powershell.exe` by bare name on Windows.
+	if (systemRoot) dirs.push(join(systemRoot, "System32", "WindowsPowerShell", "v1.0"));
+	return dirs.map(windowsPath);
+}
+
 export function hermeticE2ePath(fakeBinDir: string): string {
-	return [fakeBinDir, "/usr/bin", "/bin", "/usr/sbin", "/sbin"].join(delimiter);
+	const systemDirs = process.platform === "win32" ? windowsSystemDirs() : POSIX_SYSTEM_DIRS;
+	return [fakeBinDir, ...systemDirs].join(delimiter);
 }
 
 export function hermeticE2eShell(fakeBinDir: string): string {
+	// A Windows host cannot execute the POSIX probe wrapper as a PTY shell; Git for Windows' bash is the
+	// interpreter the terminal specs' POSIX commands need, and it re-derives the MSYS PATH from the
+	// hermetic environment instead of importing a developer login environment.
+	if (process.platform === "win32") return windowsGitBash();
 	return join(fakeBinDir, "login-shell");
 }
 
 export function writeHermeticE2eShell(fakeBinDir: string, realShell: string): void {
+	if (process.platform === "win32") return;
 	const script = [
 		"#!/bin/sh",
 		'case "$*" in',
@@ -36,6 +92,20 @@ export function writeHermeticE2eShell(fakeBinDir: string, realShell: string): vo
 	chmodSync(target, 0o755);
 }
 
+/**
+ * Windows resolves a bare command through PATHEXT and runs a `.cmd` launcher, so every POSIX stub in
+ * the fake bin dir gets one next to it. The `.cmd` forwards the caller's own command line, so an argv
+ * assertion still sees exactly what the host spawned.
+ */
+export function writeWindowsCommandShim(fakeBinDir: string, command: string): void {
+	if (process.platform !== "win32") return;
+	const script = join(fakeBinDir, command);
+	writeFileSync(
+		join(fakeBinDir, `${command}.cmd`),
+		`@echo off\r\n"${windowsGitBash()}" "${windowsPath(script)}" %*\r\n`,
+	);
+}
+
 export function writeFakeGh(fakeBinDir: string, scenarioPath: string, logPath: string): void {
 	const source = fileURLToPath(new URL("./fakeGh.ts", import.meta.url));
 	const script = [
@@ -46,6 +116,7 @@ export function writeFakeGh(fakeBinDir: string, scenarioPath: string, logPath: s
 	const target = join(fakeBinDir, "gh");
 	writeFileSync(target, script);
 	chmodSync(target, 0o755);
+	writeWindowsCommandShim(fakeBinDir, "gh");
 }
 
 function shellQuote(value: string): string {

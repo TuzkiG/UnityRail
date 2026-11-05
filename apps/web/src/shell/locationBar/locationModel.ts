@@ -1,4 +1,9 @@
-import type { OpenBranchReview, ReviewChecks, ReviewDetails } from "@thinkrail/contracts";
+import type {
+	NestedRepoStatus,
+	OpenBranchReview,
+	ReviewChecks,
+	ReviewDetails,
+} from "@thinkrail/contracts";
 import { type Translator, t } from "@thinkrail/locales/react";
 import { isOpenBranchReview } from "../../panels/useBranchStatus";
 
@@ -16,6 +21,20 @@ export function remoteCounts(
 	const unpushed = review.unpushedCommits ?? 0;
 	const behind = review.behindCommits ?? 0;
 	return unpushed > 0 || behind > 0 ? { unpushed, behind } : null;
+}
+
+export function nestedRepoSummary(t: Translator, repo: NestedRepoStatus): string {
+	if (repo.detached) return t("shell.location.nestedRepos.detached");
+	if (!repo.upstream) return t("shell.location.nestedRepos.noUpstream");
+	if (repo.ahead === undefined || repo.behind === undefined) return repo.upstream;
+	const ahead = repo.ahead;
+	const behind = repo.behind;
+	if (ahead === 0 && behind === 0) {
+		return t("shell.location.nestedRepos.inSync", { upstream: repo.upstream });
+	}
+	return [ahead > 0 ? `↑${ahead}` : null, behind > 0 ? `↓${behind}` : null]
+		.filter(Boolean)
+		.join(" · ");
 }
 
 export type ReviewTone = "success" | "info" | "neutral";

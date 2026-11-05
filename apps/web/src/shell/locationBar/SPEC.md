@@ -10,7 +10,7 @@ tags: [ui, topbar, public-surface-checked]
 
 ## Responsibility
 
-The persistent "where am I / what state is it in" strip after the ThinkRail mark: one row of captioned
+The persistent "where am I / what state is it in" strip after the UnityRail mark: one row of captioned
 segments — **Project · Workspace · Branch · from base · Remote · Pull request** — whose values are the
 controls for switching project or workspace, acting on the workspace, reading or retargeting the
 branch, and taking the branch's **next delivery step** (publish, push, open a PR, sync, fix checks, mark
@@ -22,8 +22,8 @@ actions through the panels-owned ship runner; it owns no host state.
 
 - **Owns:** the segment grammar (caption over a 20px value row, segments separated by space alone),
   the pill/chip/split-button classes every value uses, the project switcher menu, the workspace menu
-  (actions + sibling switcher + New workspace), the branch card (copy, based-on, compare-to picker, remote
-  and review rows), the Remote and Pull request segments, and the responsive drop order.
+  (actions + sibling switcher + New workspace), the branch card (copy, based-on, compare-to picker, remote,
+  nested-repository and review rows), the Remote and Pull request segments, and the responsive drop order.
 - **Public surface (`index.ts`):**
   - `LocationBar`
 - **Allowed deps:** `store` (projects, workspaces, session state, diff base selector, toasts), `transport`
@@ -110,7 +110,15 @@ actions through the panels-owned ship runner; it owns no host state.
   user-owned workspaces, whose caption is plain "Branch"), *Compare to* (the Changes panel's `BranchPicker`
   bound to `workspace.setDiffBase`, so the two controls can never disagree), *Remote* (`n commits to push ·
   n commits behind origin`, "In sync with origin", "Not published", or "No origin remote" — on a pre-v87
-  host only alongside a review), and — with a review — the PR/MR row with its link.
+  host only alongside a review), and — with a review — the PR/MR row with its link. When
+  `BranchStatus.repos` is non-empty the card appends **Nested repositories (N)** after the root rows: one
+  row per nested root with a repository glyph, its workspace-relative path, checked-out branch (or short
+  HEAD when detached), and local upstream state — "In sync with <upstream>", `↑ahead · ↓behind`, "No
+  upstream branch", or "Detached HEAD" — plus the tracked changed-file count when the nested worktree is
+  dirty (e.g. `↓11 · 244 files`). The counts describe Git's existing remote-tracking refs (the host does
+  not fetch for this section), and the list scrolls inside the card when long. The branch pill carries
+  a small repository-count mark so the extra rows are discoverable before opening it; the field is absent
+  on a host that reports no nested repository or predates it.
 - **Remote** (v87 `workspace.branchStatus`) renders for every workspace, including Default on its base.
   Its value reads *No remote* (no `origin`), *Unreachable* (a split origin's push repository couldn't be
   read — no action offered), *Not published* (origin lacks the branch), *In sync*, or the

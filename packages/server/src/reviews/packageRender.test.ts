@@ -55,6 +55,31 @@ test("renders structured items with stable ids, fragment, bounded context, instr
 	expect(text).not.toContain("<locator>");
 });
 
+test("a comment inside a nested repository names its repository for the fixer", () => {
+	const text = renderPackage({
+		review,
+		branch: "feat",
+		baseBranch: "main",
+		comments: [
+			comment({
+				anchor: {
+					path: "libs/lib/a.txt",
+					side: "worktree",
+					repo: "libs/lib",
+					contentHash: hashContent(CONTENT),
+					selectors: [{ kind: "lineRange", startLine: 20, endLine: 21 }],
+				},
+			}),
+		],
+		readFile: () => CONTENT,
+		readBase: () => BASE_CONTENT,
+	});
+	expect(text).toContain(
+		'<comment id="rc_1" kind="inline" path="libs/lib/a.txt" side="worktree" repo="libs/lib" lines="20-21"',
+	);
+	expect(text).toContain("git -C <repo>");
+});
+
 test("an outdated comment keeps its fragment but inlines no context", () => {
 	const text = renderPackage({
 		review,

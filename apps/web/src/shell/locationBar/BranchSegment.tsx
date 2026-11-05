@@ -6,6 +6,7 @@ import {
 	RiFileCopyLine as Copy,
 	RiExternalLinkLine as ExternalLink,
 	RiGitBranchLine as GitBranch,
+	RiGitRepositoryLine as GitRepository,
 	RiLoader4Line as Loader,
 	RiGitPullRequestLine as PullRequest,
 } from "@remixicon/react";
@@ -26,6 +27,7 @@ import { errorText, getTransport } from "../../transport";
 import {
 	checksSummary,
 	checksVerdict,
+	nestedRepoSummary,
 	remoteCounts,
 	reviewChipLabel,
 	reviewStateLabel,
@@ -99,6 +101,7 @@ export function BranchSegment({
 		open ? workspace.projectId : null,
 	);
 	const userOwned = isUserOwnedWorkspace(workspace);
+	const nestedRepos = status?.repos ?? [];
 	const remoteStatus = status ? null : remoteCounts(review, reviewDetailsKnown);
 	const remote = remoteStatus === "unknown" ? null : remoteStatus;
 	const openDetails = review && isOpenBranchReview(review) ? review.details : undefined;
@@ -152,6 +155,15 @@ export function BranchSegment({
 					<span data-testid="scope-branch" className="truncate tr-title-section">
 						{workspace.branch}
 					</span>
+					{nestedRepos.length > 0 ? (
+						<span
+							data-testid="scope-nested-count"
+							className="flex shrink-0 items-center gap-2 text-text-subtle"
+						>
+							<GitRepository aria-hidden="true" className="size-12" />
+							<span className="tabular-nums tr-text-metadata">{nestedRepos.length}</span>
+						</span>
+					) : null}
 					<PillChevron />
 				</PopoverTrigger>
 			</Segment>
@@ -240,6 +252,61 @@ export function BranchSegment({
 							{summary.text}
 						</span>
 					</Row>
+				) : null}
+				{nestedRepos.length > 0 ? (
+					<div
+						data-testid="scope-nested-repos"
+						className="mt-4 border-border-default border-t pt-4"
+					>
+						<div className="px-12 pb-4 text-text-subtle tr-text-metadata">
+							{t("shell.location.nestedRepos.caption", { count: nestedRepos.length })}
+						</div>
+						<div className="max-h-[40vh] overflow-y-auto">
+							{nestedRepos.map((repo) => (
+								<div
+									key={repo.path}
+									data-testid="scope-nested-repo"
+									data-repo={repo.path}
+									className="flex flex-col gap-2 px-12 py-6"
+								>
+									<div className="flex min-w-0 items-center gap-8">
+										<GitRepository
+											aria-hidden="true"
+											className="size-12 shrink-0 text-text-subtle"
+										/>
+										<span className="min-w-0 flex-1 truncate text-text-default tr-code-text">
+											{repo.path}
+										</span>
+									</div>
+									<div className="mt-4 grid grid-cols-[72px_minmax(0,1fr)] items-center gap-x-8 gap-y-4">
+										<span className="text-text-subtle tr-text-metadata">
+											{t("shell.location.branch.caption")}
+										</span>
+										<span className="truncate text-text-default tr-code-text">{repo.branch}</span>
+										{repo.upstream ? (
+											<>
+												<span className="text-text-subtle tr-text-metadata">
+													{t("shell.location.branch.compareTo")}
+												</span>
+												<span className="truncate text-text-muted tr-code-text">
+													{repo.upstream}
+												</span>
+											</>
+										) : null}
+										<span className="text-text-subtle tr-text-metadata">
+											{t("shell.location.remote.caption")}
+										</span>
+										<span className="text-text-muted tr-text-metadata">
+											{nestedRepoSummary(t, repo)}
+											{repo.changes
+												? ` · ${t("changes.review.fileCount", { count: repo.changes })}`
+												: null}
+										</span>
+									</div>
+								</div>
+							))}
+						</div>
+					</div>
 				) : null}
 				{review ? (
 					<Row

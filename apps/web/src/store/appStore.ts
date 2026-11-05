@@ -220,6 +220,8 @@ export interface FilesTreeView {
 	changedCollapsed: readonly string[];
 	scroll: Partial<Record<FilesScrollView, { top: number; scope: string }>>;
 	seenActivePath: string | null;
+	/** Workspace-relative root of the nested repository the All tree is showing; empty is the workspace. */
+	repo?: string;
 }
 const TURNS_PER_WORKSPACE = 30;
 export interface ChangesTabReveal {
@@ -1134,6 +1136,7 @@ interface AppState {
 	setWorkspaces: (projectId: string, workspaces: Workspace[]) => void;
 	addWorkspace: (workspace: Workspace) => void;
 	updateWorkspace: (workspace: Workspace) => void;
+	setWorkspaceDiffStats: (workspaceId: string, diffStats: Workspace["diffStats"]) => void;
 	removeWorkspace: (projectId: string, workspaceId: string) => void;
 	applyWorkspaceRemoved: (projectId: string, workspaceId: string) => void;
 	selectProject: (projectId: string, opts?: { reveal?: boolean }) => void;
@@ -1243,6 +1246,7 @@ interface AppState {
 	setChangesView: (view: "list" | "tree") => void;
 	filesMode: FilesMode;
 	setFilesMode: (mode: FilesMode) => void;
+	setFilesRepo: (workspaceId: string, repo: string) => void;
 	filesTreeByWorkspace: Record<string, FilesTreeView>;
 	hydrateFilesTree: (views: Record<string, FilesTreeView>) => void;
 	setFilesTreeExpanded: (workspaceId: string, paths: readonly string[], expanded: boolean) => void;
@@ -2673,6 +2677,21 @@ export const useAppStore = create<AppState>((set, get) => ({
 				...(worked && !s.activeWorkspaceLiveLatch ? { activeWorkspaceLiveLatch: true } : {}),
 			};
 		}),
+	setWorkspaceDiffStats: (workspaceId, diffStats) =>
+		set((s) => {
+			for (const [projectId, list] of Object.entries(s.workspaces)) {
+				if (!list.some((w) => w.id === workspaceId)) continue;
+				return {
+					workspaces: {
+						...s.workspaces,
+						[projectId]: list.map((w) =>
+							w.id === workspaceId ? { ...w, ...(diffStats ? { diffStats } : {}) } : w,
+						),
+					},
+				};
+			}
+			return {};
+		}),
 	removeWorkspace: (projectId, workspaceId) =>
 		set((s) => {
 			const list = s.workspaces[projectId];
@@ -3239,6 +3258,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 		),
 	setChangesView: (view) => set({ changesView: view }),
 	setFilesMode: (filesMode) => set({ filesMode }),
+	setFilesRepo: (workspaceId, repo) =>
+		set((s) =>
+			patchFilesTreeView(s, workspaceId, (view) =>
+				(view.repo ?? "") === repo ? view : { ...view, repo, expanded: [], seenActivePath: null },
+			),
+		),
 	hydrateFilesTree: (filesTreeByWorkspace) => set({ filesTreeByWorkspace }),
 	setFilesTreeExpanded: (workspaceId, paths, expanded) =>
 		set((s) =>

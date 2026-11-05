@@ -7,7 +7,7 @@ import {
 	type WsErrorCode,
 } from "@thinkrail/contracts";
 
-const NOTICE_START = "Your answers, including anything you type, are sent to the ThinkRail team";
+const NOTICE_START = "Your answers, including anything you type, are sent to the UnityRail team";
 
 function survey(iteration: number): AppSurvey {
 	return {
@@ -19,7 +19,7 @@ function survey(iteration: number): AppSurvey {
 			{
 				id: "rate",
 				type: "rating",
-				question: "How likely are you to recommend ThinkRail?",
+				question: "How likely are you to recommend UnityRail?",
 				display: "number",
 				scale: 5,
 				lowerBoundLabel: "Unlikely",
@@ -171,7 +171,7 @@ test("the invitation and Settings open one survey window, and only Send sends", 
 	await expect(window.getByTestId("survey-notice")).toContainText(NOTICE_START);
 	await expect(window.getByTestId("survey-notice").getByRole("link")).toHaveCount(0);
 	await expect(window.getByTestId("survey-question")).toHaveText(
-		"How likely are you to recommend ThinkRail?",
+		"How likely are you to recommend UnityRail?",
 	);
 	await expect(window.getByTestId("survey-continue")).toBeDisabled();
 	await answer(page);
@@ -242,7 +242,7 @@ test("a survey changed in PostHog restarts on the new version before anything is
 	await expect(window.getByTestId("survey-changed")).toBeVisible();
 	await expect(window.getByTestId("survey-notice")).toBeVisible();
 	await expect(window.getByTestId("survey-question")).toHaveText(
-		"How likely are you to recommend ThinkRail?",
+		"How likely are you to recommend UnityRail?",
 	);
 	await answer(page);
 	await window.getByTestId("survey-send").click();

@@ -145,6 +145,8 @@ export function fileThreads(
 
 export interface ReviewFileSummary {
 	path: string | null;
+	/** Workspace-relative root of the nested repository that owns `path`; absent in the root repo. */
+	repo?: string;
 	total: number;
 	drafts: number;
 	resolved: number;
@@ -154,10 +156,15 @@ export function fileSummaries(
 	comments: ReviewComment[] | undefined,
 	doneFiles?: string[],
 ): ReviewFileSummary[] {
-	const byPath = new Map<string | null, { total: number; drafts: number; resolved: number }>();
+	const byPath = new Map<
+		string | null,
+		{ total: number; drafts: number; resolved: number; repo?: string }
+	>();
 	for (const comment of comments ?? []) {
 		const key = comment.anchor?.path ?? null;
 		const entry = byPath.get(key) ?? { total: 0, drafts: 0, resolved: 0 };
+		const repo = key === null ? undefined : comment.anchor?.repo;
+		if (repo && !entry.repo) entry.repo = repo;
 		if (comment.status === "draft" || comment.status === "sent") {
 			entry.total += 1;
 			if (comment.status === "draft") entry.drafts += 1;
@@ -179,4 +186,30 @@ export function fileSummaries(
 		if (keep(path, entry)) rows.push({ path, ...entry });
 	}
 	return rows;
+}
+
+export interface ReviewFileGroup {
+	repo: string;
+	files: ReviewFileSummary[];
+}
+
+/** Rows stay in summary order inside a group; the root repository always comes first, matching the
+ * Changes panel's nested-repository grouping. */
+export function groupReviewFiles(files: readonly ReviewFileSummary[]): ReviewFileGroup[] {
+	const groups = new Map<string, ReviewFileSummary[]>();
+	for (const file of files) {
+		const repo = file.repo ?? "";
+		const held = groups.get(repo);
+		if (held) held.push(file);
+		else groups.set(repo, [file]);
+	}
+	return [...groups]
+		.map(([repo, rows]) => ({ repo, files: rows }))
+		.sort((a, b) => (a.repo === "" ? -1 : b.repo === "" ? 1 : a.repo.localeCompare(b.repo)));
+}
+
+/** A nested file is listed under its repository's header, so its row drops the prefix it repeats. */
+export function reviewFileLabel(file: ReviewFileSummary): string {
+	const path = file.path ?? "";
+	return file.repo && path.startsWith(`${file.repo}/`) ? path.slice(file.repo.length + 1) : path;
 }

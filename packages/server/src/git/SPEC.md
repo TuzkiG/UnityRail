@@ -11,12 +11,40 @@ tags: [public-surface-checked]
 ## Responsibility
 
 Git plumbing: the low-level `git` runner (sync + async) plus a worktree's changed files and diffs over a
-**diff scope**, that scope's single definition (the range resolver), a project repo's branch list for the
-branch pickers, the workspace branch's own commit list, and a background prefetch that warms a remote base
-ref off the workspace-create critical path.
+**diff scope**, that scope's single definition (the range resolver), nested repositories (submodules and
+embedded checkouts) at any depth, a project repo's branch list for the branch pickers, the workspace
+branch's own commit list, and a background prefetch that warms a remote base ref off the
+workspace-create critical path.
 
 ## Boundary
 
+- **Nested repositories are discovered, never assumed.** `listWorktreeRepos(ws)` / `listWorktreeReposSync(ws)`
+  walk a workspace's repository tree recursively: `.gitmodules` paths, index gitlinks, and untracked
+  directories that contain a `.git` entry (an embedded checkout). Uninitialized submodules have no
+  content and stay invisible; ignored directories are never walked. A **directory link** (Windows
+  junction or POSIX symlink) named by a `.gitmodules` path, a gitlink, or an untracked directory is
+  followed when its target is a repository, **even when that target lives outside the worktree** — the
+  framework/business split mounts the business checkout this way. The link path stays the
+  workspace-relative identity (`path`) while `canonical` is the link target; non-repository links are
+  never followed, a lexical path may not escape its parent repository, and a repository nested in an
+  already-followed external repo is allowed relative to that owner. Discovery is bounded (128 repos,
+  4096 walked entries), otherwise containment-checked against the canonical workspace root, deduplicated
+  by canonical path, cached for 30s per workspace (5-minute sweep) with concurrent cold callers sharing
+  one in-flight scan; `forgetWorktreeRepos(workspaceId)`
+  drops it when a workspace goes away. The cache is a latency trade, not a correctness promise: a status
+  row naming an uncovered gitlink or untracked nested directory forces one fresh scan, and a cached repo
+  whose `.git` disappeared drops the cache, so a newly created nested repository appears on the read that
+  first observes it. `listWorktreeReposAt(worktreePath)` is the path-scoped variant the turn tracker
+  uses; a linked repo's `worktreePath` is the link path the topbar/Changes reads through. A discovery
+  command failure is best-effort (that repo stays invisible); it never
+  fails `gitStatus`. **`WorktreeRepo`** = `{ path, worktreePath, canonical }`, with `path` workspace-relative
+  POSIX and `""` for the workspace's own repository. **`ownerOf(repos, path)`** is the one path→repository
+  mapping: a repository's own root belongs to its **parent** (so a gitlink is diffed against the repo that
+  records it), and a file inside a nested repository belongs to the deepest strict-prefix repository.
+  **`repoForPath` / `repoForPathSync`** load the workspace and return that owner plus the repo-relative
+  path; **`ownerOf`** is the pure form used by `gitStatus`. The sync writers that decide what to commit or
+  baseline (`gitUncommittedPaths`, `gitCommitPaths`) take a **fresh** scan, never the 3s cache, so a
+  just-created nested repository cannot be misclassified as a root path and swept into the wrong commit.
 - **Owns:** `git(cwd, args)` (spawn git *sync*, capture trimmed stdout/stderr + ok; `opts.raw` keeps
   decoded stdout untrimmed) and its module-internal `gitBytes(cwd, args, opts?)` twin (sync,
   byte-preserving, retained for `reviews`' synchronous snapshot pass). `gitAsync(cwd, args, opts?)` and
@@ -92,7 +120,9 @@ ref off the workspace-create critical path.
   edits and untracked files, ignored files excluded), written through a scratch copy of the index under
   `GIT_INDEX_FILE` so the user's real index, `HEAD`, and reflog never move — the `turns` module's
   before/after fence around an agent run; it returns `null` instead of throwing because a missed
-  snapshot only costs a receipt. A file git cannot read is skipped, not fatal: `add --ignore-errors`
+  snapshot only costs a receipt. `snapshotNestedWorktrees(worktreePath)` applies the same rule to every
+  discovered nested repository (four at a time, failures omitted), so a run that only edited a submodule
+  still gets a receipt. A file git cannot read is skipped, not fatal: `add --ignore-errors`
   still exits 1 after writing everything else, so only a `fatal:` or a timeout/launch failure voids it;
   **the scope→range resolver** — `resolveDiffRange(ws, scope?)` → `Promise<DiffRange>` (async — and
   deliberately kept the *single* implementation: its `reviews` consumers went async with it rather than
@@ -154,6 +184,12 @@ ref off the workspace-create critical path.
   via `numstatPath` to match `--name-status`; binary rows dropped; untracked files count their whole
   content as added only when `fs.classifyBytes` agrees it is text, so invalid UTF-8, NUL-bearing, and
   magic-typed untracked files omit counts exactly as their `ResourceMeta` does) for the Changes tree's `+/−` badges;
+  for a `branch` or `uncommitted` scope it also aggregates each discovered nested repository's own
+  changes under its workspace-relative root and tags them with `repo`; a `branch` scope whose `repo`
+  names a nested repository compares that repository against its own `baseRef` (default upstream), while
+  other nested rows stay HEAD↔worktree; it replaces a dirty child's pointer row with its inner rows; a `turn` scope aggregates the repositories named by `scope.nestedTrees`
+  between that pair's trees, while `commit`/`pinned` stay root-only. Gitlink rows are marked
+  `submodule: true` and carry no counts; `gitDiffFile`/`gitStatus` never present one as a file.
   `gitDiffFile(workspaceId, path, scope?)` → `{ original, modified, originalOid, meta: { original, modified } }` — `originalOid` is the range's resolved immutable start (or `null`) and both
   sides of one file's change for the center diff tab (`original` = the file at the range's start ref, raw,
   empty when absent there —
@@ -162,7 +198,10 @@ ref off the workspace-create critical path.
   checked through `fs.resolveWorktreeFile` against lexical escapes, `.git`, and escaping symlinks;
   historical sides use bounded async `git cat-file blob` with deterministic English diagnostics, so only
   Git's explicit path-absent result becomes an empty side; trees, commits, gitlinks, ordinary nonzero
-  failures, timeouts and launch failures all throw). **Both sides are read as BYTES and carry a
+  failures, timeouts and launch failures all throw). A nested path is read in its owning repository
+  (`branch` against that repo's selected base/upstream, `uncommitted` against its HEAD, a `turn` against
+  its `nestedTrees` pair); a gitlink
+  path returns the synthesized `Subproject commit <oid>` sides instead of blob reads. **Both sides are read as BYTES and carry a
   `ResourceMeta`** (`fs.resourceMeta` — sha-256, byte length, textness, sniffed mime): a side is decoded
   only when it is text, so a byte-only side travels as `""` plus its metadata and the client fetches the
   bytes over the host's `/files`/`/blob` routes instead of rendering replacement characters. Commit-scope
@@ -262,7 +301,8 @@ ref off the workspace-create critical path.
   object name these reads form uses `/`. Git reads a Windows `\` there as part of the name and reports the
   file absent, so on win32 the path's `\` becomes `/`; on POSIX a backslash is a legal file-name character
   and is kept (architecture Decision 22);
-  **`gitCommitPaths(workspaceId, message, paths)`** → `{ sha } | null` — commit **exactly `paths`** as one
+  **`gitCommitPaths(workspaceId, message, paths)`** → `{ sha, skipped }` or `null` — commit **exactly the
+  root repository's `paths`** as one
   commit for the TODO change-set feature (see [[submodule-server-todos]]): stage them (`git add -A --
   <paths>`, so a deletion stages as one), then `git commit --no-verify -- <paths>` (the host's commit must
   not run/fail the user's hooks; author/committer stay the user's git config — it's their branch), and
@@ -280,7 +320,9 @@ ref off the workspace-create critical path.
   snapshot would silently unstage it). Staging succeeds but committing is fallible (an unset identity, an
   unavailable signing key), and a best-effort feature must not leave the user's next commit carrying files
   they never staged. An index with unmerged entries (a conflicted merge in flight) bails out untouched; a
-  half-merged worktree is nothing to auto-commit anyway. Returns `null` for an empty path set, when those paths had nothing to commit
+  half-merged worktree is nothing to auto-commit anyway. Paths that belong to a nested repository are
+  returned in `skipped` (it is the caller's cue to keep them as path artifacts), and a path set with no
+  root paths returns `{ sha: null, skipped }` without touching Git. Returns `null` for an empty path set, when those paths had nothing to commit
   (`git diff --cached --quiet -- <paths>`), or on any git failure — the caller (`todos/artifacts`) treats
   that as "fall back to path-list artifacts" and never lets it throw. It is the one git primitive that
   **writes** the user's branch; the caller serializes it per workspace.
@@ -305,7 +347,8 @@ ref off the workspace-create critical path.
   **`ignoredPaths(worktreePath, paths)`** → the subset git ignores (`git -c core.quotePath=false
   check-ignore -- <paths>`, arguments chunked under 24k chars for Windows' command-line limit; tracked files
   never count, and a path inside an ignored folder does). The host uses it to mark `fs.readDir` nodes
-  `gitignored`, so the Files tree can dim them. It never throws: a non-repository, a failure or a timeout
+  `gitignored`, so the Files tree can dim them, after resolving the **directory's owning repository** so a
+  nested repository is judged by its own `.gitignore`, not the root's. It never throws: a non-repository, a failure or a timeout
   reports nothing. Names git must C-quote (a `"`, `\` or control character) are never reported, because
   `check-ignore -z` needs stdin, which the bounded runners do not offer.
 - **Public surface (barrel):** `git`, `gitAsync`, `gitAsyncBytes`, `gitAsyncStream`, `nonInteractiveGitEnv`, `remoteRefOid`, `remoteTrackingRef`, `gitStatus`,
@@ -315,9 +358,12 @@ ref off the workspace-create critical path.
   `PushTargetStatus`,
   `gitCommitPaths`, `gitHeadSha`, `headShaAt`, `listCommits`, `listCommitsSince`,
   `resolveDiffRange`, `changedFileArgs`, `diffBaseRef`, `resolveCommitOid`, `DiffRange`, `isSafeRef`,
-  `assertSafeRef`, `listBranches`, `resolveDefaultBranch`, `tryCurrentBranch`, `currentBranch`,
+  `assertSafeRef`, `listBranches`, `listBranchesAt`, `resolveDefaultBranch`, `tryCurrentBranch`,
+  `currentBranch`,
   `canonicalPath`, `resolveListedCommit`, `prefetchBranch`, `countPushDivergence`, `listRemotes`, `remoteNameOf`,
-  `snapshotWorktree`, `ignoredPaths`.
+  `snapshotWorktree`, `snapshotNestedWorktrees`, `NestedSnapshot`, `listNestedRepoStatuses`,
+  `listWorktreeRepos`, `listWorktreeReposSync`, `ownerOf`, `repoForPath`, `repoForPathSync`,
+  `forgetWorktreeRepos`, `WorktreeRepo`, `resolveUncommittedRange`, `ignoredPaths`.
 - **Allowed deps:** `persistence` (workspace + project lookup), `log`; `fs` (`resourceMeta`/`decodeText` —
   the one content classification, so a diff side's metadata cannot disagree with `fs.readFile`'s);
   `contracts` (`Git*`/`BranchList`/`ResourceMeta` types);
@@ -331,6 +377,55 @@ ref off the workspace-create critical path.
 - **A scope is defined once.** Any new read that has to know what "the diff" is goes through
   `resolveDiffRange` — never its own `git diff <base>` line — and any read of the base ref goes through
   `diffBaseRef`, so `diffBase ?? baseBranch` exists in exactly one place in the codebase.
+- **A nested repository owns its own Git state.** Nested files are read, diffed, and reverted through
+  `git` running in that repository with its own repo-relative path; an `uncommitted`
+  scope adds each nested repository's **HEAD ↔ worktree** changes (plus untracked) under its
+  workspace-relative prefix; a `branch` scope selected for that nested root compares it against its own
+  `baseRef`/upstream, never the workspace's `baseBranch`. `commit`,
+  `pinned`, and `turn` scopes are **root-only** for list purposes; a turn's nested changes arrive through
+  the snapshot pairs in `GitDiffScope.turn.nestedTrees` (see [[submodule-server-turns]]), and a nested
+  `gitDiffFile` for such a turn reads both sides from that pair's trees. A nested `pinned` or `commit`
+  diff resolves the ref **in the owning repository**, because that is the repository a review's base-side
+  anchor pinned (the nested HEAD), never the workspace's base. A `turn` scope with no snapshot pair for
+  the repository is an error, never a fallback to the root repository.
+- **A gitlink is not a file.** `--raw` modes identify pointer rows; they are marked `submodule: true`,
+  carry no line counts, and their diff is the synthesized `Subproject commit <oid>` pair (a deleted or
+  added submodule has one empty side). A parent repository reports a child's gitlink even when only the
+  child's worktree is dirty; that pointer row is **dropped when the child's subtree reported anything**,
+  because the inner rows are the useful view, and kept when the subtree is clean (a real pointer change
+  or an untracked embedded checkout). The same rule applies recursively, so a chain of dirty
+  submodules contributes only its deepest changed files and never a colliding `path` + `path/…` pair.
+  Change mutations refuse a pointer row: `changes` cannot rewrite a gitlink as a file. An untracked
+  directory Git collapses because it contains a nested checkout is replaced by that checkout's rows;
+  ordinary files beside the checkout inside that collapsed directory are not enumerated by the parent
+  read (Git does not list them either).
+- **Nested snapshots are per repository.** `snapshotNestedWorktrees(worktreePath)` snapshots every
+  discovered nested repo with the same scratch-index trick as `snapshotWorktree`, four at a time, using a
+  **fresh** discovery (`listWorktreeReposAt(path, true)`) so a repo created during the run is not missed;
+  a failed snapshot is omitted rather than voiding the rest. The turn tracker records a tree pair only for
+  repos whose tree moved, and a run whose root tree is unchanged can still produce a turn from those
+  pairs.
+- **Paths that enter from a repository are workspace-relative POSIX.** `gitStatus` prefixes nested rows
+  with `repo.path + "/"` and returns the discovered nested roots as `repos` (the Files repository
+  picker), independent of the diff scope; `gitDiffFile`, `changes`, `reviews`, and the `/blob` route resolve the owning
+  repository from that same path. The `/blob` route's `oid` is the **nested** repository's blob (a nested
+  HEAD or a turn tree), so a byte-only side never addresses the root repository's object store.
+- **`gitCommitPaths` commits only the root repository's paths.** Paths inside a nested repository are
+  returned as `skipped` so the todos module keeps them as path artifacts instead of inventing a commit
+  artifact whose sha the root commit picker cannot resolve; a pointer path belongs to the parent and is
+  committable. This keeps the one-sha contract of a todo change set intact.
+- **Nested branch facts are local-only.** `listNestedRepoStatuses(ws)` reuses the discovery cache and
+  reads each nested repository with one `git status --porcelain=v2 --branch --untracked-files=no
+  --ignore-submodules=all` (four at a time), returning its workspace-relative `path`, `branch` (or short
+  HEAD when detached), configured `upstream` with the local `ahead` / `behind` counts, and the tracked
+  changed-file count. It never fetches, and a repository whose status cannot be read is skipped rather
+  than failing the caller;
+  `workspace.branchStatus` appends the result as `repos` so the topbar can merge nested state with the
+  root branch card.
+- **Discovery is cached, not polled.** A status refresh reuses the 3s discovery cache, and a row that
+  names a new gitlink or untracked nested directory invalidates it once. Nested `.git` writes are outside
+  the watcher, so a commit made inside a submodule does not nudge the panel; the next file event or focus
+  refresh re-reads it.
 - **A commit scope validates that the commit *exists*, not that it is still reachable** from the branch. A
   rebase or reset can rewrite history out from under a selection; the object is still there, and showing its
   diff is *more* useful than silently resetting the user to "All changes". Which commits are *offered* is the

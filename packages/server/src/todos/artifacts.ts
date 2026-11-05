@@ -21,7 +21,10 @@ import { dropReviewRecord } from "./reviews";
 
 const log = logger("todos");
 
-export type CommitWindow = (opts: { subject: string; paths: string[] }) => { sha: string } | null;
+export type CommitWindow = (opts: {
+	subject: string;
+	paths: string[];
+}) => { sha: string | null; skipped?: string[] } | null;
 
 const isAppStatePath = (path: string): boolean =>
 	path === WORKSPACE_INTERNAL_DIR || path.startsWith(`${WORKSPACE_INTERNAL_DIR}/`);
@@ -264,17 +267,22 @@ export async function reconcileChangeArtifacts(
 						paths: deltaPaths,
 					})
 				: null;
-		if (committed) {
+		if (committed?.sha) {
 			owned.add(committed.sha);
 			changed = null;
+			const skipped = (committed.skipped ?? []).map(
+				(path): TodoArtifact => ({ kind: "change", path }),
+			);
 			store.update(todo.id, {
 				artifacts: [
 					...preserved,
 					...adopted,
 					{ kind: "commit", sha: committed.sha, label: todo.title },
+					...skipped,
 				],
 			});
 			acceptPlanWrite();
+			if (skipped.length > 0) dropReviewRecord(root, sessionId, todo.id);
 			if (!flushBaselines()) return;
 			continue;
 		}

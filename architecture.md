@@ -2,7 +2,7 @@
 id: architecture
 type: architecture-design
 status: active
-title: ThinkRail — top-level architecture
+title: UnityRail — top-level architecture
 parent: goal-and-requirements
 covers: [client-host-split, cli-entrypoint, wire-contract, transport-endpoint, ui-shell-panels, git-worktrees, remote-tailscale, hydrate-then-stream, domain-vs-view-state, frontend-local-workbench-frame, client-local-navigation, central-integration, portable-pi-packages, thinkrail-extensions]
 tags: [architecture]
@@ -20,8 +20,8 @@ dials it over the network; a phone reaches the selected host over Tailscale.
 
 - **Engine host** (`packages/server` + `packages/shared`, launched by `apps/cli` or `apps/desktop`
   in local-host mode): owns `pi`, session state, persistence, and serves the wire endpoint. It bundles pi extensions
-  (`pi-spec-graph`, `pi-thinkrail-workflow`, `pi-todos`) and the ThinkRail extensions from its server
-  registry (`visualize`, `ask-user-question`, `web-access`) into every session.
+  (`pi-spec-graph`, `pi-thinkrail-workflow`, `pi-todos`) and the UnityRail extensions from its server
+  registry (`visualize`, `ask-user-question`, `web-access`, `unity`) into every session.
 - **The wire** (`packages/contracts`): the typed, versioned protocol — the only coupling between client
   and host.
 - **UI client** (`apps/web`): a mobile-first React client, transport-driven and endpoint-configurable,
@@ -33,7 +33,7 @@ apps/web        UI client (mobile-first)                           ── depend
 apps/desktop    Electrobun local-host launcher                     ── depends on ─▶ packages/server, packages/contracts, packages/shared, packages/locales
 apps/website    public landing + blog + /vibecoding (Cloudflare Pages) ── depends on ─▶ packages/website-analytics
 packages/website-analytics  dependency-free browser analytics policy for the public website
-packages/server createServer(): Bun.serve(HTTP+WS) + AgentSessionManager (in-process pi) ── depends on ─▶ packages/contracts, packages/locales, packages/shared, packages/pi-background-commands, packages/pi-delegation, packages/pi-subagents, packages/extension-api/server, thinkrail-extensions/*/server
+packages/server createServer(): Bun.serve(HTTP+WS) + AgentSessionManager (in-process pi) ── depends on ─▶ packages/contracts, packages/locales, packages/shared, packages/pi-background-commands, packages/pi-delegation, packages/pi-subagents, packages/unity-project, packages/extension-api/server, thinkrail-extensions/*/server
 packages/contracts  the wire (types plus tiny pure runtime)
 packages/locales    UI string catalogs (bundled en.json) + pure catalog rules; ./react holds the one i18next
                     instance ── depends on ─▶ nothing in the workspace (i18next, react-i18next)
@@ -43,18 +43,22 @@ packages/spec-graph portable pi extension: spec_* tools + skill (bundled into ev
 packages/pi-delegation         portable pure-pi package: the delegation core — controlled child sessions
                     for live session parents or independent resource owners
 packages/pi-dag               portable durable backend DAGs over pi-delegation; host-owned resources;
-                    not bundled into ThinkRail, no workflow UI, not a second pi runtime
+                    not bundled into UnityRail, no workflow UI, not a second pi runtime
 packages/pi-background-commands portable explicit session-owned background commands over Pi's executor
-                    (bundled into every ThinkRail parent session by packages/server)
+                    (bundled into every UnityRail parent session by packages/server)
 packages/pi-subagents          portable pure-pi extension: Agent + get_subagent_result tools over
-                    pi-delegation (bundled into every ThinkRail parent session by packages/server)
+                    pi-delegation (bundled into every UnityRail parent session by packages/server)
 packages/pi-thinkrail-workflow pi extension: the workflow skill system + its always-on routing rule
                     (bundled into every session; workspace-internal, not portable)
+packages/unity-project  Node-only Unity project model (version, packages, asmdef graph, GUID index) and the
+                    Editor bridge client (discovery, HTTP, doctor, launch); no workspace package dep
+packages/pi-unity-skills  skills-only package: the five Unity development skills ── consumed by ─▶
+                    thinkrail-extensions/unity
 pi-extensions/*     portable pi packages published to npm as @thinkrail/pi-<name>; work in vanilla pi
                     (decided, Decision 20; the pi-* packages above move here per publish wave)
-thinkrail-extensions/*  ThinkRail extensions: a pi capability + ./server and ./web halves, composed by one
-                    registry file per side (Decision 21; visualize and ask-user-question shipped) ── depends on ─▶ pi-extensions/*,
-                    packages/extension-api, packages/ui, packages/locales (web half)
+thinkrail-extensions/*  UnityRail extensions: a pi capability + ./server and ./web halves, composed by one
+                    registry file per side (Decision 21; visualize, ask-user-question, web-access and unity shipped) ── depends on ─▶ pi-extensions/*,
+                    packages/unity-project, packages/extension-api, packages/ui, packages/locales (web half)
 packages/extension-api  types + define* helpers for extension halves ── depends on ─▶ packages/contracts, packages/locales (types)
 packages/ui         owned shadcn/Radix primitives + cn + onThemeSwap ── may depend on ─▶ packages/contracts, packages/locales
 packages/resource-renderers  file/diff renderers, registry + review surfaces behind a host seam ── may depend on ─▶
@@ -107,14 +111,14 @@ dependency. This keeps test process drivers outside both launchers and the serve
 6. **Workspaces are git worktrees.** project (git repo) → workspace (`git worktree` on its own
    branch/cwd, under `~/.thinkrail/worktrees`) → {chats, files, terminals}. **Two deliberate
    exceptions, both `kind`-marked on the wire and both *user-owned* — never renamed or reclaimed by
-   ThinkRail:** every project carries exactly one built-in **Default workspace** (`kind: "default"`)
+   UnityRail:** every project carries exactly one built-in **Default workspace** (`kind: "default"`)
    whose cwd is the project folder itself (git's *main working tree*) — non-removable, non-renamable,
    and entered explicitly from the project's Welcome fork ("Work in project folder"), never
    auto-entered — the "just work in my project folder" anchor for users lost in the
-   worktree model. The one exception is a project ThinkRail just created empty with the spec-drafting
+   worktree model. The one exception is a project UnityRail just created empty with the spec-drafting
    switch on: it enters Default for that setup chat, because a fresh repo has nothing to isolate yet
    ([[submodule-web-panels]]); and an **existing worktree** the user explicitly attaches in place
-   (`kind: "external"`), which ThinkRail may forget but never mutates (see
+   (`kind: "external"`), which UnityRail may forget but never mutates (see
    [[submodule-server-workspaces]]). The shell is built first,
    `pi` connected last. **Open PR** is a deterministic, host-side push + open/update of the branch's
    GitHub PR through the user's own `gh` CLI (no stored tokens, no provider REST API), body rendered from
@@ -282,7 +286,7 @@ dependency. This keeps test process drivers outside both launchers and the serve
     point at the same mutable data directory, cross-process consistency is intentionally not guaranteed.
     Desktop artifacts are additive; native WebKitGTK on Ubuntu 24.04+/glibc 2.38 is
     the supported Linux floor. The standard framework CLI/configuration owns bundling and installers;
-    a documented pre-build hook prepares ThinkRail's physical resources and PI runtime. Release workflows
+    a documented pre-build hook prepares UnityRail's physical resources and PI runtime. Release workflows
     in `JetBrains/thinkrail-signing` consume the public build recipes and coordinate build → JetBrains
     service signing → publication for an explicit public source commit. Product code and ordinary CI stay
     public; credentials and publication stay private. macOS service signing consumes the framework's
@@ -290,16 +294,16 @@ dependency. This keeps test process drivers outside both launchers and the serve
     Apple credential flow or mutation of Electrobun's compressed wrapper. Exact handoff and release
     verification contracts belong to [[module-ci-release]]. Detail: [[module-desktop]], [[module-ci-release]].
 
-16. **Delegation is portable; ThinkRail is one embedder.** `packages/pi-delegation` owns the session
+16. **Delegation is portable; UnityRail is one embedder.** `packages/pi-delegation` owns the session
     fabric: one creation primitive with orthogonal axes, a run-owning handle, lineage, registry, and
     lifecycle events. `packages/pi-subagents` consumes it to expose the `Agent` tools. Both work under
     vanilla pi with the SDK as a `peerDependency` (peer deps are exempt from the exact-pin rule,
     decision #10), create in-process hidden pi sessions, and keep their host bindings optional.
-    ThinkRail composes them in `packages/server`: one service per workspace, child transcripts under
+    UnityRail composes them in `packages/server`: one service per workspace, child transcripts under
     the host data dir, a curated child-extension set, and the exact `ModelRuntime` retained by each
     parent session so children stay on that parent's provider generation across Central changes. The
     wire mirrors only the UI-facing run details and exposes transcript reads; neither portable package
-    depends on ThinkRail. The same core supports independent resource owners with explicit execution
+    depends on UnityRail. The same core supports independent resource owners with explicit execution
     context and immutable captured-history forks for durable orchestrators; it never fabricates a parent
     chat or acquires scheduling/storage policy. Contract, semantics, and the full decision log:
     [[module-pi-delegation]], [[module-pi-subagents]], and [[submodule-server-agent]].
@@ -308,10 +312,10 @@ dependency. This keeps test process drivers outside both launchers and the serve
     scoped portable consumer of [[module-pi-delegation]], not a dependency of subagents or the
     workflow skill system. Delegation owns canonical history capture/forking, retained resource
     execution contexts, child assembly/reopen and the existing run loop; DAG owns persistence,
-    scheduling, gates and recovery. ThinkRail's selected future composition is workspace-owned,
+    scheduling, gates and recovery. UnityRail's selected future composition is workspace-owned,
     with an explicit host runtime, so no heading session is required. Embedders may apply different
     lifetime policies through trusted lifecycle controls without another scheduler or human-gate
-    bypass. Restore paused; one process controls each DAG. ThinkRail neither bundles it nor exposes it
+    bypass. Restore paused; one process controls each DAG. UnityRail neither bundles it nor exposes it
     over the wire or in the UI.
 
 18. **Chat Resources projects capability owners; it is not a generic resource runtime.**
@@ -337,7 +341,7 @@ dependency. This keeps test process drivers outside both launchers and the serve
     through their own renderers' diffs. Monaco renders files on
     desktop and never loads on a phone. Write-paths are host-derived and compare-and-swap guarded
     (`change.revert`/`change.undo`, [[submodule-server-changes]]); the client never sends bytes to
-    write. ThinkRail hosts no VS Code extensions: language intelligence (TextMate grammars, Shiki) is
+    write. UnityRail hosts no VS Code extensions: language intelligence (TextMate grammars, Shiki) is
     imported as libraries. Active content (HTML, SVG, notebook outputs) renders only inside sandboxed,
     network-denying frames. The renderers, registry and review surfaces are one package
     ([[module-resource-renderers]]) behind a host seam (markdown, code highlighting, byte URLs, link
@@ -351,13 +355,13 @@ dependency. This keeps test process drivers outside both launchers and the serve
     workspace packages; raw TypeScript, `pi` manifest, `pi-package` keyword; unscoped `pi-*` names collide
     with third parties).
     "Works in vanilla pi" is defined, not assumed: install from the packed tarball into an isolated
-    fixture, load through pi's own loader under **Node** (vanilla pi's runtime — ThinkRail runs the same
+    fixture, load through pi's own loader under **Node** (vanilla pi's runtime — UnityRail runs the same
     code under Bun, so shipped code is dual-runtime), register and execute tools, render in a real
     terminal. Releases go through Changesets and npm Trusted Publishing with provenance; the host keeps
     consuming the packages through `workspace:*`. A portable *library* (delegation) is published without a
     manifest and is never given a fake factory. Detail and the gate: [[module-pi-extensions]].
 
-21. **ThinkRail extensions are separate packages over a small host UI SDK, composed from registry files.**
+21. **UnityRail extensions are separate packages over a small host UI SDK, composed from registry files.**
     `thinkrail-extensions/<name>` composes a pi capability with a `./server` half (what the host bundles,
     as named inline factories; skill packages named by specifier and resolved from the extension, not the
     host) and a `./web` half (tool renderers keyed by tool name, plus named exports the host uses
@@ -388,9 +392,9 @@ dependency. This keeps test process drivers outside both launchers and the serve
     host (the host no longer depends on extension-owned pi packages, so `MODULE_NOT_FOUND` in isolated
     layouts). Pilot, shipped in three PRs: visualize — `lovely-mermaid` for TUI rendering and
     best-effort validation in the portable package, strict `mermaid`+`linkedom` validation injected by
-    the ThinkRail server half through `createVisualizeExtension({ validateMermaid })`; the old
+    the UnityRail server half through `createVisualizeExtension({ validateMermaid })`; the old
     `packages/pi-visualize` is deleted. Second: ask-user-question — the portable package asks through a
-    terminal questionnaire or per-question dialogs; ThinkRail composes it per parent session through the
+    terminal questionnaire or per-question dialogs; UnityRail composes it per parent session through the
     registry's `sessionExtensions(session)` seam with an asker over the host's **interactive-tool
     mailbox** (`awaitToolResponse`) — the first per-session host service an extension receives. The
     mailbox, restart repair, late responses, composer supersede, Stop/Submit, needs-input and the web
@@ -424,7 +428,7 @@ dependency. This keeps test process drivers outside both launchers and the serve
     each comparison (every future comparison must remember; the first patch missed nine of twelve sites);
     `realpath` as the canonical form (diverges from headers already on disk wherever a stored path crosses a
     symlink or 8.3 name); folding case (pi's own cwd identity is case-sensitive, and git and `resolve` both
-    keep on-disk case). Accepted cost: an older ThinkRail sharing `~/.thinkrail` fails reopen-from-Recent
+    keep on-disk case). Accepted cost: an older UnityRail sharing `~/.thinkrail` fails reopen-from-Recent
     (`ALREADY_OPEN`) for a healed project until it updates.
 
 23. **UI strings are keyed catalogs; local language files are runtime data, not code.** Every
@@ -432,7 +436,7 @@ dependency. This keeps test process drivers outside both launchers and the serve
     (`settings.language.title`) in [[module-locales]]'s `en.json`, the single English source of truth,
     rendered through one shared i18next instance (`@thinkrail/locales/react`). **A lint gate fails on
     hardcoded user-facing text** (JSX text and text-bearing attributes such as `aria-label`, `title`,
-    `placeholder`, `alt`, `label`) in those trees, so a new string cannot ship without a key. ThinkRail
+    `placeholder`, `alt`, `label`) in those trees, so a new string cannot ship without a key. UnityRail
     ships bundled catalogs (English plus translations held to `en.json` by a test); a user
     adds or overrides a language by dropping a flat i18next-JSON file into the **global** data dir
     (`~/.thinkrail/locales/<tag>.json`) — never a workspace, so a cloned repo cannot rewrite the UI.
@@ -441,7 +445,7 @@ dependency. This keeps test process drivers outside both launchers and the serve
     catalogs ([[submodule-web-i18n]]) with per-string fallback *local exact → bundled exact → bundled
     base → English*. The choice (`AppConfig.locale`, default `"system"`) follows the user like the
     theme. Agent, tool, skill, prompt output and server error text are never translated. Stored and wire
-    data never carry translated text: defaults ThinkRail writes (untitled chats, default terminals, the
+    data never carry translated text: defaults UnityRail writes (untitled chats, default terminals, the
     host-named default workspace, chat round notices) are worded at render, so a switch re-words all of
     them, while names set by the user or the agent show verbatim. Theme manifests are the one other
     runtime-loaded user resource, on the same model (`~/.thinkrail/themes/*.theme.json`, read by
@@ -452,6 +456,43 @@ dependency. This keeps test process drivers outside both launchers and the serve
     (bundled strings belong to the web build that renders them); an in-house runtime (i18next chosen for
     its standard format and tooling); catalogs in `contracts` (data and translation logic are not wire
     types). Deferred: RTL layout, an agent translation skill.
+
+24. **Unity's truth is the Editor, not a host mirror.** A Unity workspace's structure and runtime state
+    have exactly one owner: the open Editor. [[module-unity-project]] reads the project model (editor
+    version, packages, `.asmdef` graph, GUID index) as **read-only inputs** and asks the Editor for
+    everything structural and runtime — hierarchy, inspection, selection, Console, compile diagnostics,
+    Play Mode, tests, screenshots — through `com.thinkrail.bridge`. The host keeps **no** persisted Unity
+    snapshot, poll loop, cached client or scene model, so there is nothing to drift: `unity.*`
+    re-reads the workspace and bridge discovery per request, and `withUnityBridge` rediscovers once when a
+    domain reload moved the port or token (the discovery file plus the `~/.thinkrail/unity/bridges.json`
+    registry, both gated on PID liveness). Structural scene/Prefab edits stay in the Editor's own APIs;
+    the host and agent never reconstruct or hand-edit `.unity`/`.prefab` YAML, and `.meta` files/GUIDs are
+    read-only to every component because moving an asset without its `.meta` breaks every reference. The
+    bridge protocol is versioned (`UNITY_BRIDGE_PROTOCOL_VERSION`, today 1); a mismatched Editor package is
+    refused rather than parsed optimistically. The bridge listens on `127.0.0.1` only and requires a
+    per-session bearer token. Why not cache: Unity is a live application whose state changes on compile,
+    play, import and script execution, and a stale mirror would make the agent confidently wrong — the
+    verification loop ([[module-ext-unity]] `unity_verify`) reads the Editor's actual compile output,
+    Console and frame after every change. Accepted cost: with no Editor running the bridge tools are
+    unavailable rather than degraded (`unity.snapshot` reports project and bridge errors separately), and
+    UnityRail makes no promise of structural scene editing outside the Editor.
+
+25. **A nested Git repository is a repository, not a file in its parent.** A workspace may contain
+    submodules and embedded checkouts at any depth, and every Git read or write runs **in the owning
+    repository** with a repo-relative path; the wire keeps one workspace-relative POSIX path so the
+    Changes tree, review anchors, `/blob`, and revert receipts never carry a second address space. The
+    `git` module discovers nested roots recursively (`.gitmodules`, index gitlinks, untracked embedded
+    checkouts), and follows a directory **link** named by Git whose target is a repository even when that
+    target is outside the worktree — the business-layer mount — while keeping the link path as the
+    workspace-relative identity. It bounds and caches that scan and exposes the one `path → owner` mapping. A `branch` or
+    `uncommitted` scope reports each nested repository's own HEAD↔worktree changes; a `turn` reports the
+    nested tree pairs its run snapshots took; `commit`/`pinned` stay root-only. A gitlink row is marked
+    `submodule` and synthesizes a `Subproject commit` diff — never a blob read — and a dirty child's
+    pointer row yields to its inner rows. A new managed worktree initializes submodules before it is
+    recorded, and a failure removes the half-created worktree and branch rather than leaving an empty
+    tree for the agent. Todos auto-commit only root paths; nested paths stay reviewable `change`
+    artifacts. Detail: [[submodule-server-git]], [[submodule-server-workspaces]], [[submodule-server-turns]],
+    [[submodule-server-changes]], [[submodule-server-reviews]].
 
 ## Invariants
 

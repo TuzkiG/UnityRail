@@ -238,6 +238,23 @@ export interface PrPreview extends PrDraft {
 
 export type ReviewProvider = "github" | "gitlab";
 
+/** A repository nested in the workspace (submodule or embedded checkout), as the topbar reads it. */
+export interface NestedRepoStatus {
+	/** Workspace-relative POSIX root of the nested repository. */
+	path: string;
+	/** Checked-out branch; the short HEAD when detached. */
+	branch: string;
+	/** The checkout is detached (`branch` is the short HEAD). */
+	detached?: boolean;
+	/** Configured upstream ref (`origin/main`); absent when there is none. */
+	upstream?: string;
+	/** Commits upstream lacks / HEAD lacks, when `upstream` resolves. */
+	ahead?: number;
+	behind?: number;
+	/** Tracked files changed in the nested worktree; absent when clean. */
+	changes?: number;
+}
+
 /** `workspace.branchStatus`: where the branch stands against origin and its base, review or not. */
 export interface BranchStatus {
 	hasOrigin: boolean;
@@ -256,6 +273,8 @@ export interface BranchStatus {
 	/** The branch is its own base (Default on the default branch): no PR can be opened from it. */
 	onBase: boolean;
 	review: OpenBranchReview | null;
+	/** Nested repositories with their local branch facts; absent when the workspace has none. */
+	repos?: NestedRepoStatus[];
 }
 
 export interface OpenPrResult {
@@ -296,6 +315,8 @@ export interface FileNode {
 	name: string;
 	kind: FileKind;
 	gitignored?: boolean;
+	/** This directory is the worktree root of a repository nested in the workspace (submodule or embedded). */
+	nestedRepo?: boolean;
 	children?: FileNode[];
 }
 
@@ -1000,19 +1021,51 @@ export interface GitFileChange {
 	status: GitFileStatus;
 	added?: number;
 	removed?: number;
+	/** Workspace-relative root of the nested repository that owns this change; absent in the root repo. */
+	repo?: string;
+	/** A gitlink row: the path itself is a repository (submodule or embedded checkout), not a file. */
+	submodule?: boolean;
+}
+
+export interface GitRepoInfo {
+	/** Workspace-relative root of a repository nested in the workspace. */
+	path: string;
 }
 
 export interface GitStatus {
 	branch: string;
 	changes: GitFileChange[];
+	/** Nested repositories discovered in the worktree; absent when there are none. */
+	repos?: GitRepoInfo[];
+}
+
+export interface TurnTreeSnapshot {
+	/** Workspace-relative root of the nested repository this pair was taken in. */
+	repo: string;
+	baseTree: string;
+	headTree: string;
 }
 
 export type GitDiffScope =
-	| { kind: "branch" }
+	| {
+			kind: "branch";
+			/** Workspace-relative root of the nested repository to compare against its own base. */
+			repo?: string;
+			/** Base ref inside that repository; absent means its configured upstream. */
+			baseRef?: string;
+	  }
 	| { kind: "uncommitted" }
 	| { kind: "commit"; sha: string }
 	| { kind: "pinned"; baseRef: string }
-	| { kind: "turn"; id: string; baseTree: string; headTree: string; startedAt: number };
+	| {
+			kind: "turn";
+			id: string;
+			baseTree: string;
+			headTree: string;
+			startedAt: number;
+			/** Snapshot pairs for repositories nested in the workspace; absent when none changed. */
+			nestedTrees?: TurnTreeSnapshot[];
+	  };
 
 export interface TurnChangeSet {
 	id: string;
@@ -1022,6 +1075,7 @@ export interface TurnChangeSet {
 	settledAt: number;
 	baseTree: string;
 	headTree: string;
+	nestedTrees?: TurnTreeSnapshot[];
 	changes: GitFileChange[];
 }
 
@@ -1063,6 +1117,8 @@ export interface BranchList {
 	remote: string[];
 	remoteGroups?: RemoteBranchGroup[];
 	defaultBranch: string;
+	/** The checked-out branch upstream, when configured. */
+	upstream?: string;
 }
 
 export type ProviderAuthKind = "oauth" | "api-key" | "env" | "central" | "other";
@@ -1344,7 +1400,14 @@ export function isFontWeightOffset(value: unknown): value is number {
 	);
 }
 
-export type LayoutToolId = "projects" | "specs" | "files" | "review" | "plan";
+export type LayoutToolId =
+	| "projects"
+	| "unity-project"
+	| "specs"
+	| "files"
+	| "review"
+	| "plan"
+	| "unity";
 
 export type LayoutBottomAlignment = "center" | "center-left" | "center-right" | "full";
 
@@ -1734,7 +1797,7 @@ export interface InstalledFontsResult {
 export const USER_FONTS_ROUTE = "/fonts/";
 /** Required on `PUT` uploads: a non-simple header forces a CORS preflight the host never answers. */
 export const USER_FONT_UPLOAD_HEADER = {
-	name: "X-ThinkRail-Request",
+	name: "X-UnityRail-Request",
 	value: "font-upload",
 } as const;
 export const USER_FONT_EXTENSIONS = [".ttf", ".otf", ".woff", ".woff2"] as const;
@@ -1936,6 +1999,8 @@ export type ReviewSelector =
 export interface ReviewAnchor {
 	path: string;
 	side: "base" | "worktree";
+	/** Workspace-relative root of the nested repository that owns this path; absent in the root repo. */
+	repo?: string;
 	baseRef?: string;
 	scope?: GitDiffScope;
 	contentHash?: string;

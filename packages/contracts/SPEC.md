@@ -47,7 +47,7 @@ the palette ranks with — kept here so host-side search can rank with the same 
   latter — the host's replay namespace for this page is full ([[submodule-server-host]]), and the page treats
   it as an ordinary retryable failure. Everything else stays a plain `error` string. Expected method-specific outcomes remain typed method
   results rather than generic WS failures; no current-layout protocol exists.
-- **Public surface (`index.ts`):** `export type *` of `piProtocol` + `domain` + `nativeClient`
+- **Public surface (`index.ts`):** `export type *` of `piProtocol` + `domain` + `unity` + `nativeClient`
   (`NativeUpdateState` / `NativeUpdateBridge`, `NativeWindowState` / `NativeWindowControlsBridge`,
   `NativeQuitHint` / `NativeCommand` / `NativeShortcutsBridge`, and
   `NativeNotificationInput` / `NativeNotificationBridge`, and `NativeMenuBridge` (translated native menu
@@ -181,7 +181,7 @@ the palette ranks with — kept here so host-side search can rank with the same 
     and mapped prompt-template listings), and **`SkillCatalogEntry`** + **`SkillDecision`** (`load`/`untrusted`/`pending-ack`/
     `disabled`) — the workspace Skills manager's `skills.state` rows.
   - **`ExtensionCatalogEntry`** (`{ name, title, description?, enabled, tools, hasChildExtensions }`) — one
-    host-registry ThinkRail extension as `extension.list` reports it; `name` is the identity the
+    host-registry UnityRail extension as `extension.list` reports it; `name` is the identity the
     `AppConfig.disabledExtensions` list keys on, `tools` the names its parent factories register.
   - **`SessionSummary`** — a chat session as the host reports it for hydration (read side); `live`
     distinguishes an in-memory session from a disk-only one. A frontend hydrates locally placed sessions and
@@ -299,7 +299,7 @@ the palette ranks with — kept here so host-side search can rank with the same 
   again; its optional **`kind: "default"`** marks the built-in per-project **Default workspace** — the
   project folder itself as a workspace, exactly one per project, pinned first in `workspace.list`,
   non-removable and non-renamable server-side; **`kind: "external"`** marks an explicitly attached,
-  user-owned worktree ThinkRail may forget but must never rename or reclaim; absent = a ThinkRail-managed
+  user-owned worktree UnityRail may forget but must never rename or reclaim; absent = a UnityRail-managed
   worktree workspace; optional literal **`initialTerminalPending: true`** is the host-owned provisioning
   marker carried only while a workspace still needs host reservation: the host reserves the deterministic
   terminal then clears it; absence means no provisioning work remains—explicit wire fields, never id
@@ -328,11 +328,19 @@ the palette ranks with — kept here so host-side search can rank with the same 
   couldn't be read), `pushesElsewhere` (origin's
   push URL differs from its fetch URL, so `ahead` / `behind` describe the push repository), `ahead` / `behind` vs
   `origin/<branch>` when published, `aheadOfBase`, `onBase` (the branch is its own base —
-  Default on the default branch) and `review: OpenBranchReview | null` — the facts the topbar's Remote and
-  Pull request segments derive their next action from, independent of whether a review exists),
+  Default on the default branch), `review: OpenBranchReview | null` — the facts the topbar's Remote and
+  Pull request segments derive their next action from, independent of whether a review exists — and
+  optional `repos: NestedRepoStatus[]`: each nested repository's workspace-relative `path`, `branch`
+  (short HEAD when `detached`), and its configured `upstream` with local `ahead` / `behind` counts. The
+  field is absent when the workspace has no nested repository; it is local-only (no fetch) and never
+  appears on the older `workspace.openReview` answer),
+  **`NestedRepoStatus`** (one `BranchStatus.repos` entry: workspace-relative `path`, `branch`,
+  `detached`, the local `upstream` / `ahead` / `behind` facts, and a tracked `changes` file count when
+  the nested worktree is dirty),
   **`ExistingWorktreeCandidate`** (a `workspace.listExisting` row: absolute `path` + `branch`, or a
   `detached` row the chooser disables),
-  `FileNode` (file-tree node; worktree-relative `/` path, `gitignored` set by the host when git ignores it),
+  `FileNode` (file-tree node; worktree-relative `/` path, `gitignored` set by the host when git ignores it,
+  `nestedRepo` on a directory that is the worktree root of a submodule or embedded checkout),
   **`ResourceMeta`** (what a resource's bytes *are*, host-decided and pinned by
   `RESOURCE_META_PROTOCOL_VERSION` = v75: sha-256 `hash` + `byteLength`, both `null` when the resource is
   absent; `text` = valid UTF-8, BOM-aware, and not claimed by a recognized binary magic number (an ASCII
@@ -351,21 +359,30 @@ the palette ranks with — kept here so host-side search can rank with the same 
   OS trash),
   `Git*`/diff types — incl. **`GitDiffScope`** (what the Changes
   panel is diffing: `branch` → the workspace's work since diverging from its diff base (the range starts at
-  their merge-base, never the base's tip) / `uncommitted` → worktree vs `HEAD` /
+  their merge-base, never the base's tip); optional `repo` + `baseRef` selects a nested repository and
+  compares it in its own object store, defaulting to that repository's upstream / `uncommitted` → worktree
+  vs `HEAD` /
   `commit` → one commit, `sha^` vs `sha` / `turn` → the two worktree **tree snapshots** the host took
-  around one agent run (`{ id, baseTree, headTree, startedAt }`, both sides immutable, v80); omitted on
+  around one agent run (`{ id, baseTree, headTree, startedAt, nestedTrees? }`, both sides immutable, v80;
+  `nestedTrees` carries `{ repo, baseTree, headTree }[]` for repositories nested in the workspace); omitted on
   the wire = `branch`, so an older client is unchanged), **`TurnChangeSet`** (one recorded agent run:
-  `{ id, workspaceId, sessionId, startedAt, settledAt, baseTree, headTree, changes }` — what the run
+  `{ id, workspaceId, sessionId, startedAt, settledAt, baseTree, headTree, nestedTrees?, changes }` — what the run
   actually left behind, served by **`workspace.turns`** and pushed on **`turn.changed`**,
-  `TURN_CHANGES_PROTOCOL_VERSION` = v80),
+  `TURN_CHANGES_PROTOCOL_VERSION` = v80). **`GitFileChange`** carries optional `repo` (the
+  workspace-relative root of the nested repository that owns the change; absent in the root repo) and
+  optional `submodule: true` on a gitlink row (the path is a repository, not a file) and never line counts
+  there; all rows keep the workspace-relative POSIX `path`. **`GitStatus`** adds optional `repos`
+  (`{ path }[]`, the nested roots the Files repository picker offers); it is absent when the workspace
+  has none, and discovery never changes the root `changes` rows.
   **`GitCommit`** (a commit row of the scope menu's list), and **`BranchList`**: `remote` remains the
   canonical full-ref string list, while optional host-authored `remoteGroups` carries each configured
-  remote and its `{ ref, branch }` rows for two-layer presentation. The field is additive so a newer UI
+  remote and its `{ ref, branch }` rows for two-layer presentation, and optional `upstream` names the
+  checked-out branch's upstream when configured. The fields are additive so a newer UI
   falls back to full refs against an older host; a `null` remote group preserves tracking refs whose
   configuration was removed without inventing ownership in the browser. The two meanings of a workspace's base are
   **two fields**: `Workspace.baseBranch` is *creation provenance* (the ref the worktree was cut from — what
   the receipt's `branch · from baseBranch` shows; for a **user-owned** workspace, whose provenance isn't
-  ThinkRail's to claim, it is the repo default as the *initial* review target and the UI shows no `from`)
+  UnityRail's to claim, it is the repo default as the *initial* review target and the UI shows no `from`)
   and the optional **`Workspace.diffBase`** is the *review
   target* (`workspace.setDiffBase`); every read resolves `diffBase ?? baseBranch` **server-side, in one
   place** — collapsing them into one field would make a re-pointed target lie about where the branch came
@@ -558,7 +575,8 @@ the palette ranks with — kept here so host-side search can rank with the same 
   verdict and provenance, host-written so the Changes review tab can walk the reviewer's story), **`ReviewComment`** (`kind`
   inline/diff/file/review; `status` draft/sent/resolved/
   dismissed — orthogonal to **`anchorState`** anchored/moved/outdated; per-comment `sessionId` — the
-  chat it was sent into), **`ReviewAnchor`** (`path` + `side` + `contentHash` + an ordered **`ReviewSelector`**
+  chat it was sent into), **`ReviewAnchor`** (`path` + `side` + optional `repo` (the workspace-relative root
+  of the nested repository that owns the path; absent in the root repo) + `contentHash` + an ordered **`ReviewSelector`**
   fallback chain: `lineRange` / `textQuote` / `diffHunk` / `structural` / `region` — `structural` is the
   typed-by-scheme slot for document models with stable identities (`json-pointer`, `ipynb-cell`,
   `table-cell`, `md-heading`, plus whatever scheme a renderer mints: unknown schemes cross the wire
@@ -633,9 +651,10 @@ the palette ranks with — kept here so host-side search can rank with the same 
   + **`project.hasSpecs`** (lazy per-project "contains a registered
   spec?" for the Welcome screen — a full-tree walk, so requested only for the shown project,
   never eagerly for every project) / `workspace.*` — notably **`workspace.list { projectId,
-  includeDiffStats? }`**, where omitted/true preserves the existing full rows with computed aggregates and
-  `false` returns the same authoritative membership/order without the synchronous per-workspace diff-stat
-  fan-out used nowhere by navigation restoration / `fs.*` (**`fs.readFile`** answers
+  includeDiffStats? }`**, where omitted/`false` returns the authoritative membership/order without the
+  synchronous per-workspace diff-stat fan-out (the default, since no first paint needs the numbers; the
+  plan header asks **`workspace.diffStats { id }`** for the one workspace it shows) and `true` adds the
+  computed aggregates / `fs.*` (**`fs.readFile`** answers
   `{ content, meta: ResourceMeta }`) / `git.*` / **`spec.graph`**
   (the Specs-viewer whole-graph read, per workspace) / **`todo.*`** — **`list`**/**`add`**/**`update`**/
   **`remove`**, the chat's per-session TODO plan (keyed by `workspaceId` + `sessionId`; `add` tags the

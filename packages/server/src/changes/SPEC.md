@@ -36,6 +36,13 @@ The platform decision behind it is [[architecture]] decision #19; the rules belo
   `SCOPE_IMMUTABLE` (there is nothing in the worktree it describes). The original side is read at the
   range's **`resolvedOriginalOid`**, not its ref, so the two reads of a load→verify→write pass cannot
   straddle a commit that moved `HEAD`.
+- **A nested file is read from its owning repository.** `repoForPath(workspaceId, path)` returns the
+  deepest repository root plus the repo-relative path; a nested file is only mutable under a `branch` or
+  `uncommitted` scope, and its original side is that repository's **HEAD** (`resolveUncommittedRange`,
+  including an unborn HEAD's staged additions). The worktree side and the receipt's path stay
+  workspace-relative. A gitlink row (the repository root itself) is `UNSUPPORTED_CHANGE`: a pointer is
+  not a file to rewrite. `pinned`/`commit`/`turn` scopes never list nested files, and a nested path under
+  one of them is refused rather than read from the root repository.
 - **Compare-and-swap on both sides, inside the lock.** `expect.originalHash` and `expect.modifiedHash`
   must equal the sha-256 of the two sides as *this* pass reads them (`null` = the path is absent, which
   is how "added" and "deleted" are expressed). Either mismatch is `STALE_VIEW` and nothing is written:

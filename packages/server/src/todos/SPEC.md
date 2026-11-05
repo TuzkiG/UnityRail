@@ -79,9 +79,14 @@ as a permanently open foreign window and force every sibling chat into the fallb
   work, never "everything currently dirty" — `--no-verify` (the commit must not run/fail the
   user's hooks; author/committer stay the user's own config — it's their branch). It
   preserves the user's index across any failure (see [[submodule-server-git]]). The item gets **one
-  `commit` artifact** (the sha, `label` = the item title) and **nothing else**: the commit is
+  `commit` artifact** (the sha, `label` = the item title) and **nothing else** when every path belongs to
+  the root repository: the commit is
   self-sufficient — its file list is *derived*, never denormalized into the JSON (see the `listTodos`
-  decoration below).
+  decoration below). **Paths inside a nested repository are not committed here**: the workspace's commit
+  history cannot resolve their sha, so `gitCommitPaths` returns them as `skipped` and the node keeps them
+  as `change` artifacts beside the root commit (or alone, when nothing was in the root repo). They remain
+  visible and reviewable; a later manual commit in the submodule is picked up like any other nested dirt.
+  This is the deliberate boundary of the one-sha change set, not a missing feature.
 - **Adopt in-window commits.** The host is the intended sole committer during an item's window (the
   worker subagent's prompt forbids it from committing — [[module-pi-subagents]]), but that is guidance,
   not enforcement, and the user may hand-commit too. So before the delta commit, any commit that landed
@@ -108,7 +113,7 @@ as a permanently open foreign window and force every sibling chat into the fallb
   defect. The subject is the item's agent-authored **`commitSubject`** (see [[module-pi-todos]]: written
   at `done` in the *host repository's* commit style, which the agent reads off `git log`), falling back
   to the item `title` when absent. Nothing else: **no `todo:` prefix and no body/trailer.** An earlier
-  version wrote `todo: <title>` plus a `ThinkRail-Todo: <sessionId>/<todoId>` trailer; both are gone.
+  version wrote `todo: <title>` plus a `UnityRail-Todo: <sessionId>/<todoId>` trailer; both are gone.
   The prefix + a plan-step title read as a foreign artifact in a Conventional-Commits history (this
   repo's own `todo: Get design sign-off, promote decisions into apps/website/SPEC.md` is the
   specimen), and the trailer was **write-only** — item↔commit attribution is the `commit` artifact's
@@ -243,7 +248,10 @@ that is then re-edited uncommitted appears in both `adoptedCommits` (the commit'
 
 **The review workflow (`reviews.ts` + the ops in `todos.ts`).** A completed item that carries a host
 change set is **reviewable** — the gate is that artifact presence, so research/verification steps never
-demand review and no LLM attribution is involved. The user's decision lives in a second host-owned
+demand review and no LLM attribution is involved. A nested repository's work stays a `change` artifact
+(`gitCommitPaths` commits only root paths), so the rendered change set names that repository for its own
+paths — `changed paths: src/a.ts, libs/lib/a.ts (repo libs/lib)` — because the reviewer's cwd is the
+workspace root and a bare workspace-relative path would read as the root repository's Git state. The user's decision lives in a second host-owned
 sidecar, `.thinkrail/context/todos/<sessionId>.reviews.json` (read-modify-write, atomic, same lifecycle
 as the baselines: `session.delete` removes the file; orphan records are inert) — deliberately **not** the agent-writable todos JSON: an agent re-plan must
 never flip a review decision. A record is `reviewed` or `changes_requested` plus **`reviewedShas`, the

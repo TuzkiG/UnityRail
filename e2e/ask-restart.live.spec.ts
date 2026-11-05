@@ -65,7 +65,7 @@ function seedState(): void {
 	writeFileSync(join(DATA_DIR, "config.json"), JSON.stringify(E2E_BASE_CONFIG));
 	gitQuiet(REPO, "init", "-b", "main");
 	gitQuiet(REPO, "config", "user.email", "e2e@thinkrail.test");
-	gitQuiet(REPO, "config", "user.name", "ThinkRail E2E");
+	gitQuiet(REPO, "config", "user.name", "UnityRail E2E");
 	gitQuiet(REPO, "config", "commit.gpgsign", "false");
 	writeFileSync(join(REPO, "README.md"), "# restart fixture\n");
 	gitQuiet(REPO, "add", "-A");

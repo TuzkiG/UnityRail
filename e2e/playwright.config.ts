@@ -101,6 +101,9 @@ export default defineConfig({
 			// Lane-local `central` + `code` stubs: deterministic and safe under process-level sharding.
 			PATH: hostPath,
 			SHELL: hermeticE2eShell(E2E_FAKE_BIN_DIR),
+			// The host's own locale repair is the POSIX login-shell step (`shared/shellEnv`), so a Windows
+			// host takes the UTF-8 locale the terminal specs assert from its launching environment.
+			...(process.platform === "win32" ? { LANG: "C.UTF-8" } : {}),
 			CENTRAL_STUB_STATE: E2E_CENTRAL_STATE,
 			CENTRAL_STUB_LOG: E2E_CENTRAL_LOG,
 			CENTRAL_STUB_EXTENSION_SOURCE: E2E_CENTRAL_EXTENSION_SOURCE,

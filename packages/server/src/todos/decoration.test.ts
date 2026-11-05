@@ -59,7 +59,7 @@ test("listTodos decorates a commit artifact with the commit's derived files; a d
 	const store = new TodoStore(repo, SESSION);
 	writeFileSync(join(repo, "impl.ts"), "export {};\n");
 	const committed = gitCommitPaths("w1", "feat: step", ["impl.ts"]);
-	if (!committed) throw new Error("commit failed");
+	if (!committed?.sha) throw new Error("commit failed");
 	const good = store.add({
 		title: "committed step",
 		artifacts: [{ kind: "commit", sha: committed.sha, label: "committed step" }],

@@ -61,6 +61,7 @@ import {
 	TOOL_RESPONSE_CUSTOM_TYPE,
 	TOOL_RESPONSE_PROTOCOL_VERSION,
 	TURN_CHANGES_PROTOCOL_VERSION,
+	UNITY_PROTOCOL_VERSION,
 	USER_THEMES_PROTOCOL_VERSION,
 	WINDOWS_SHELL_SETTINGS_PROTOCOL_VERSION,
 	WORKSPACE_READ_STATE_PROTOCOL_VERSION,
@@ -242,7 +243,7 @@ test("tool responses replace the ask-only answer method at v93", () => {
 
 test("user-selectable fonts are pinned to v102", () => {
 	expect(FONTS_PROTOCOL_VERSION).toBe(102);
-	expect(PROTOCOL_VERSION).toBe(102);
+	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(FONTS_PROTOCOL_VERSION);
 	expect(WS_METHODS.fontsList).toBe("fonts.list");
 	expect(WS_METHODS.fontsInstalled).toBe("fonts.installed");
 	expect(WS_METHODS.fontsReveal).toBe("fonts.reveal");
@@ -561,4 +562,14 @@ test("custom endpoints are pinned to v101 and own only custom-* providers", () =
 	expect(WS_METHODS.customEndpointsProbe).toBe("customEndpoints.probe");
 	expect(isCustomEndpointId(`${CUSTOM_ENDPOINT_ID_PREFIX}gateway`)).toBe(true);
 	expect(isCustomEndpointId("ollama")).toBe(false);
+});
+
+test("Unity Editor bridge methods are pinned to v104", () => {
+	expect(UNITY_PROTOCOL_VERSION).toBe(104);
+	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(UNITY_PROTOCOL_VERSION);
+	expect(WS_METHODS.unitySnapshot).toBe("unity.snapshot");
+	expect(WS_METHODS.unityStatus).toBe("unity.status");
+	expect(WS_METHODS.unityOpenEditor).toBe("unity.openEditor");
+	expect(WS_METHODS.unityLinkModule).toBe("unity.linkModule");
+	expect(WS_METHODS.unityUnlinkModule).toBe("unity.unlinkModule");
 });

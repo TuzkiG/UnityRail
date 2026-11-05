@@ -17,6 +17,12 @@ arrangement (so the mobile shell is an additive layer, not a rewrite).
 Files (both modes) and Review keep their fixed toolbars outside a panel-owned `components/QuietScrollArea`
 (Files through `RememberedScrollArea`); Projects and Specs expose content for the shell-owned scroll wrapper
 described in `shell/SPEC.md`.
+`UnityPanel` is the Unity workbench tool: it polls `unity.snapshot` and renders the overview, Console,
+hierarchy, inspector, Game View and test tabs for one workspace; it knows nothing about placement. The
+Editor owns the selection: a selected GameObject reported by the snapshot becomes the inspected path (the
+first GameObject wins; assets and component selections have no hierarchy path), while a pick in the panel's
+hierarchy selects it in the Editor through `unity.select` and is not re-adopted from that call's trailing
+cached status. An `unity.inspect` answer that arrives after a newer selection is dropped.
 `TerminalInstance` wraps xterm with `QuietScrollFrame`, which skins xterm's descendant custom scroll control
 without shrinking its hit target; top/bottom state comes from xterm's public `buffer.active.viewportY/baseY`
 and `onScroll`/`onWriteParsed` API rather than pretending its non-native viewport has DOM scroll metrics.
@@ -60,9 +66,9 @@ treatment.
   anywhere on the row opens that exact menu at the kebab without selecting/activating the workspace, while
   the kebab remains the touch and keyboard-focus path. Its actions are a `DropdownMenuSub` **"Open in"**
   (rendered only when at least one editor was detected), **Copy path**, and **Reveal in file manager**. A
-  ThinkRail-managed worktree additionally gets **Rename** when the connected host's protocol is at least
+  UnityRail-managed worktree additionally gets **Rename** when the connected host's protocol is at least
   `WORKSPACE_RENAME_PROTOCOL_VERSION`, plus **Remove workspace**; an external row gets only **Remove from
-  ThinkRail**, whose confirm promises the checkout and its branch stay untouched.
+  UnityRail**, whose confirm promises the checkout and its branch stay untouched.
   The Default gets neither mutation. "Open in" comes from the host-wide `editor.list`; GUI entries call
   `workspace.openIn`, while terminal-kind Vim activates the workspace and runs through `addTerminal`'s
   one-shot `initialCommand`. Copy writes `worktreePath`; Reveal calls `workspace.reveal`. These requests,
@@ -189,7 +195,7 @@ treatment.
   non-git folder is never a silent no-op. The native picker remains the local fast path and keeps its raised
   timeout because it waits on a human; if the host cannot present it, the rejection instead opens an
   **Open project from host path** dialog carrying the reason and an autofocused path field. The dialog says
-  the path belongs to the computer running ThinkRail, accepts a host-absolute path or `~` / `~/…`, and
+  the path belongs to the computer running UnityRail, accepts a host-absolute path or `~` / `~/…`, and
   submits through this same open/inspect/init flow. **Enter host path…** is also always present beside Open
   project in `AddProjectMenu`: a remote client cannot tell whether a successful native picker opened on an
   unseen host display, so recovery cannot be failure-only. Every open gesture starts one client-wide
@@ -224,7 +230,12 @@ treatment.
   fixed panel-header row with an **All | Changed** `ToggleSegment` pair — `Changed` carries the changed-file
   count when non-zero — over `FileTree` or `ChangesPanel`; the mode is app-wide, session-only,
   `store.filesMode`, default All, and `requestChangesView` / `revealChanges` reveal Files and select Changed
-  in one store write. `FilesPanel` owns the single `git.status` read (`useGitStatus`, scope-keyed, including
+  in one store write. In **All** mode, when `git.status` reports nested `repos` (or a nested root is
+  already selected), the toolbar adds a **repository picker** (`files-repo-trigger`): the workspace root
+  or a nested root. Choosing one stores `filesTreeByWorkspace.repo` and re-roots `FileTree` at that
+  workspace-relative path; labels, marks, open-file handlers and warmups keep the full workspace path, so
+  the rest of the Files behavior is unchanged. The selection is persisted with the files-tree document
+  and scoped scroll state. `FilesPanel` owns the single `git.status` read (`useGitStatus`, scope-keyed, including
   the unknown-commit scope fallback) and feeds `ChangesPanel` and the **All** marks from it, so count, marks
   and the Changed list cannot disagree. Both `git.status` readers — `useGitStatus` and `ChangesReviewPane` —
   read through `gitStatusCache.readGitStatus`, which records each result keyed by *(workspace, scope, target
@@ -263,7 +274,11 @@ treatment.
   **List | Tree** toggle (`store.changesView`, app-wide) switching a flat list and a folder
   **`ChangesTree`**; a single click on a file in either opens/reveals it in the scope's **Changes review
   tab** (double-click or *Open as tab*: its own diff tab — the two-presentation rule below), and every file
-  row carries the shared **`ChangeRowActions`** menu. The row wrapper paints the complete hover/selected
+  row carries the shared **`ChangeRowActions`** menu. The flat list is **virtualized** (`ChangedFileList`):
+  a worktree with tens of thousands of rows (every nested repository included) would otherwise mount one
+  button per file and reconcile that whole set on every filesystem tick; rows keep their
+  `change-item` / `change-repo-group` contract, the same scope+compare-target scroll memory, and repo
+  group headers are list rows, so scrolling never loses a group. The row wrapper paints the complete hover/selected
   band, including the trailing menu slot; its inner open-file button remains transparent so that band
   cannot look clipped before the menu),
   `FilePane` and `DiffPane` as resource-registry dispatchers over [[module-resource-renderers]] (the bundled
@@ -277,7 +292,8 @@ treatment.
   it shows the panel's `container-sidebar-bg`, so the two chrome rows read as one continuous surface. The **file-style tree row** (chevron/spacer
   lead, folder/file icon, truncated label, trailing slot; `min-w-0` so a row can shrink when it shares a
   flex line with a trailing control) is the shared **`TreeRow`**, used by both
-  `FileTree` and `ChangesTree` so the two trees stay identical. `TreeRow`'s optional `onWarm` reports
+  `FileTree` and `ChangesTree` so the two trees stay identical. `TreeRow`'s optional `leading` replaces
+  the folder/file glyph (the nested-repository group uses a git-repository icon). Its optional `onWarm` reports
   `hover` (pointer enter) or `focus`. `FileTree` file rows warm at once on focus and through
   `warmOnHover` on hover, which keeps one pending row and fires after the pointer rests 150 ms, so a
   sweep across the tree loads nothing. A warm preloads the code view and the row's grammar
@@ -294,6 +310,20 @@ treatment.
   immediate-directory listing. The **`+N −M` diff-count badge** is the shared **`DiffStatBadge`**, used
   only inside Changes: the flat list's file rows, the tree's file rows, and a tree folder's aggregate only
   while it is collapsed (an expanded folder's children already show those counts).
+  **Nested Git repositories are grouped, never disguised as ordinary folders.** `groupChangesByRepo`
+  keeps root changes first and emits one group per `GitFileChange.repo` (the workspace-relative nested
+  root); `ChangesPanel` renders a group header with a git icon and repo path plus aggregate `+/−`, and
+  `repoChangeTree` builds that group's tree from paths **below** the root while file nodes keep the full
+  workspace path for open/active/copy. `GitFileChange.submodule` rows render the **Submodule pointer**
+  tag and their review section hides revert. A review section repeats the owning repo as a tag, so a
+  file reached by a flat scroll still names its repository, and `reviewChangeRows` carries that grouping
+  into the review tab: the stacked review list opens each nested repository with a repository header row
+  (`changes-review-repo-group`, tag + aggregate `+/−`) and keeps that repository's files contiguous, so a
+  walk through the review never jumps between repositories while the root's files stay first.
+  `FileTree` receives
+  `FileNode.nestedRepo` from the host's `fs.readDir` and swaps that folder's glyph for a git-repository
+  icon with the *Nested git repository* tooltip. These flags are additive wire fields: an older host
+  omits them, so the trees render exactly as before.
   `ChangesTree`'s tree build + `+/−` aggregation + shared status glyphs live in the pure
   **`changesModel.ts`** (unit-tested; no store/transport — `ChangesTree` is presentational, fed `changes` +
   `onOpen`/`isActive` by `ChangesPanel`), together with the **diff-tab identity + scope vocabulary**:
@@ -415,7 +445,7 @@ provider is unconfigured and OAuth-capable becomes a Detected sign-in (e.g. "Sig
 Claude Code is signed in, with the tool's plan as a badge) that starts that provider's ordinary OAuth flow,
 and those providers leave the list. When nothing usable is found there is no Detected block at all —
 naming a provider we know nothing about would be a guess dressed as advice. It is a suggestion, never a
-silent sign-in: the host reports which tools are signed in, and the user still authorises ThinkRail through
+silent sign-in: the host reports which tools are signed in, and the user still authorises UnityRail through
 pi's own flow. There is no link out to Settings — the surface already lists every connectable provider. No quota or other global
 settings appear here; the full `ProvidersSettings` stays the power-user surface. Data and login wiring are
 the shared **`useProviderAuth`** hook, which `ProvidersSettings` uses too: the store's provider status snapshot
@@ -544,7 +574,7 @@ kick-off tail is identical in both modes. An optional **`promptNote`** renders a
 the prompt (used by "Set up project" to say what the seeded skill command does). The worktree mode's
 base-branch trigger reads **“From
 {base}”**, not an unexplained ref. An optional **`initialPrompt`** seeds the prompt hero (still editable;
-empty by default); while the prompt is non-empty (worktree mode), a secondary hint says ThinkRail will name the workspace
+empty by default); while the prompt is non-empty (worktree mode), a secondary hint says UnityRail will name the workspace
 and branch from the request. The rest stays compact: the base-branch combobox (`git.listBranches`,
 degrading to local branches offline; a Refresh re-lists; `origin/HEAD` is filtered so no stray `origin`),
 a project picker, the prompt hero, and the reused
@@ -695,7 +725,7 @@ a project picker, the prompt hero, and the reused
   (`mcp.readLog`, masked by the host). Details lists no tools: apart from always-allowed ones, no payload
   carries tool names yet (pi's `/mcp` text and `SessionResources` report a count). Attention
   rows sort first and disabled rows stay listed last; `handledElsewhere` makes the section read-only with a
-  notice (`mcpHandledElsewhereText`): "MCP is handled by <path> in this workspace; ThinkRail's MCP
+  notice (`mcpHandledElsewhereText`): "MCP is handled by <path> in this workspace; UnityRail's MCP
   management is read-only." for a replacing extension, and for the host's `by: "pi settings
   (-builtin:mcp)"` "MCP is turned off in pi settings (-builtin:mcp); remove that entry to manage servers
   here." A problem with a whole `mcp.json` (`McpListResult.configErrors`: unparsable
@@ -769,7 +799,7 @@ a project picker, the prompt hero, and the reused
   `mcp.login` / `mcp.testConnection` and reuse `auth/LoginDialog` as Providers does: the login state keeps
   the push's `target`, so only an MCP login for this workspace opens this section's dialog (Providers
   ignores it, and so does the section shown for another workspace), and the sign-in page opens only from
-  the dialog's button. A banner reads "ThinkRail asks in the chat before MCP calls that may change data.
+  the dialog's button. A banner reads "UnityRail asks in the chat before MCP calls that may change data.
   Always allow trusts a tool in every chat of this project; those tools are listed on their server
   below." A row whose summary carries `alwaysAllowed` shows an **Always allowed in this project:** line
   of tool chips (the host's `label`, the pi tool name as title) — the scope is spelled out because the
@@ -809,7 +839,7 @@ a project picker, the prompt hero, and the reused
   pure draft rules live in `customEndpointDraft`; probe failures render as localized inline status and
   host save errors render inline; and
   the **`JetBrainsAiCard`** — route Central-supported models through the user's JetBrains subscription while
-  keeping ThinkRail's embedded PI — a state machine over the typed `JbcentralStatus` +
+  keeping UnityRail's embedded PI — a state machine over the typed `JbcentralStatus` +
   `provider.jbcentral*`: absent (official host-OS install guidance + Recheck), outdated — below the host's
   minimum supported Central (guided Update), invalid/unverifiable version (safe guidance, no native action;
   a version *above* the minimum is simply ready, never gated), **signed out** — the card
@@ -825,7 +855,7 @@ a project picker, the prompt hero, and the reused
   therefore Sign in → Start proxy → ordinary connected controls, never competing actions. Unknown proxy
   health does not manufacture a demand. A broken session asks for the one thing that resolves its current
   prerequisite rather than pairing a fix with an unrelated choice or success message.
-  **Signing in is one button, never a menu:** ThinkRail launches Central's flow on the host, and the
+  **Signing in is one button, never a menu:** UnityRail launches Central's flow on the host, and the
   `central login` command appears *only* where that launch failed — printing it beside a working button makes
   the user choose between two routes to the same place. Because the flow opens on the **host's** browser, the
   launched confirmation says so and names Refresh as the next step, since Connect is not on screen yet. The
@@ -841,7 +871,7 @@ a project picker, the prompt hero, and the reused
   re-read plus model-list invalidation. Status reads are request-sequenced so an older response cannot replace
   a newer watched/action result. Copy never promises only Claude/GPT, never asks for standalone PI,
   never renders child output/diagnostics/artifact content/paths/proxy data/secrets/raw models, and maps only
-  closed reason codes to ThinkRail-authored text. On protocol v59+, the same card always shows the
+  closed reason codes to UnityRail-authored text. On protocol v59+, the same card always shows the
   synchronized **Show quota in top bar** switch and **Refresh every _ seconds** field, in every Central
   lifecycle state. The flag defaults on; the interval defaults to 30 and accepts whole `1–3600` values.
   Off disables (but retains) the interval. The field edits locally, commits on blur/Enter, reports invalid
@@ -1020,7 +1050,7 @@ a project picker, the prompt hero, and the reused
   then bumps `templatesVersion` once, the same invalidation the row list already refetches on — the
   offer disappears on its own next render once the list is non-empty, no dismiss state to track. The five
   (review/explain/tests/commit/rename) are **the same set this repo checks into its own `.pi/prompts/`**:
-  those ship at *project* scope, so only a ThinkRail checkout ever sees them, and "the templates ThinkRail
+  those ship at *project* scope, so only a UnityRail checkout ever sees them, and "the templates UnityRail
   ships" must mean one thing rather than two — change one, change the other. The composer's `/` menu
   carries the discoverability half (`chat/SPEC.md`: a `slash-templates-empty` footer nudge deep-linking
   here when no template exists anywhere), since this offer is otherwise two clicks deep in a dialog. The
@@ -1140,7 +1170,7 @@ a project picker, the prompt hero, and the reused
   `protocolVersion >= EXTENSION_CATALOG_PROTOCOL_VERSION`) is one page in three groups. Its description
   carries the page's only statement about chats — "Changes apply to open chats when their current turn
   ends." — and a primary **Install package…** button; there is no dynamic notice about which chats are
-  pending. **Built into ThinkRail** is the host-registry catalog as before: `extension.list` each time the
+  pending. **Built into UnityRail** is the host-registry catalog as before: `extension.list` each time the
   section mounts (static per host process, so section-local state), rendered by the props-driven
   `ExtensionsCatalog` — title, description, tool-name chips and a `@thinkrail/ui/switch`
   (`extension-toggle-<name>`) whose state is **`store.disabledExtensions`**, not the catalog's snapshot; a
@@ -1161,8 +1191,8 @@ a project picker, the prompt hero, and the reused
   tool and `/command` chips of its extensions as a chat's loader last recorded them (a file no chat has
   loaded since it changed has none — the host never runs extension code to list; the install dialog
   probes its new package once, so a fresh install shows chips at once) · the **switch** · a ⋯ menu
-  (Update, Open folder, Remove…). The group's one-line description says the switch affects ThinkRail chats only (the pi CLI
-  still loads the package — `disabledPackages` is a ThinkRail setting). The switch is the only state
+  (Update, Open folder, Remove…). The group's one-line description says the switch affects UnityRail chats only (the pi CLI
+  still loads the package — `disabledPackages` is a UnityRail setting). The switch is the only state
   control; it renders the host's `enabled` (closed over pi's package equivalence) and writes
   `settings.update { disabledPackages }` — on removes every key in the row's `switchKeys`, off adds its
   `identity` (`nextDisabledPackages`); an off row dims
@@ -1175,7 +1205,7 @@ a project picker, the prompt hero, and the reused
   settings"; the package switch is the only control — in-package toggles are deferred until pi exposes
   an API, see [[submodule-server-agent-packages]]) plus Open folder and Remove…; themes are never shown. A **loose file** row (`LooseRow`:
   `<agentDir>/extensions/*`, `.pi/extensions/*`, explicit `extensions[]` entries) is the file name with a
-  `local file` tag, its path, chips, a switch and Open folder — no Update or Remove, since ThinkRail did
+  `local file` tag, its path, chips, a switch and Open folder — no Update or Remove, since UnityRail did
   not install it. **pi built-in** lists the two built-ins the host runs (MCP client, Tool search) with a
   switch each, written as `±builtin:<name>` in the **scope the catalog reports** (a repository entry
   overrides the user file in pi, so flipping a project-decided row writes `.pi/settings.json`); the
@@ -1240,7 +1270,7 @@ a project picker, the prompt hero, and the reused
   followed by the existing **New chat** action. For the **Default workspace** the receipt tells the truth
   instead of promising isolation: **“Default workspace”**, the project name, `on <branch>`, and “Chats,
   changes, and terminals run directly in your project folder.” An **external workspace** reads
-  **“Existing worktree”** with `on <branch>` for the same reason — ThinkRail did not cut it, so there is no
+  **“Existing worktree”** with `on <branch>` for the same reason — UnityRail did not cut it, so there is no
   `from <base>` to claim. It is neither one-time nor dismissible, so it also helps
   after the last tab closes without introducing onboarding state. The workbench resource renderer handles
   registered **`plan`** tabs (`PlanTab`) via the lazy **`PlanPane`** — the chat plan's **live review-map
@@ -1717,11 +1747,14 @@ own section. The kebab menu (`plan-menu`, a
   until the user finishes it explicitly: the ROW itself grows a **Done check glyph** (inline after
   the counts — visible folded or not; a strip below holding one glyph read as stray space), which
   calls `review.fileDone`, and only that removes the file (`Review.doneFiles`; a new comment
-  re-opens it). An unfolded section shows the file's comments in
+  re-opens it). Rows are grouped by the repository in `ReviewAnchor.repo`: one
+  `review-repo-group` header per nested repository (root files first, no header), and a row label drops
+  the repository prefix its header already names while `data-path` keeps the full workspace path, so
+  navigation, folding and `review.fileDone` are unchanged. An unfolded section shows the file's comments in
   the TODO plan's exact section flow, built from the SHARED plan atoms (`chat/planKit`:
   `SectionLabel` + `PlanStatusIcon` — the same pieces `TodoList` renders with). **The reviewer
   agent's comments and the user's ride ONE lifecycle** — the only difference an author badge
-  (`review-comment-agent`: a `Bot` + "ThinkRail" chip): they share the same sections, glyphs,
+  (`review-comment-agent`: a `Bot` + "UnityRail" chip): they share the same sections, glyphs,
   navigation, per-row send/delete/resolve, and draft counts (`fileDraftIds`/`allDraftIds` and the
   host's implicit `sendableComments` are all author-agnostic; the verdict's fix package still sweeps
   any agent draft the user hasn't already sent). Sections, by status — **Drafts** first (the
@@ -2085,7 +2118,12 @@ own section. The kebab menu (`plan-menu`, a
   changes* (the workspace's work since diverging from the target branch — measured from the merge-base,
   so upstream commits landing on the target are never phantom rows here; the default) / *Uncommitted changes* / one **commit** from the
   branch's list — and the shared **`BranchPicker`** pill for the **target branch** (`workspace.setDiffBase`;
-  the panel converges on the broadcast `workspace.updated`, never optimistically). Below the two fixed rows
+  the panel converges on the broadcast `workspace.updated`, never optimistically). When the Files
+  repository picker selects a nested root, both controls use that repository: the branch list comes from
+  `git.listBranches` scoped to its worktree, the target defaults to that repo's default/upstream, and a
+  choice sets the scope `{ kind: "branch", repo, baseRef }` instead of the workspace diff base. The diff
+  tab identity includes that repo/base, and the server compares the nested files in their own object
+  store. Selecting the workspace root restores the root branch list and diff base. Below the two fixed rows
   the menu offers **Last turn · N files** — the newest host-recorded agent run (`store.turnsByWorkspace`
   read through `useWorkspaceTurns`; the shell loads it per connection on hosts at
   `TURN_CHANGES_PROTOCOL_VERSION`; disabled with "No agent turn changed files yet" until a run changed
@@ -2093,7 +2131,9 @@ own section. The kebab menu (`plan-menu`, a
   relative settle time). Choosing one sets the `turn` scope `{ id, baseTree, headTree, startedAt }`; the
   review tab and per-file tabs read both sides from the snapshots (`/blob` serves tree-qualified paths),
   so the scope stays frozen while the worktree moves on, and because its modified side is historical it
-  offers no revert or keep controls. A pruned snapshot is rejected like a rewritten commit. The menu's other
+  offers no revert or keep controls. The scope carries the run's `nestedTrees` pairs too, so a submodule
+  file inside the turn is read between its own snapshot trees; a gitlink row renders the synthesized
+  `Subproject commit <oid>` diff and is not revertable. A pruned snapshot is rejected like a rewritten commit. The menu's other
   contents load
   **lazily on each open**, never on panel mount: `git.listCommits` for the commit rows (subject +
   `shortSha · author · relative time`) and a `git.status` probe under the uncommitted scope, which is what
@@ -2188,7 +2228,7 @@ own section. The kebab menu (`plan-menu`, a
   duplicate-group size and original-side position when content is identical, so reverting an earlier
   twin cannot transfer its decision to an unreviewed twin. Ambiguous groups conservatively lose their
   decisions when their size changes. Unique keys survive the line shifts a neighbouring revert causes and lapse the moment the
-  agent changes that hunk again. A *reverted* hunk needs no state: ThinkRail's revert restores the base
+  agent changes that hunk again. A *reverted* hunk needs no state: UnityRail's revert restores the base
   text, the hunk leaves the diff, and the toast's Undo is the way back. The section header shows `k/n
   kept` and keeping a file's last hunk atomically marks it **viewed** — an action edge, not a standing
   render rule, so an explicitly un-viewed file stays un-viewed through virtualization and mode changes.

@@ -772,3 +772,41 @@ test("a reading order cites files worktree-relative and keeps an outside path as
 		(await getReviewSnapshot(WS_ID)).review.guide?.readingOrder.map((step) => step.path),
 	).toEqual(["a.ts", "../elsewhere.ts"]);
 });
+
+test("a base-side comment inside a submodule pins the submodule's own HEAD", async () => {
+	const lib = join(dataDir, "lib");
+	mkdirSync(lib);
+	const runLib = (...args: string[]) => {
+		execFileSync("git", ["-C", lib, ...args], { stdio: "ignore" });
+	};
+	runLib("init", "-b", "main");
+	runLib("config", "user.email", "t@t");
+	runLib("config", "user.name", "t");
+	runLib("config", "commit.gpgsign", "false");
+	writeFileSync(join(lib, "a.txt"), "base\n");
+	runLib("add", "-A");
+	runLib("commit", "-m", "init");
+	gitIn(worktree, ["config", "protocol.file.allow", "always"]);
+	gitIn(worktree, ["-c", "protocol.file.allow=always", "submodule", "add", "-q", lib, "libs/lib"]);
+	gitIn(worktree, ["commit", "-m", "add submodule"]);
+	const nested = join(worktree, "libs/lib");
+	writeFileSync(join(nested, "a.txt"), "changed\n");
+	const nestedHead = execFileSync("git", ["-C", nested, "rev-parse", "HEAD"]).toString().trim();
+
+	const comment = await addComment({
+		workspaceId: WS_ID,
+		kind: "diff",
+		anchor: {
+			path: "libs/lib/a.txt",
+			side: "base",
+			selectors: [{ kind: "lineRange", startLine: 1, endLine: 1 }],
+		},
+		body: "the base line",
+		scope: { kind: "uncommitted" },
+	});
+	expect(comment.anchor?.repo).toBe("libs/lib");
+	expect(comment.anchor?.baseRef).toBe(nestedHead);
+	expect(comment.anchor?.contentHash).toBe(hashContent("base\n"));
+	const pkg = await buildSendPackage(WS_ID, [comment]);
+	expect(pkg).toContain("base");
+}, 30_000);

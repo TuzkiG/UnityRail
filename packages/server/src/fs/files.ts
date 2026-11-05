@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, realpathSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { FileNode, ResourceMeta } from "@thinkrail/contracts";
 import { loadWorkspaces } from "../persistence";
@@ -23,6 +23,28 @@ function isGitMetadataPath(root: string, candidate: string): boolean {
 	return relative(root, candidate).split(sep).includes(".git");
 }
 
+/** A directory link inside the worktree whose target is a Git repository is a deliberate business
+ * mount (the framework/business split). Its files stay readable through the link path; a link to
+ * anything else still cannot escape the worktree. */
+function linkedGitAncestor(root: string, abs: string): boolean {
+	const base = resolve(root);
+	let cursor = abs;
+	while (true) {
+		try {
+			if (lstatSync(cursor).isSymbolicLink()) {
+				const real = realpathSync(cursor);
+				try {
+					if (statSync(join(real, ".git"))) return true;
+				} catch {}
+			}
+		} catch {}
+		if (cursor === base) return false;
+		const parent = dirname(cursor);
+		if (parent === cursor || !isContained(base, parent)) return false;
+		cursor = parent;
+	}
+}
+
 function assertExistingAncestorContained(root: string, abs: string): void {
 	const realRoot = realpathSync(root);
 	let cursor = abs;
@@ -39,7 +61,9 @@ function assertExistingAncestorContained(root: string, abs: string): void {
 			cursor = parent;
 			continue;
 		}
-		if (!isContained(realRoot, real)) throw new Error("Path escapes the worktree");
+		if (!isContained(realRoot, real) && !linkedGitAncestor(root, abs)) {
+			throw new Error("Path escapes the worktree");
+		}
 		if (isGitMetadataPath(realRoot, real)) throw new Error("The .git directory is not readable");
 		return;
 	}
@@ -66,13 +90,20 @@ export function readDir(workspaceId: string, path: string): FileNode[] {
 
 	return readdirSync(abs, { withFileTypes: true })
 		.filter((entry) => entry.name !== ".git")
-		.map(
-			(entry): FileNode => ({
-				path: posixRelative(root, join(abs, entry.name)),
+		.map((entry): FileNode => {
+			const absEntry = join(abs, entry.name);
+			let isDir = entry.isDirectory();
+			if (!isDir && entry.isSymbolicLink()) {
+				try {
+					isDir = statSync(absEntry).isDirectory() && linkedGitAncestor(root, absEntry);
+				} catch {}
+			}
+			return {
+				path: posixRelative(root, absEntry),
 				name: entry.name,
-				kind: entry.isDirectory() ? "dir" : "file",
-			}),
-		)
+				kind: isDir ? "dir" : "file",
+			};
+		})
 		.sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "dir" ? -1 : 1));
 }
 

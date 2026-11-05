@@ -48,6 +48,9 @@ export function scopeKey(scope: GitDiffScope): string {
 	if (scope.kind === "commit") return `commit:${scope.sha}`;
 	if (scope.kind === "pinned") return `pinned:${scope.baseRef}`;
 	if (scope.kind === "turn") return `turn:${scope.id}`;
+	if (scope.kind === "branch" && (scope.repo || scope.baseRef)) {
+		return `branch:${scope.repo ?? ""}:${scope.baseRef ?? ""}`;
+	}
 	return scope.kind;
 }
 
@@ -58,6 +61,7 @@ export function turnScope(turn: TurnChangeSet): Extract<GitDiffScope, { kind: "t
 		baseTree: turn.baseTree,
 		headTree: turn.headTree,
 		startedAt: turn.startedAt,
+		...(turn.nestedTrees ? { nestedTrees: turn.nestedTrees } : {}),
 	};
 }
 
@@ -148,6 +152,7 @@ export interface ChangeTreeFile {
 	name: string;
 	path: string;
 	status: GitFileStatus;
+	submodule?: boolean;
 	added: number;
 	removed: number;
 }
@@ -158,19 +163,91 @@ export interface ChangeTreeDir {
 	children: ChangeTreeNode[];
 	added: number;
 	removed: number;
+	/** The root of a nested repository, rendered as a repository group rather than a plain folder. */
+	repo?: boolean;
 }
 export type ChangeTreeNode = ChangeTreeDir | ChangeTreeFile;
+
+export interface ChangeRepoGroup {
+	repo: string;
+	changes: GitFileChange[];
+	added: number;
+	removed: number;
+}
+
+/** The workspace root keeps the whole change set; selecting a nested repository limits it to that
+ * repository's rows. The Changed tab and its +/- counts use this one filter. */
+export function changesForRepo(changes: readonly GitFileChange[], repo: string): GitFileChange[] {
+	return repo ? changes.filter((change) => change.repo === repo) : [...changes];
+}
+
+/** Root changes stay first; nested repositories are grouped by their workspace-relative root. */
+export function groupChangesByRepo(changes: readonly GitFileChange[]): ChangeRepoGroup[] {
+	const groups = new Map<string, GitFileChange[]>();
+	for (const change of changes) {
+		const repo = change.repo ?? "";
+		const held = groups.get(repo);
+		if (held) held.push(change);
+		else groups.set(repo, [change]);
+	}
+	return [...groups.entries()]
+		.map(([repo, rows]) => ({
+			repo,
+			changes: rows,
+			added: rows.reduce((sum, change) => sum + (change.added ?? 0), 0),
+			removed: rows.reduce((sum, change) => sum + (change.removed ?? 0), 0),
+		}))
+		.sort((a, b) => (a.repo === "" ? -1 : b.repo === "" ? 1 : a.repo.localeCompare(b.repo)));
+}
+
+export interface ReviewChangeRow {
+	change: GitFileChange;
+	/** Set only on the row that opens a nested repository's block; the review list repeats it as a header. */
+	group: ChangeRepoGroup | null;
+}
+
+/** The review list names each repository once and then lists its own files contiguously, so a walk
+ * through it never jumps between repositories. Root changes keep their order first. */
+export function reviewChangeRows(changes: readonly GitFileChange[]): ReviewChangeRow[] {
+	return groupChangesByRepo(changes).flatMap((group) =>
+		group.changes.map((change, index) => ({
+			change,
+			group: group.repo !== "" && index === 0 ? group : null,
+		})),
+	);
+}
+
+export function repoChangeTree(group: ChangeRepoGroup): ChangeTreeDir {
+	return {
+		kind: "dir",
+		name: group.repo,
+		path: group.repo,
+		children: buildChangesTree(group.changes, group.repo),
+		added: group.added,
+		removed: group.removed,
+		repo: true,
+	};
+}
 
 interface DirBuild {
 	dirs: Map<string, DirBuild>;
 	files: ChangeTreeFile[];
 }
 
-export function buildChangesTree(changes: readonly GitFileChange[]): ChangeTreeNode[] {
+/** `displayRoot` is the nested repository root whose label is the group header; file paths stay
+ * workspace-relative for opening, while the tree only shows the portion below that root. */
+export function buildChangesTree(
+	changes: readonly GitFileChange[],
+	displayRoot = "",
+): ChangeTreeNode[] {
 	const root: DirBuild = { dirs: new Map(), files: [] };
 
 	for (const change of changes) {
-		const segments = change.path.split("/");
+		const relative =
+			displayRoot && change.path.startsWith(`${displayRoot}/`)
+				? change.path.slice(displayRoot.length + 1)
+				: change.path;
+		const segments = relative.split("/");
 		const fileName = segments.pop() ?? change.path;
 		let dir = root;
 		for (const segment of segments) {
@@ -186,6 +263,7 @@ export function buildChangesTree(changes: readonly GitFileChange[]): ChangeTreeN
 			name: fileName,
 			path: change.path,
 			status: change.status,
+			...(change.submodule ? { submodule: true } : {}),
 			added: change.added ?? 0,
 			removed: change.removed ?? 0,
 		});

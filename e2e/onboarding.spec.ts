@@ -134,7 +134,7 @@ async function holdProviderStatus(
 	return status;
 }
 
-function signInOutsideThinkRail(providerId: string): void {
+function signInOutsideUnityRail(providerId: string): void {
 	const authPath = join(E2E_PI_AGENT_DIR, "auth.json");
 	const stored = existsSync(authPath)
 		? (JSON.parse(readFileSync(authPath, "utf8")) as Record<string, unknown>)
@@ -208,7 +208,7 @@ test("a cold start shows the onboarding wizard once; Skip setup persists", async
 
 	const wizard = page.getByTestId("onboarding-wizard");
 	await expect(wizard).toHaveAttribute("data-step", "intro");
-	await expect(wizard.getByTestId("welcome-title")).toHaveText("ThinkRail");
+	await expect(wizard.getByTestId("welcome-title")).toHaveText("UnityRail");
 	await expect(page.getByTestId("left-nav")).toHaveCount(0);
 	await expect(wizard.getByTestId("connect-provider-options")).toHaveCount(0);
 	await wizard.getByTestId("onboarding-start").click();
@@ -611,7 +611,7 @@ test("the banner's connect dialog still hands off when its opening status re-rea
 	).toBeVisible();
 });
 
-test("Welcome re-reads provider status when it opens again, so a sign-in made outside ThinkRail shows", {
+test("Welcome re-reads provider status when it opens again, so a sign-in made outside UnityRail shows", {
 	tag: "@dev-seam",
 }, async ({ page, baseURL }) => {
 	await openColdStart(page, baseURL);
@@ -624,7 +624,7 @@ test("Welcome re-reads provider status when it opens again, so a sign-in made ou
 	await dialog.getByTestId("create-project-submit").click();
 	await expect(page.getByTestId("chat-input")).toHaveValue(SETUP_PROMPT);
 
-	signInOutsideThinkRail("e2e-apikey");
+	signInOutsideUnityRail("e2e-apikey");
 	await page.getByTestId("project-item").first().getByText("outside-sign-in").click();
 	await expect(page.getByTestId("welcome-title")).toHaveText("outside-sign-in");
 	await expect(banner).toHaveCount(0);

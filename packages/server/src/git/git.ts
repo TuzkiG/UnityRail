@@ -1,5 +1,5 @@
-import { readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { isAbsolute, join, resolve } from "node:path";
 import type {
 	BranchList,
 	GitCommit,
@@ -26,6 +26,7 @@ import {
 	diffBaseRef,
 	resolveCommitOid,
 	resolveDiffRange,
+	resolveUncommittedRange,
 } from "./diffScope";
 import {
 	type GitResult,
@@ -37,6 +38,16 @@ import {
 	nonInteractiveGitEnv,
 } from "./gitExec";
 import { isSafeRef, remoteNameOf } from "./refs";
+import {
+	canonicalPath,
+	forgetWorktreeRepos,
+	listWorktreeRepos,
+	listWorktreeReposSync,
+	ownerOf,
+	type WorktreeRepo,
+} from "./repos";
+
+export { canonicalPath };
 
 const log = logger("git");
 
@@ -50,9 +61,22 @@ export function gitCommitPaths(
 	workspaceId: string,
 	message: string,
 	paths: string[],
-): { sha: string } | null {
+): { sha: string | null; skipped: string[] } | null {
 	if (paths.length === 0) return null;
-	const cwd = workspace(workspaceId).worktreePath;
+	const ws = workspace(workspaceId);
+	const repos = listWorktreeReposSync(ws, { fresh: true });
+	const rootPaths: string[] = [];
+	const skipped: string[] = [];
+	for (const path of paths) {
+		if (ownerOf(repos, path).repo.path === "") rootPaths.push(path);
+		else skipped.push(path);
+	}
+	if (rootPaths.length === 0) return { sha: null, skipped };
+	const sha = commitPathsInRepo(ws.worktreePath, message, rootPaths);
+	return sha === null ? null : { sha, skipped };
+}
+
+function commitPathsInRepo(cwd: string, message: string, paths: string[]): string | null {
 	const unmerged = git(cwd, ["ls-files", "-u"]);
 	if (!unmerged.ok || unmerged.out) return null;
 	const indexOut = git(cwd, ["rev-parse", "--git-path", "index"]);
@@ -78,7 +102,7 @@ export function gitCommitPaths(
 		return restore();
 	const head = git(cwd, ["rev-parse", "HEAD"]);
 	if (!head.ok) return null;
-	return { sha: head.out };
+	return head.out;
 }
 
 export function gitHeadSha(workspaceId: string): string | null {
@@ -146,8 +170,10 @@ function groupRemoteRefs(refs: string[], remotes: string[]): RemoteBranchGroup[]
 export async function listBranches(projectId: string): Promise<BranchList> {
 	const project = loadProjects().find((p) => p.id === projectId);
 	if (!project) throw new Error(`Unknown project: ${projectId}`);
-	const repo = project.path;
+	return listBranchesAt(project.path);
+}
 
+export async function listBranchesAt(repo: string): Promise<BranchList> {
 	const [localRefs, remoteRefs, remoteNames] = await Promise.all([
 		gitAsync(repo, ["for-each-ref", "--format=%(refname)", "refs/heads"]),
 		gitAsync(repo, ["for-each-ref", "--format=%(refname)\t%(symref)", "refs/remotes"]),
@@ -168,11 +194,13 @@ export async function listBranches(projectId: string): Promise<BranchList> {
 		.map((parts) => refWithin(parts[0] ?? "", REMOTE_REF_PREFIX) ?? "")
 		.filter(Boolean);
 
+	const upstream = git(repo, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"]);
 	return {
 		local,
 		remote,
 		remoteGroups: groupRemoteRefs(remote, lines(remoteNames.out)),
 		defaultBranch: resolveDefaultBranch(repo),
+		...(upstream.ok && upstream.out ? { upstream: upstream.out } : {}),
 	};
 }
 
@@ -200,14 +228,6 @@ export function resolveDefaultBranch(repoPath: string): string {
 	if (rows.some(([ref, symref]) => ref === `${REMOTE_REF_PREFIX}origin/main` && !symref))
 		return "origin/main";
 	return currentBranch(repoPath);
-}
-
-export function canonicalPath(path: string): string {
-	try {
-		return realpathSync(path);
-	} catch {
-		return resolve(path);
-	}
 }
 
 export function tryCurrentBranch(repoPath: string): string | null {
@@ -247,23 +267,9 @@ export async function prefetchBranch(
 	return { ok: result.ok, moved };
 }
 
-function mapStatus(code: string): GitFileStatus {
-	if (code.startsWith("A") || code.startsWith("C")) return "added";
-	if (code.startsWith("D")) return "deleted";
-	if (code.startsWith("R")) return "renamed";
-	return "modified";
-}
-
-async function numstat(
-	worktreePath: string,
-	range: DiffRange,
-): Promise<Map<string, { added: number; removed: number }>> {
+function parseNumstat(output: string): Map<string, { added: number; removed: number }> {
 	const counts = new Map<string, { added: number; removed: number }>();
-	const out = await gitAsync(worktreePath, changedFileArgs(range, "--numstat", true), {
-		raw: true,
-	});
-	if (!out.ok) throw diffFailure(out.err);
-	const fields = nulFields(out.out);
+	const fields = nulFields(output);
 	for (let index = 0; index < fields.length; ) {
 		const header = fields[index++] ?? "";
 		const firstTab = header.indexOf("\t");
@@ -280,6 +286,17 @@ async function numstat(
 		counts.set(path, { added, removed });
 	}
 	return counts;
+}
+
+async function numstat(
+	worktreePath: string,
+	range: DiffRange,
+): Promise<Map<string, { added: number; removed: number }>> {
+	const out = await gitAsync(worktreePath, changedFileArgs(range, "--numstat", true), {
+		raw: true,
+	});
+	if (!out.ok) throw diffFailure(out.err);
+	return parseNumstat(out.out);
 }
 
 function lineCount(content: string): number {
@@ -311,68 +328,420 @@ function nulFields(output: string): string[] {
 	return fields;
 }
 
-function parseNameStatus(output: string): Array<{ code: string; path: string }> {
+interface RawChange {
+	code: string;
+	path: string;
+	gitlink: boolean;
+}
+
+function parseRaw(output: string): RawChange[] {
 	const fields = nulFields(output);
-	const parsed: Array<{ code: string; path: string }> = [];
+	const parsed: RawChange[] = [];
 	for (let index = 0; index < fields.length; ) {
-		const code = fields[index++] ?? "";
+		const header = fields[index++] ?? "";
+		if (!header.startsWith(":")) continue;
+		const parts = header.slice(1).split(" ");
+		const [srcMode, dstMode, , , code] = parts;
 		let path = fields[index++] ?? "";
-		if (code.startsWith("R") || code.startsWith("C")) path = fields[index++] ?? "";
-		if (path) parsed.push({ code, path });
+		if ((code ?? "").startsWith("R") || (code ?? "").startsWith("C")) path = fields[index++] ?? "";
+		if (path)
+			parsed.push({
+				code: code ?? "",
+				path,
+				gitlink: srcMode === "160000" || dstMode === "160000",
+			});
 	}
 	return parsed;
 }
 
-export function gitUncommittedPaths(workspaceId: string): string[] {
-	const cwd = workspace(workspaceId).worktreePath;
-	const tracked = git(
-		cwd,
-		["diff", "--name-only", "-z", "--no-ext-diff", "--end-of-options", "HEAD", "--"],
-		{ raw: true },
-	);
-	if (!tracked.ok) throw diffFailure(tracked.err);
-	const untracked = git(cwd, ["ls-files", "-z", "--others", "--exclude-standard"], {
-		raw: true,
-	});
-	if (!untracked.ok) throw diffFailure(untracked.err);
-	return [...new Set([...nulFields(tracked.out), ...nulFields(untracked.out)])].sort();
+interface PorcelainChange {
+	path: string;
+	status: GitFileStatus;
+	submodule: boolean;
 }
 
-export async function gitStatus(workspaceId: string, scope?: GitDiffScope): Promise<GitStatus> {
-	const ws = workspace(workspaceId);
-	const range = await resolveDiffRange(ws, scope);
-	const changes: GitFileChange[] = [];
+function parsePorcelainV2(output: string): PorcelainChange[] {
+	const fields = nulFields(output);
+	const parsed: PorcelainChange[] = [];
+	for (let index = 0; index < fields.length; ) {
+		const field = fields[index++] ?? "";
+		if (field.startsWith("? ")) {
+			parsed.push({ path: field.slice(2), status: "untracked", submodule: false });
+			continue;
+		}
+		if (field.startsWith("! ")) continue;
+		const parts = field.split(" ");
+		const kind = parts[0];
+		if (kind === "1" && parts.length >= 9) {
+			parsed.push({
+				path: parts.slice(8).join(" "),
+				status: mapStatus(parts[1] ?? ""),
+				submodule: parts[5] === "160000" || (parts[2] ?? "").startsWith("S"),
+			});
+			continue;
+		}
+		if (kind === "2" && parts.length >= 10) {
+			parsed.push({
+				path: parts.slice(9).join(" "),
+				status: mapStatus(parts[1] ?? ""),
+				submodule: parts[5] === "160000" || (parts[2] ?? "").startsWith("S"),
+			});
+			index++;
+			continue;
+		}
+		if (kind === "u" && parts.length >= 11) {
+			parsed.push({
+				path: parts.slice(10).join(" "),
+				status: "modified",
+				submodule: parts[6] === "160000",
+			});
+		}
+	}
+	return parsed;
+}
+
+function mapStatus(code: string): GitFileStatus {
+	if (code.startsWith("A") || code.startsWith("C")) return "added";
+	if (code.startsWith("D")) return "deleted";
+	if (code.startsWith("R")) return "renamed";
+	return "modified";
+}
+
+function rootRepo(ws: Workspace): WorktreeRepo {
+	return { path: "", worktreePath: ws.worktreePath, canonical: canonicalPath(ws.worktreePath) };
+}
+
+async function rootRows(worktreePath: string, range: DiffRange): Promise<GitFileChange[]> {
 	const [counts, tracked] = await Promise.all([
-		numstat(ws.worktreePath, range),
-		gitAsync(ws.worktreePath, changedFileArgs(range, "--name-status", true), { raw: true }),
+		numstat(worktreePath, range),
+		gitAsync(worktreePath, changedFileArgs(range, "--raw", true), { raw: true }),
 	]);
 	if (!tracked.ok) throw diffFailure(tracked.err);
-	for (const { code, path } of parseNameStatus(tracked.out)) {
-		changes.push({ path, status: mapStatus(code), ...counts.get(path) });
+	const rows: GitFileChange[] = [];
+	for (const { code, path, gitlink } of parseRaw(tracked.out)) {
+		rows.push({
+			path,
+			status: mapStatus(code),
+			...(gitlink ? { submodule: true } : counts.get(path)),
+		});
 	}
-
 	if (range.untracked) {
 		const untracked = await gitAsync(
-			ws.worktreePath,
+			worktreePath,
 			["ls-files", "-z", "--others", "--exclude-standard"],
 			{ raw: true },
 		);
 		if (!untracked.ok) throw diffFailure(untracked.err);
 		for (const path of nulFields(untracked.out)) {
 			if (!path) continue;
-			const added = untrackedAdded(ws.worktreePath, path);
-			changes.push({
+			const added = untrackedAdded(worktreePath, path);
+			rows.push({
 				path,
 				status: "untracked",
 				...(added !== undefined && { added, removed: 0 }),
 			});
 		}
 	}
+	return rows;
+}
 
+async function nestedNumstat(
+	worktreePath: string,
+): Promise<Map<string, { added: number; removed: number }>> {
+	const head = await gitAsync(
+		worktreePath,
+		["diff", "--numstat", "-z", "--end-of-options", "HEAD", "--"],
+		{ raw: true },
+	);
+	if (head.failure) throw diffFailure(head.err);
+	if (head.ok) return parseNumstat(head.out);
+	const staged = await gitAsync(
+		worktreePath,
+		["diff", "--cached", "--numstat", "-z", "--end-of-options", "--"],
+		{ raw: true },
+	);
+	if (!staged.ok) throw diffFailure(staged.err);
+	return parseNumstat(staged.out);
+}
+
+async function nestedRows(repo: WorktreeRepo): Promise<GitFileChange[]> {
+	const [status, counts] = await Promise.all([
+		gitAsync(repo.worktreePath, ["status", "--porcelain=v2", "-z", "--untracked-files=all"], {
+			raw: true,
+		}),
+		nestedNumstat(repo.worktreePath),
+	]);
+	if (!status.ok) throw diffFailure(status.err);
+	const rows: GitFileChange[] = [];
+	for (const change of parsePorcelainV2(status.out)) {
+		if (change.status === "untracked") {
+			const added = change.path.endsWith("/")
+				? undefined
+				: untrackedAdded(repo.worktreePath, change.path);
+			rows.push({
+				path: change.path,
+				status: "untracked",
+				...(change.submodule && { submodule: true }),
+				...(added !== undefined && { added, removed: 0 }),
+			});
+			continue;
+		}
+		rows.push({
+			path: change.path,
+			status: change.status,
+			...(change.submodule ? { submodule: true } : counts.get(change.path)),
+		});
+	}
+	return rows;
+}
+
+async function nestedRepoBase(
+	repo: WorktreeRepo,
+	scope: GitDiffScope | undefined,
+): Promise<string> {
+	if (scope?.kind === "branch" && scope.repo === repo.path && scope.baseRef) return scope.baseRef;
+	const upstream = await gitAsync(repo.worktreePath, [
+		"rev-parse",
+		"--abbrev-ref",
+		"--symbolic-full-name",
+		"@{upstream}",
+	]);
+	return upstream.ok && upstream.out ? upstream.out : resolveDefaultBranch(repo.worktreePath);
+}
+
+async function mapLimit<T>(
+	items: readonly T[],
+	limit: number,
+	fn: (item: T) => Promise<void>,
+): Promise<void> {
+	let next = 0;
+	const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+		for (;;) {
+			const index = next++;
+			const item = items[index];
+			if (item === undefined) return;
+			await fn(item);
+		}
+	});
+	await Promise.all(workers);
+}
+
+interface PointerRow {
+	rel: string;
+	dirty: boolean;
+}
+
+/** A repository reports the gitlink of a child repository even when only the child's worktree is
+ * dirty. Its inner rows are the useful view then, so the pointer row is dropped; a clean child keeps
+ * the pointer row (a real pointer change, or an untracked embedded repository). */
+function resolvePointerRows(rows: GitFileChange[], kids: PointerRow[]): GitFileChange[] {
+	if (kids.length === 0) return rows;
+	const out: GitFileChange[] = [];
+	for (const row of rows) {
+		const exact = kids.find((kid) => kid.rel === row.path);
+		if (exact) {
+			if (exact.dirty) continue;
+			const { added: _added, removed: _removed, ...rest } = row;
+			out.push({ ...rest, submodule: true });
+			continue;
+		}
+		if (row.status === "untracked" && row.path.endsWith("/")) {
+			const under = kids.filter(
+				(kid) => kid.rel === row.path.slice(0, -1) || kid.rel.startsWith(row.path),
+			);
+			if (under.length > 0) {
+				for (const kid of under) {
+					if (!kid.dirty) out.push({ path: kid.rel, status: "untracked", submodule: true });
+				}
+				continue;
+			}
+		}
+		out.push(row);
+	}
+	return out;
+}
+
+export function gitUncommittedPaths(workspaceId: string): string[] {
+	const ws = workspace(workspaceId);
+	const repos = listWorktreeReposSync(ws, { fresh: true });
+	const paths = new Set<string>();
+	for (const repo of repos) {
+		for (const path of uncommittedPathsInRepo(repo.worktreePath)) {
+			paths.add(repo.path === "" ? path : `${repo.path}/${path}`);
+		}
+	}
+	return [...paths].sort();
+}
+
+function uncommittedPathsInRepo(cwd: string): string[] {
+	const tracked = git(
+		cwd,
+		["diff", "--name-only", "-z", "--no-ext-diff", "--end-of-options", "HEAD", "--"],
+		{ raw: true },
+	);
+	const changes = tracked.ok
+		? tracked
+		: git(
+				cwd,
+				["diff", "--cached", "--name-only", "-z", "--no-ext-diff", "--end-of-options", "--"],
+				{ raw: true },
+			);
+	if (!changes.ok) throw diffFailure(changes.err);
+	const untracked = git(cwd, ["ls-files", "-z", "--others", "--exclude-standard"], {
+		raw: true,
+	});
+	if (!untracked.ok) throw diffFailure(untracked.err);
+	return [...new Set([...nulFields(changes.out), ...nulFields(untracked.out)])].sort();
+}
+
+function repoPresent(repo: WorktreeRepo): boolean {
+	if (repo.path === "") return true;
+	try {
+		return statSync(join(repo.worktreePath, ".git")) !== undefined;
+	} catch {
+		return false;
+	}
+}
+
+/** The 3s discovery cache is a latency trade, not a correctness promise: a row that names a gitlink or
+ * an untracked nested directory no discovered repository covers forces one fresh scan, so a newly
+ * created submodule or embedded checkout appears on the status read that first observes it. */
+function needsDiscoveryRefresh(
+	repos: readonly WorktreeRepo[],
+	rowsByRepo: ReadonlyMap<string, GitFileChange[]>,
+): boolean {
+	if (repos.some((repo) => !repoPresent(repo))) return true;
+	for (const [ownerPath, rows] of rowsByRepo) {
+		for (const row of rows) {
+			if (!row.submodule && !row.path.endsWith("/")) continue;
+			const relative = row.path.endsWith("/") ? row.path.slice(0, -1) : row.path;
+			if (!relative) continue;
+			const full = ownerPath === "" ? relative : `${ownerPath}/${relative}`;
+			const covered = repos.some(
+				(repo) => repo.path !== "" && (repo.path === full || repo.path.startsWith(`${full}/`)),
+			);
+			if (!covered) return true;
+		}
+	}
+	return false;
+}
+
+export async function gitStatus(workspaceId: string, scope?: GitDiffScope): Promise<GitStatus> {
+	const ws = workspace(workspaceId);
+	const range = await resolveDiffRange(ws, scope);
+	const turn = scope?.kind === "turn" ? scope : null;
+	const turnPairs = new Map((turn?.nestedTrees ?? []).map((pair) => [pair.repo, pair]));
+	const includeNested =
+		range.modifiedRef === null &&
+		(scope === undefined || scope.kind === "branch" || scope.kind === "uncommitted");
+	let repos: WorktreeRepo[];
+	if (turnPairs.size > 0) {
+		let discovered = await listWorktreeRepos(ws);
+		if (
+			[...turnPairs.keys()].some(
+				(path) => path !== "" && !discovered.some((repo) => repo.path === path),
+			)
+		) {
+			forgetWorktreeRepos(ws.id);
+			discovered = await listWorktreeRepos(ws);
+		}
+		repos = [
+			rootRepo(ws),
+			...discovered.filter((repo) => repo.path !== "" && turnPairs.has(repo.path)),
+		];
+	} else if (includeNested) {
+		repos = await listWorktreeRepos(ws);
+	} else {
+		repos = [rootRepo(ws)];
+	}
+
+	const buildRows = async (candidateRepos: readonly WorktreeRepo[]) => {
+		const rows = new Map<string, GitFileChange[]>();
+		rows.set("", await rootRows(ws.worktreePath, range));
+		await mapLimit(
+			candidateRepos.filter((repo) => repo.path !== ""),
+			6,
+			async (repo) => {
+				const pair = turnPairs.get(repo.path);
+				if (turn && pair) {
+					const nested = await resolveDiffRange(
+						{ ...ws, worktreePath: repo.worktreePath },
+						{
+							kind: "turn",
+							id: turn.id,
+							baseTree: pair.baseTree,
+							headTree: pair.headTree,
+							startedAt: turn.startedAt,
+						},
+					);
+					rows.set(repo.path, await rootRows(repo.worktreePath, nested));
+					return;
+				}
+				if (scope?.kind === "branch" && scope.repo !== undefined && scope.repo === repo.path) {
+					const base = await nestedRepoBase(repo, scope);
+					const nested = await resolveDiffRange(
+						{
+							...ws,
+							worktreePath: repo.worktreePath,
+							baseBranch: base,
+							diffBase: base,
+						},
+						{ kind: "branch" },
+					);
+					rows.set(repo.path, await rootRows(repo.worktreePath, nested));
+					return;
+				}
+				rows.set(repo.path, await nestedRows(repo));
+			},
+		);
+		return rows;
+	};
+
+	let rows = await buildRows(repos);
+	if (includeNested && needsDiscoveryRefresh(repos, rows)) {
+		forgetWorktreeRepos(ws.id);
+		repos = await listWorktreeRepos(ws);
+		rows = await buildRows(repos);
+	}
+
+	const children = new Map<string, WorktreeRepo[]>();
+	for (const repo of repos) {
+		if (repo.path === "") continue;
+		const parent = ownerOf(repos, repo.path).repo;
+		const list = children.get(parent.path) ?? [];
+		list.push(repo);
+		children.set(parent.path, list);
+	}
+
+	const finalized = new Map<string, GitFileChange[]>();
+	const subtreeDirty = new Map<string, boolean>();
+	for (const repo of [...repos].sort((a, b) => b.path.length - a.path.length)) {
+		const own = rows.get(repo.path) ?? [];
+		const kids = (children.get(repo.path) ?? []).map(
+			(kid): PointerRow => ({
+				rel: repo.path === "" ? kid.path : kid.path.slice(repo.path.length + 1),
+				dirty: subtreeDirty.get(kid.path) === true,
+			}),
+		);
+		const finalRows = resolvePointerRows(own, kids);
+		finalized.set(repo.path, finalRows);
+		subtreeDirty.set(repo.path, finalRows.length > 0 || kids.some((kid) => kid.dirty));
+	}
+
+	const changes: GitFileChange[] = [];
+	for (const repo of repos) {
+		for (const row of finalized.get(repo.path) ?? []) {
+			changes.push(
+				repo.path === "" ? row : { ...row, path: `${repo.path}/${row.path}`, repo: repo.path },
+			);
+		}
+	}
 	changes.sort((a, b) => a.path.localeCompare(b.path));
 	const branch =
 		ws.kind === "default" || ws.kind === "external" ? currentBranch(ws.worktreePath) : ws.branch;
-	return { branch, changes };
+	const knownRepos = includeNested ? repos : await listWorktreeRepos(ws);
+	const repoPaths = knownRepos.filter((repo) => repo.path !== "").map(({ path }) => ({ path }));
+	return { branch, changes, ...(repoPaths.length > 0 ? { repos: repoPaths } : {}) };
 }
 
 function objectName(ref: string, path: string): string {
@@ -557,6 +926,86 @@ function diffSide(bytes: Uint8Array | null, path: string): { text: string; meta:
 	return { text: bytes !== null && meta.text ? decodeText(bytes) : "", meta };
 }
 
+function submoduleSide(oid: string | null, path: string): { text: string; meta: ResourceMeta } {
+	const bytes = oid === null ? null : new TextEncoder().encode(`Subproject commit ${oid}\n`);
+	return diffSide(bytes, path);
+}
+
+function submoduleDiff(
+	path: string,
+	originalOid: string | null,
+	modifiedOid: string | null,
+): {
+	original: string;
+	modified: string;
+	originalOid: string | null;
+	meta: { original: ResourceMeta; modified: ResourceMeta };
+} {
+	const original = submoduleSide(originalOid, path);
+	const modified = submoduleSide(modifiedOid, path);
+	return {
+		original: original.text,
+		modified: modified.text,
+		originalOid: null,
+		meta: { original: original.meta, modified: modified.meta },
+	};
+}
+
+interface GitlinkSides {
+	original: string | null;
+	modified: string | null;
+}
+
+/** The raw diff names both ends of a gitlink. A worktree-ending range whose child is a real repository
+ * takes that child's HEAD as the modified side, because raw reports an unstaged pointer move as zeroes. */
+async function gitlinkSides(
+	repo: WorktreeRepo,
+	pathInRepo: string,
+	range: DiffRange,
+	worktreeChild: WorktreeRepo | null,
+): Promise<GitlinkSides | null> {
+	const raw = await gitAsync(
+		repo.worktreePath,
+		[
+			...range.listPrefix,
+			"--raw",
+			"--no-abbrev",
+			"-z",
+			"--end-of-options",
+			...range.listRevs,
+			"--",
+			pathInRepo,
+		],
+		{ raw: true },
+	);
+	if (raw.failure) throw diffFailure(raw.err);
+	if (!raw.ok) return null;
+	const header = raw.out.split("\0")[0] ?? "";
+	if (!header.startsWith(":")) return null;
+	const [srcMode, dstMode, srcOid, dstOid] = header.slice(1).split(" ");
+	if (srcMode !== "160000" && dstMode !== "160000") return null;
+	const zero = (oid: string | undefined) => !oid || /^0+$/.test(oid);
+	const modified =
+		range.modifiedRef === null
+			? worktreeChild
+				? await nestedHead(worktreeChild.worktreePath)
+				: dstMode === "160000" && !zero(dstOid)
+					? (dstOid ?? null)
+					: null
+			: dstMode === "160000" && !zero(dstOid)
+				? (dstOid ?? null)
+				: null;
+	return {
+		original: srcMode === "160000" && !zero(srcOid) ? (srcOid ?? null) : null,
+		modified,
+	};
+}
+
+async function nestedHead(worktreePath: string): Promise<string | null> {
+	const head = await gitAsync(worktreePath, ["rev-parse", "--verify", "--quiet", "HEAD"]);
+	return head.ok && head.out ? head.out : null;
+}
+
 export async function gitDiffFile(
 	workspaceId: string,
 	path: string,
@@ -568,15 +1017,96 @@ export async function gitDiffFile(
 	meta: { original: ResourceMeta; modified: ResourceMeta };
 }> {
 	const ws = workspace(workspaceId);
-	const range = await resolveDiffRange(ws, scope);
-
+	const repos = await listWorktreeRepos(ws);
+	const owner = ownerOf(repos, path);
 	const abs = resolveWorktreeFile(workspaceId, path);
-	const worktreeModified = range.modifiedRef === null ? worktreeBytes(abs) : null;
-	const originalRef = range.resolvedOriginalOid ?? range.originalRef;
+	const nestedRoot = repos.find((repo) => repo.path !== "" && repo.path === path);
+	const scopeKind = scope?.kind ?? "branch";
+
+	let repoRange: DiffRange;
+	if (owner.repo.path === "") {
+		repoRange = await resolveDiffRange(ws, scope);
+	} else if (scopeKind === "turn" && scope?.kind === "turn") {
+		const pair = scope.nestedTrees?.find((entry) => entry.repo === owner.repo.path);
+		if (!pair) throw new Error(`This turn has no snapshot for the submodule ${owner.repo.path}.`);
+		repoRange = await resolveDiffRange(
+			{ ...ws, worktreePath: owner.repo.worktreePath },
+			{
+				kind: "turn",
+				id: scope.id,
+				baseTree: pair.baseTree,
+				headTree: pair.headTree,
+				startedAt: scope.startedAt,
+			},
+		);
+	} else if (scopeKind === "branch" && scope?.kind === "branch" && scope.repo === owner.repo.path) {
+		const base = await nestedRepoBase(owner.repo, scope);
+		repoRange = await resolveDiffRange(
+			{
+				...ws,
+				worktreePath: owner.repo.worktreePath,
+				baseBranch: base,
+				diffBase: base,
+			},
+			{ kind: "branch" },
+		);
+	} else if (scopeKind === "branch" || scopeKind === "uncommitted") {
+		repoRange = await resolveUncommittedRange(owner.repo.worktreePath);
+	} else {
+		// `pinned` and `commit` name a ref, so they resolve in the owning repository: a review's
+		// base-side nested comment pins that repository's own HEAD.
+		repoRange = await resolveDiffRange({ ...ws, worktreePath: owner.repo.worktreePath }, scope);
+	}
+
+	let worktreeIsDirectory = false;
+	try {
+		worktreeIsDirectory = statSync(abs).isDirectory();
+	} catch (error) {
+		const code =
+			typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+		if (code !== "ENOENT") throw error;
+		worktreeIsDirectory = true;
+	}
+
+	if (nestedRoot || worktreeIsDirectory) {
+		const sides = await gitlinkSides(owner.repo, owner.pathInRepo, repoRange, nestedRoot ?? null);
+		if (sides) return submoduleDiff(path, sides.original, sides.modified);
+		if (nestedRoot) {
+			if (repoRange.modifiedRef !== null) return submoduleDiff(path, null, null);
+			return submoduleDiff(path, null, await nestedHead(nestedRoot.worktreePath));
+		}
+	}
+
+	if (owner.repo.path !== "") {
+		const originalRef = repoRange.resolvedOriginalOid;
+		const [originalBytes, modifiedBytes] = await Promise.all([
+			originalRef
+				? readBlobBytesAtAsync(owner.repo.worktreePath, originalRef, owner.pathInRepo)
+				: null,
+			repoRange.modifiedRef === null
+				? worktreeBytes(abs)
+				: repoRange.modifiedRef
+					? readBlobBytesAtAsync(owner.repo.worktreePath, repoRange.modifiedRef, owner.pathInRepo)
+					: null,
+		]);
+		const original = diffSide(originalBytes, path);
+		const modified = diffSide(modifiedBytes, path);
+		return {
+			original: original.text,
+			modified: modified.text,
+			originalOid: repoRange.resolvedOriginalOid,
+			meta: { original: original.meta, modified: modified.meta },
+		};
+	}
+
+	const worktreeModified = repoRange.modifiedRef === null ? worktreeBytes(abs) : null;
+	const originalRef = repoRange.resolvedOriginalOid ?? repoRange.originalRef;
 	const [originalBytes, modifiedBytes] = await Promise.all([
-		originalRef ? readBlobBytesAtAsync(ws.worktreePath, originalRef, path) : null,
-		range.modifiedRef
-			? readBlobBytesAtAsync(ws.worktreePath, range.modifiedRef, path)
+		originalRef
+			? readBlobBytesAtAsync(owner.repo.worktreePath, originalRef, owner.pathInRepo)
+			: null,
+		repoRange.modifiedRef
+			? readBlobBytesAtAsync(owner.repo.worktreePath, repoRange.modifiedRef, owner.pathInRepo)
 			: worktreeModified,
 	]);
 	const original = diffSide(originalBytes, path);
@@ -584,7 +1114,7 @@ export async function gitDiffFile(
 	return {
 		original: original.text,
 		modified: modified.text,
-		originalOid: range.resolvedOriginalOid,
+		originalOid: repoRange.resolvedOriginalOid,
 		meta: { original: original.meta, modified: modified.meta },
 	};
 }

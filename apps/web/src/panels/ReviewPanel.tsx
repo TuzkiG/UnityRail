@@ -16,7 +16,7 @@ import { PopoverTrigger } from "@thinkrail/ui/popover";
 import { LoadingRegion } from "@thinkrail/ui/skeleton";
 import { IconTooltip } from "@thinkrail/ui/tooltip";
 import { cn } from "@thinkrail/ui/utils";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { QuietScrollArea } from "@/components/QuietScrollArea";
 import { PlanStatusIcon, SectionLabel } from "../chat/planKit";
 import { sessionGlance } from "../chat/planView";
@@ -24,15 +24,18 @@ import { glanceIcon } from "../chat/TodoList";
 import { type ReviewFocusSurface, selectDiffScope, toast, useAppStore } from "../store";
 import { errorText, getTransport } from "../transport";
 import { ConfirmPopover } from "./ConfirmPopover";
+import { NestedRepoTag } from "./NestedRepoTag";
 import { openChatInTab } from "./openChat";
 import { openDiffInTab, openFileInTab } from "./openTabs";
 import {
 	allDraftIds,
 	commentSurface,
 	fileSummaries,
+	groupReviewFiles,
 	lineRef,
 	type ReviewFileSummary,
 	type ReviewSurface,
+	reviewFileLabel,
 	reviewFileSurface,
 	statusLabel,
 	tabReviewPaths,
@@ -165,70 +168,90 @@ export function ReviewPanel({ workspaceId, failed }: { workspaceId: string; fail
 					</p>
 				) : (
 					<ul className="motion-safe:animate-reveal">
-						{files.map((file) => {
-							const isOpen = expanded.has(file.path);
-							const finishable = file.total === 0 && file.resolved > 0;
-							return (
-								<li
-									key={file.path ?? "@review"}
-									data-testid="review-file-section"
-									data-path={file.path ?? ""}
-									data-expanded={isOpen}
-								>
-									<div className="flex items-center hover:bg-control-bg-hovered">
-										<button
-											type="button"
-											data-testid="review-file-row"
-											className="flex min-w-0 flex-1 items-center gap-8 px-4 py-4 text-left tr-text-ui"
-											onClick={() => toggleFile(file)}
+						{groupReviewFiles(files).map((group) => (
+							<Fragment key={group.repo || "root"}>
+								{group.repo ? (
+									<li
+										data-testid="review-repo-group"
+										data-repo={group.repo}
+										className="flex h-panel-row items-center gap-4 px-4"
+									>
+										<NestedRepoTag repo={group.repo} />
+									</li>
+								) : null}
+								{group.files.map((file) => {
+									const isOpen = expanded.has(file.path);
+									const finishable = file.total === 0 && file.resolved > 0;
+									return (
+										<li
+											key={file.path ?? "@review"}
+											data-testid="review-file-section"
+											data-path={file.path ?? ""}
+											data-repo={file.repo}
+											data-expanded={isOpen}
 										>
-											{isOpen ? (
-												<ChevronDown className="size-16 shrink-0 text-text-subtle" />
-											) : (
-												<ChevronRight className="size-16 shrink-0 text-text-subtle" />
-											)}
-											<span className="min-w-0 flex-1 truncate text-text-muted">
-												{file.path ?? t("review.panel.wholeChangeSet")}
-											</span>
-											<span className="shrink-0 tr-text-metadata text-text-subtle">
-												{[
-													file.drafts > 0 && t("review.panel.drafts", { count: file.drafts }),
-													file.total > file.drafts &&
-														t("review.panel.sent", { count: file.total - file.drafts }),
-													file.resolved > 0 && t("review.panel.resolved", { count: file.resolved }),
-												]
-													.filter(Boolean)
-													.join(" · ")}
-											</span>
-										</button>
-										{finishable && (
-											<IconTooltip label={t("review.panel.finishFile")}>
+											<div className="flex items-center hover:bg-control-bg-hovered">
 												<button
 													type="button"
-													data-testid="review-file-done"
-													aria-label={t("review.panel.finishFile")}
-													onClick={() => void finishFile(file.path)}
-													className="flex shrink-0 items-center py-4 pr-4 pl-4 text-text-subtle hover:text-feedback-success"
+													data-testid="review-file-row"
+													className="flex min-w-0 flex-1 items-center gap-8 px-4 py-4 text-left tr-text-ui"
+													onClick={() => toggleFile(file)}
 												>
-													<CheckCircle2 className="size-14" />
+													{isOpen ? (
+														<ChevronDown className="size-16 shrink-0 text-text-subtle" />
+													) : (
+														<ChevronRight className="size-16 shrink-0 text-text-subtle" />
+													)}
+													<span
+														className="min-w-0 flex-1 truncate text-text-muted"
+														title={file.path ?? undefined}
+													>
+														{file.path === null
+															? t("review.panel.wholeChangeSet")
+															: reviewFileLabel(file)}
+													</span>
+													<span className="shrink-0 tr-text-metadata text-text-subtle">
+														{[
+															file.drafts > 0 && t("review.panel.drafts", { count: file.drafts }),
+															file.total > file.drafts &&
+																t("review.panel.sent", { count: file.total - file.drafts }),
+															file.resolved > 0 &&
+																t("review.panel.resolved", { count: file.resolved }),
+														]
+															.filter(Boolean)
+															.join(" · ")}
+													</span>
 												</button>
-											</IconTooltip>
-										)}
-									</div>
-									{isOpen && (
-										<FileSection
-											workspaceId={workspaceId}
-											path={file.path}
-											comments={snapshot.comments}
-											sending={sending}
-											onSend={sendOne}
-											onOpenChat={openChat}
-											onNavigate={navigateTo}
-										/>
-									)}
-								</li>
-							);
-						})}
+												{finishable && (
+													<IconTooltip label={t("review.panel.finishFile")}>
+														<button
+															type="button"
+															data-testid="review-file-done"
+															aria-label={t("review.panel.finishFile")}
+															onClick={() => void finishFile(file.path)}
+															className="flex shrink-0 items-center py-4 pr-4 pl-4 text-text-subtle hover:text-feedback-success"
+														>
+															<CheckCircle2 className="size-14" />
+														</button>
+													</IconTooltip>
+												)}
+											</div>
+											{isOpen && (
+												<FileSection
+													workspaceId={workspaceId}
+													path={file.path}
+													comments={snapshot.comments}
+													sending={sending}
+													onSend={sendOne}
+													onOpenChat={openChat}
+													onNavigate={navigateTo}
+												/>
+											)}
+										</li>
+									);
+								})}
+							</Fragment>
+						))}
 					</ul>
 				)}
 			</QuietScrollArea>
@@ -413,7 +436,7 @@ function CommentRow({
 								title={t("review.panel.agentFiled")}
 								className="flex items-center gap-2 tr-text-eyebrow text-text-subtle"
 							>
-								<Bot className="size-12" /> ThinkRail
+								<Bot className="size-12" /> UnityRail
 							</span>
 						)}
 						{ref && <span className="tr-code-text text-text-subtle">{ref}</span>}

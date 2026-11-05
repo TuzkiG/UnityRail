@@ -46,6 +46,7 @@ import {
 import { DiffStatBadge } from "./DiffStatBadge";
 import { DiffSurfaceBody, useDiffSurface } from "./DiffSurface";
 import { HeaderIconButton } from "./HeaderIconButton";
+import { NestedRepoTag } from "./NestedRepoTag";
 import { openDiffInTab } from "./openTabs";
 import type { SectionContent, SectionContentCache } from "./sectionContentCache";
 import { useLiveTabContent } from "./useLiveTabContent";
@@ -185,6 +186,7 @@ export const ChangesFileSection = memo(function ChangesFileSection({
 		triage,
 	});
 	const { renderer, candidates, implementationKey, mobile, hunkActions } = surface;
+	const canRevert = hunkActions !== undefined && !change.submodule;
 	const reviewDrafts = useMemo<ReviewDraftPersistence>(
 		() => ({
 			rendererId: renderer.id,
@@ -224,6 +226,8 @@ export const ChangesFileSection = memo(function ChangesFileSection({
 			data-testid="changes-section"
 			data-path={path}
 			data-status={change.status}
+			data-repo={change.repo}
+			data-submodule={change.submodule ? true : undefined}
 			data-collapsed={collapsed && mode === "stacked" ? true : undefined}
 			data-viewed={viewed ? true : undefined}
 			className={
@@ -268,6 +272,8 @@ export const ChangesFileSection = memo(function ChangesFileSection({
 						{base}
 					</span>
 				</span>
+				{change.repo ? <NestedRepoTag repo={change.repo} /> : null}
+				{change.submodule ? <NestedRepoTag submodule /> : null}
 				<DiffStatBadge added={change.added ?? 0} removed={change.removed ?? 0} />
 				{hunkActions && hunkKeys.length > 0 && bodyVisible ? (
 					<span
@@ -285,11 +291,11 @@ export const ChangesFileSection = memo(function ChangesFileSection({
 							onRendererId={selectRenderer}
 						/>
 					) : null}
-					{hunkActions ? (
+					{canRevert ? (
 						<HeaderIconButton
 							testid="changes-section-revert"
 							label={t("changes.section.revertFile")}
-							onClick={() => void hunkActions.revertFile()}
+							onClick={() => void hunkActions?.revertFile()}
 							icon={Revert}
 						/>
 					) : null}
@@ -321,8 +327,8 @@ export const ChangesFileSection = memo(function ChangesFileSection({
 								<Copy />
 								{t("changes.section.copyPath")}
 							</DropdownMenuItem>
-							{hunkActions ? (
-								<DropdownMenuItem onSelect={() => void hunkActions.revertFile()}>
+							{canRevert ? (
+								<DropdownMenuItem onSelect={() => void hunkActions?.revertFile()}>
 									<Revert />
 									{t("changes.section.revertFile")}
 								</DropdownMenuItem>

@@ -52,7 +52,8 @@ const INSTRUCTIONS = `Address each review comment above.
 - If a comment is unclear or you disagree, reply in the conversation instead of editing, and do NOT resolve it.
 - A comment marked outdated includes the fragment as it was when the comment was written — verify against the current file first.
 - A comment with a locator instead of a fragment names a position by geometry or document node rather than by lines (an image region in normalized 0..1 coordinates of the rendered size — for an SVG that is its root viewport, so invert the viewport-to-viewBox transform, viewBox origin and preserveAspectRatio included (the default xMidYMid meet letterboxes a viewBox whose aspect differs from width/height), to find the elements under it — or a document node such as a notebook cell): open the file with your own tools to see it.
-- A comment with side="base" points at the PRE-change version of the file: its lines and fragment index base-ref, not the worktree. It is a remark about what the change removed or replaced — find the corresponding place in the current file before editing.`;
+- A comment with side="base" points at the PRE-change version of the file: its lines and fragment index base-ref, not the worktree. It is a remark about what the change removed or replaced — find the corresponding place in the current file before editing.
+- A comment with a repo attribute sits in a nested repository (a submodule or an embedded checkout) whose workspace-relative root is that path. Its path is still workspace-relative for reading, but its Git state is that repository's own: run Git commands for it inside that directory (\`git -C <repo> …\`) and treat its refs as unrelated to the workspace's base.`;
 
 function contextBlock(content: string, startLine: number, endLine: number): string {
 	const lines = content.split("\n");
@@ -112,6 +113,7 @@ function renderComment(comment: ReviewComment, input: PackageInput): string {
 		attr("id", comment.id),
 		attr("kind", comment.kind),
 		...(anchor ? [attr("path", anchor.path), attr("side", anchor.side)] : []),
+		...(anchor?.repo ? [attr("repo", anchor.repo)] : []),
 		...(anchor?.baseRef ? [attr("base-ref", anchor.baseRef)] : []),
 		...(range ? [attr("lines", `${range.startLine}-${range.endLine}`)] : []),
 		attr("anchor", comment.anchorState),

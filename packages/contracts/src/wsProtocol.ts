@@ -101,6 +101,25 @@ import type {
 	WireCustomMessage,
 	WireModel,
 } from "./piProtocol";
+import type {
+	UnityAssetResult,
+	UnityBridgeInstallResult,
+	UnityBridgeStatus,
+	UnityCompileStatus,
+	UnityConsolePage,
+	UnityDoctorReport,
+	UnityGameObjectInspection,
+	UnityHierarchySnapshot,
+	UnityLogLevel,
+	UnityOpenEditorResult,
+	UnityPlayModeAction,
+	UnityProjectConfig,
+	UnityProjectModule,
+	UnityScreenshotPayload,
+	UnityStatusSnapshot,
+	UnityTestRunStatus,
+	UnityWorkspaceSnapshot,
+} from "./unity";
 
 export interface TerminalDataPush {
 	id: string;
@@ -135,7 +154,8 @@ export type TemplateReadLocation =
 	| { projectId: string; workspaceId?: never }
 	| { workspaceId?: never; projectId?: never };
 
-export const PROTOCOL_VERSION = 102;
+export const PROTOCOL_VERSION = 104;
+export const UNITY_PROTOCOL_VERSION = 104;
 export const FONTS_PROTOCOL_VERSION = 102;
 export const CUSTOM_ENDPOINTS_PROTOCOL_VERSION = 101;
 export const PI_PACKAGES_PROTOCOL_VERSION = 100;
@@ -409,6 +429,26 @@ export const WS_METHODS = {
 	mcpReconnect: "mcp.reconnect",
 	mcpReadOutput: "mcp.readOutput",
 	mcpReadLog: "mcp.readLog",
+	unitySnapshot: "unity.snapshot",
+	unityStatus: "unity.status",
+	unityConsole: "unity.console",
+	unityCompile: "unity.compile",
+	unityPlaymode: "unity.playmode",
+	unityScreenshot: "unity.screenshot",
+	unityTests: "unity.tests",
+	unityHierarchy: "unity.hierarchy",
+	unityInspect: "unity.inspect",
+	unityFind: "unity.find",
+	unityOpen: "unity.open",
+	unitySelect: "unity.select",
+	unityClearConsole: "unity.clearConsole",
+	unityDoctor: "unity.doctor",
+	unityOpenEditor: "unity.openEditor",
+	unityInstallBridge: "unity.installBridge",
+	unityProjectConfig: "unity.projectConfig",
+	unityLinkModule: "unity.linkModule",
+	unityUnlinkModule: "unity.unlinkModule",
+	unitySetProjectConfig: "unity.setProjectConfig",
 } as const;
 
 export const WS_CHANNELS = {
@@ -788,7 +828,10 @@ export interface WsMethodMap {
 	"workspace.openIn": { params: { id: string; editor: string }; result: Ack };
 	"workspace.reveal": { params: { id: string }; result: Ack };
 	"editor.list": { params: Record<string, never>; result: EditorInfo[] };
-	"git.listBranches": { params: { projectId: string }; result: BranchList };
+	"git.listBranches": {
+		params: { projectId: string; workspaceId?: string; repo?: string };
+		result: BranchList;
+	};
 	"git.prefetch": { params: { projectId: string; ref: string }; result: { ok: boolean } };
 	"github.authStatus": { params: Record<string, never>; result: GithubAuthStatus };
 	"github.refresh": { params: Record<string, never>; result: GithubAuthStatus };
@@ -1231,6 +1274,65 @@ export interface WsMethodMap {
 		result: McpReadOutputResult;
 	};
 	"mcp.readLog": { params: { workspaceId: string; name: string }; result: McpServerLog };
+	"unity.snapshot": { params: { workspaceId: string }; result: UnityWorkspaceSnapshot };
+	"unity.status": { params: { workspaceId: string }; result: UnityStatusSnapshot };
+	"unity.console": {
+		params: { workspaceId: string; since?: number; limit?: number; levels?: UnityLogLevel[] };
+		result: UnityConsolePage;
+	};
+	"unity.compile": { params: { workspaceId: string; force?: boolean }; result: UnityCompileStatus };
+	"unity.playmode": {
+		params: { workspaceId: string; action: UnityPlayModeAction };
+		result: UnityBridgeStatus;
+	};
+	"unity.screenshot": {
+		params: { workspaceId: string; view?: "game" | "scene"; width?: number };
+		result: UnityScreenshotPayload;
+	};
+	"unity.tests": {
+		params: { workspaceId: string; mode?: "edit" | "play"; filter?: string };
+		result: UnityTestRunStatus;
+	};
+	"unity.hierarchy": {
+		params: { workspaceId: string; scene?: string };
+		result: UnityHierarchySnapshot;
+	};
+	"unity.inspect": {
+		params: { workspaceId: string; path: string };
+		result: UnityGameObjectInspection;
+	};
+	"unity.find": {
+		params: { workspaceId: string; query: string; type?: string; limit?: number };
+		result: UnityAssetResult[];
+	};
+	"unity.open": {
+		params: { workspaceId: string; path: string };
+		result: { ok: boolean; path: string };
+	};
+	"unity.select": { params: { workspaceId: string; path: string }; result: { ok: boolean } };
+	"unity.clearConsole": { params: { workspaceId: string }; result: { ok: boolean } };
+	"unity.doctor": { params: { workspaceId: string }; result: UnityDoctorReport };
+	"unity.openEditor": { params: { workspaceId: string }; result: UnityOpenEditorResult };
+	"unity.installBridge": { params: { workspaceId: string }; result: UnityBridgeInstallResult };
+	"unity.projectConfig": { params: { workspaceId: string }; result: UnityProjectConfig };
+	"unity.setProjectConfig": {
+		params: {
+			workspaceId: string;
+			projectRoot?: string | null;
+			businessPath?: string | null;
+			linkTarget?: string | null;
+			modules?: UnityProjectModule[];
+		};
+		result: UnityProjectConfig;
+	};
+	"unity.linkModule": {
+		params: { workspaceId: string; name: string; path: string };
+		result: UnityProjectConfig;
+	};
+	"unity.unlinkModule": {
+		params: { workspaceId: string; path: string };
+		result: UnityProjectConfig;
+	};
 }
 
 /** Payload of the `mcp.status` channel: one per-session snapshot per publish. */
@@ -1293,7 +1395,13 @@ export type WsErrorCode =
 	| "PACKAGE_UPDATE_FAILED"
 	| "PACKAGE_SETTINGS_WRITE_FAILED"
 	| "REQUEST_REPLAY_OVERFLOW"
-	| "INSTALLED_FONTS_UNAVAILABLE";
+	| "INSTALLED_FONTS_UNAVAILABLE"
+	| "UNITY_NOT_PROJECT"
+	| "UNITY_UNAVAILABLE"
+	| "UNITY_PROJECT_MISMATCH"
+	| "UNITY_LINK_EXISTS"
+	| "UNITY_LINK_FAILED"
+	| "UNITY_UNLINK_FAILED";
 
 export interface WsResponse {
 	id: string;

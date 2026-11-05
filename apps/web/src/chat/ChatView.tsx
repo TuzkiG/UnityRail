@@ -78,6 +78,7 @@ import { useSessionStats } from "./useSessionStats";
 import "./tools/register";
 import type { ChatAttachment } from "./types";
 import { useHistorySearch } from "./useHistorySearch";
+import { useUnitySelection } from "./useUnitySelection";
 
 const TRY_AGAIN_PROMPT = "Try again.";
 const NOTHING_EXPANDED: Partial<Record<ResourceKind, boolean>> = {};
@@ -121,6 +122,7 @@ export default function ChatView({
 	const recentPrompts = useAppStore(
 		useShallow((s) => deriveRecentPrompts(s.sessions[sessionId]?.turns ?? [])),
 	);
+	const unitySelection = useUnitySelection(workspaceId);
 
 	const status = useAppStore((s) => s.status);
 	const connectionGeneration = useAppStore((s) => s.connectionGeneration);
@@ -923,6 +925,7 @@ export default function ChatView({
 					templatePending={templatePending}
 					mentionCandidates={mentionCandidates}
 					recentPrompts={recentPrompts}
+					unitySelection={unitySelection}
 					models={models}
 					modelsRefreshing={modelsRefreshing}
 					onRefreshModels={onRefreshModels}

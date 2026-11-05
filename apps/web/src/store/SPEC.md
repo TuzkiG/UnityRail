@@ -162,7 +162,9 @@ re-read while a server starts. The state vocabulary and the attention/active pre
   `workspace.list` rather than seeding a partial one-row list; else add-if-absent / merge-if-present,
   idempotent with the creating client's own post-create re-list); **`updateWorkspace(ws)`** folds a
   `workspace.updated` snapshot in: **replace** the record by `id` in `workspaces[ws.projectId]`, carrying
-  over only the list-computed `diffStats` aggregate (the snapshot is the persisted record, which has none).
+  over only the list-computed `diffStats` aggregate (the snapshot is the persisted record, which has none);
+  **`setWorkspaceDiffStats(id, stats)`** writes that aggregate for one row after the plan header asks
+  `workspace.diffStats` for the workspace it shows — the light `workspace.list` no longer carries it.
   The push is authoritative, so a *replace* — never a merge: a merge could not clear an **optional field the
   host dropped** (`diffBase` re-pointed back to the creation base, the last `skillOverrides` entry removed,
   or `subagentsOverride` returned to inherited),

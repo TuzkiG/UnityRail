@@ -150,6 +150,16 @@ async function disposeLiveSessions(page: Page): Promise<void> {
 					await wire.request("session.dispose", { sessionId: session.sessionId }, 30_000);
 				}
 			}
+			// A live PTY holds its worktree as its cwd, which Windows refuses to delete; a shell outliving a
+			// disposed chat is exactly what the terminal contract allows, so the reset closes them itself.
+			const { tabs } = await wire.request("terminal.list", { workspaceId: workspace.id }, 30_000);
+			for (const tab of tabs) {
+				await wire.request(
+					"terminal.close",
+					{ workspaceId: workspace.id, tabKey: tab.tabKey, force: true },
+					30_000,
+				);
+			}
 		}
 	} finally {
 		wire.close();
@@ -165,7 +175,9 @@ export async function createWorkspaceViaDialog(page: Page): Promise<Workspace> {
 	}).toPass({ timeout: 30_000 });
 	await page.getByTestId("create-workspace").click();
 	await expect(dialog).toBeHidden();
-	await expect(page.locator('[data-testid="editor-tab"][data-kind="chat"]').first()).toBeVisible();
+	await expect(page.locator('[data-testid="editor-tab"][data-kind="chat"]').first()).toBeVisible({
+		timeout: 30_000,
+	});
 	const created = loadPersistedWorkspaces().find((w) => !before.has(w.id) && w.kind !== "default");
 	if (!created) throw new Error("Workspace was not persisted after creation");
 	return created;

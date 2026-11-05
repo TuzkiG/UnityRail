@@ -115,7 +115,13 @@ export function useDiffSurface({
 		[content.original, content.meta?.original, content.originalOid, workspaceId, path],
 	);
 	const modifiedOid =
-		scope.kind === "commit" ? scope.sha : scope.kind === "turn" ? scope.headTree : null;
+		scope.kind === "commit"
+			? scope.sha
+			: scope.kind === "turn"
+				? (scope.nestedTrees?.find(
+						(pair) => pair.repo !== "" && (path === pair.repo || path.startsWith(`${pair.repo}/`)),
+					)?.headTree ?? scope.headTree)
+				: null;
 	const modified = useMemo(
 		() =>
 			resourceContent(content.modified, content.meta?.modified, () =>

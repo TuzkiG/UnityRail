@@ -1,3 +1,4 @@
+import { RiGitRepositoryLine } from "@remixicon/react";
 import type { FileNode } from "@thinkrail/contracts";
 import { useT } from "@thinkrail/locales/react";
 import { describeResource, PENDING_TEXT_META } from "@thinkrail/resource-renderers";
@@ -30,6 +31,7 @@ export function FileTree({
 }: TreeFocus & { workspaceId: string; marks: ChangeMarks }) {
 	const t = useT();
 	const [nodes, setNodes] = useState<FileNode[] | null>(null);
+	const repo = useAppStore((s) => selectFilesTreeView(s, workspaceId).repo ?? "");
 	const expanded = useAppStore((s) => selectFilesTreeView(s, workspaceId).expanded);
 	const expandedPaths = useMemo(() => new Set(expanded), [expanded]);
 	const warm = useEditorWarm();
@@ -42,12 +44,13 @@ export function FileTree({
 
 	useWorkspaceRead(
 		workspaceId,
-		(id) => getTransport().request("fs.readDir", { workspaceId: id, path: "." }),
+		(id) => getTransport().request("fs.readDir", { workspaceId: id, path: repo || "." }),
 		{
 			onResult: (result) => setNodes(result),
 			onFailure: () => setNodes((prev) => prev ?? []),
 			onSwitch: () => setNodes(null),
 		},
+		repo,
 	);
 
 	const loading = nodes === null;
@@ -93,6 +96,7 @@ function FileNodeRow({
 	setPathsExpanded: SetPathsExpanded;
 	warmFile: WarmFile;
 }) {
+	const t = useT();
 	const isDir = node.kind === "dir";
 	const [directory, setDirectory] = useState<ResolvedFolderChain<FileNode> | null>(null);
 	const pendingExpand = useRef(false);
@@ -130,7 +134,9 @@ function FileNodeRow({
 	const open = (intent: TabIntent) => void openFileInTab(workspaceId, node.path, intent);
 	const fileStatus = isDir ? undefined : marks.files.get(node.path);
 	const dirChanged = isDir && marks.dirs.has(directory?.path ?? node.path);
-	const ignored = (directory?.deepest ?? node).gitignored === true;
+	const deepest = directory?.deepest ?? node;
+	const ignored = deepest.gitignored === true;
+	const nestedRepo = isDir && deepest.nestedRepo === true;
 	const revealRow =
 		!isDir && focus.revealTarget === node.path
 			? (row: HTMLButtonElement | null) => {
@@ -151,6 +157,13 @@ function FileNodeRow({
 				dataStatus={ignored ? "ignored" : undefined}
 				expanded={expanded}
 				label={label}
+				leading={
+					nestedRepo ? (
+						<span data-testid="nested-repo-icon" title={t("panels.files.nestedRepo")}>
+							<RiGitRepositoryLine className="size-14 shrink-0 text-text-muted" aria-hidden />
+						</span>
+					) : undefined
+				}
 				labelClassName={
 					fileStatus ? statusMarkClass(fileStatus) : dirChanged ? statusMarkClass("modified") : ""
 				}

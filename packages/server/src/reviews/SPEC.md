@@ -100,8 +100,9 @@ re-anchoring, and package rendering.
   renderer this host has never heard of and is preserved, not refused.
 - **The two diff sides are two anchor spaces.** A `side: "worktree"` anchor is captured from the
   worktree file; a `side: "base"` anchor is captured from the blob the diff's ORIGINAL editor is
-  showing — the host resolves it from the tab's `scope` (`resolveDiffRange(...).originalRef`), **pins that ref to a
-  full commit oid** (`git.resolveCommitOid`) and stamps it on the anchor as **`baseRef`**, so the fragment
+  showing — the host resolves it from the tab's `scope` (`resolveDiffRange(...).originalRef`), **pins that ref to its
+  immutable object** (`git.resolveCommitOid`; a `turn` scope's `originalRef` is already a base **tree**, so it is used
+  as given) and stamps it on the anchor as **`baseRef`**, so the fragment
   and its context stay readable — and stay the SAME — for the review's life. The pin is the load-bearing
   part: a scope's `originalRef` is symbolic for `uncommitted` (the literal `HEAD`) and degrades to the raw
   base ref when `merge-base` fails, so storing it verbatim means the user's next commit re-points it and
@@ -110,6 +111,15 @@ re-anchoring, and package rendering.
   Both sides are read as **bytes** at capture (`git.readBlobBytesAt` for the base, as the worktree side
   already does), since a decoded read would hash replacement characters for an image and drop a BOM the
   worktree side keeps.
+- **A nested path carries its repository.** `repoForPath(workspaceId, path)` decides the owning repository
+  for every read; the anchor stores that workspace-relative root as **`repo`** (absent in the root repo),
+  and a client-supplied `repo` is normalized away rather than trusted. A base-side anchor inside a nested
+  repo pins that repo's **HEAD** for `branch`/`uncommitted`, or the matching **`nestedTrees` base tree** for
+  a `turn`; `commit`/`pinned` have no nested base side. `buildSendPackage`'s `readBase` resolves the
+  repository from the commented path, so a base quote is read from the object store that actually holds
+  it, and `renderPackage` repeats the repository on the comment as a `repo` attribute — the agent's cwd is
+  the workspace root, so without it a nested comment's paths and base ref read as the root repository's.
+  A gitlink path is not a file to anchor against.
   A base selection is **never translated into worktree line numbers**: the two sides say different
   things at the same numbers, so a remark on a deleted or rewritten line would end up attached to
   whatever now occupies that spot — and *that* is what the send package would show the agent. A base

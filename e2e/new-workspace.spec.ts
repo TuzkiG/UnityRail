@@ -19,7 +19,7 @@ function seedRemoteProject(name: string, withUpstream = false) {
 	mkdirSync(repo, { recursive: true });
 	git(repo, "init", "-b", "main");
 	git(repo, "config", "user.email", "e2e@thinkrail.test");
-	git(repo, "config", "user.name", "ThinkRail E2E");
+	git(repo, "config", "user.name", "UnityRail E2E");
 	git(repo, "config", "commit.gpgsign", "false");
 	writeFileSync(join(repo, "README.md"), "base\n");
 	git(repo, "add", "README.md");

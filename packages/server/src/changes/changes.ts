@@ -19,7 +19,14 @@ import type {
 } from "@thinkrail/contracts";
 import { CodedError } from "@thinkrail/shared/codedError";
 import { classifyBytes, decodeText, hashBytes, resolveWorktreeFile } from "../fs";
-import { readBlobBytesAtAsync, readPathModeAtAsync, resolveDiffRange } from "../git";
+import {
+	listWorktreeRepos,
+	ownerOf,
+	readBlobBytesAtAsync,
+	readPathModeAtAsync,
+	resolveDiffRange,
+	resolveUncommittedRange,
+} from "../git";
 import { loadWorkspaces } from "../persistence";
 import { trashFile } from "../trash";
 import { revertedText, spanFits, splitLines } from "./textSplice";
@@ -216,6 +223,29 @@ async function originalSide(params: RevertChangeParams): Promise<FileState> {
 			"SCOPE_IMMUTABLE",
 			"This diff's modified side is a commit, not the worktree — there is nothing to revert.",
 		);
+	}
+	const repos = await listWorktreeRepos(ws);
+	if (repos.some((repo) => repo.path !== "" && repo.path === params.path)) {
+		unsupported(params.path, "is a submodule pointer, which change mutations do not support.");
+	}
+	const owner = ownerOf(repos, params.path);
+	if (owner.repo.path !== "") {
+		if (params.scope.kind !== "branch" && params.scope.kind !== "uncommitted") {
+			throw new CodedError(
+				"UNSUPPORTED_CHANGE",
+				`${params.path} is inside a submodule, which this diff scope does not cover.`,
+			);
+		}
+		const nested = await resolveUncommittedRange(owner.repo.worktreePath);
+		if (!nested.resolvedOriginalOid) return { bytes: null, mode: null };
+		const [bytes, gitMode] = await Promise.all([
+			readBlobBytesAtAsync(owner.repo.worktreePath, nested.resolvedOriginalOid, owner.pathInRepo),
+			readPathModeAtAsync(owner.repo.worktreePath, nested.resolvedOriginalOid, owner.pathInRepo),
+		]);
+		if ((bytes === null) !== (gitMode === null)) {
+			throw new Error(`Could not read a consistent original side for ${params.path}`);
+		}
+		return { bytes, mode: permissionsForGitMode(params.path, gitMode) };
 	}
 	if (range.originalRef !== null && range.resolvedOriginalOid === null) {
 		throw new CodedError(

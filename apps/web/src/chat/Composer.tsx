@@ -53,6 +53,8 @@ import {
 import { isModelCommand, parseModelCommand } from "./nativeCommands";
 import { imagePasteDropHandlers, PromptImageChips, usePromptImages } from "./promptImages";
 import type { ChatAttachment } from "./types";
+import { UnitySelectionChip } from "./UnitySelectionChip";
+import type { UnityEditorSelection } from "./unitySelection";
 import type { ModelPreferences } from "./useModelPreferences";
 
 export type SubmitBehavior = "send" | "steer" | "followUp" | "interrupt";
@@ -155,6 +157,7 @@ interface ComposerProps {
 	templatePending: boolean;
 	mentionCandidates: MentionCandidate[];
 	recentPrompts: string[];
+	unitySelection?: UnityEditorSelection | null;
 	models: WireModel[];
 	modelsRefreshing: boolean;
 	onRefreshModels: (force: boolean) => void;
@@ -196,6 +199,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 		templatePending,
 		mentionCandidates,
 		recentPrompts,
+		unitySelection,
 		models,
 		modelsRefreshing,
 		onRefreshModels,
@@ -551,14 +555,19 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 			<PromptImageChips
 				controller={attachedImages}
 				leading={
-					submitError ? (
-						<FileChip
-							data-testid="composer-command-error"
-							tone="error"
-							icon={false}
-							title={submitError}
-							label={submitError}
-						/>
+					submitError || unitySelection ? (
+						<>
+							{submitError ? (
+								<FileChip
+									data-testid="composer-command-error"
+									tone="error"
+									icon={false}
+									title={submitError}
+									label={submitError}
+								/>
+							) : null}
+							{unitySelection ? <UnitySelectionChip selection={unitySelection} /> : null}
+						</>
 					) : null
 				}
 			/>

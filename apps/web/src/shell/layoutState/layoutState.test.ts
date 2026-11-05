@@ -225,10 +225,11 @@ describe("frontend-local layout state", () => {
 		const second = await ensureWorkspaceLayoutState("workspace");
 
 		expect(first.center).toMatchObject({ kind: "group", tabs: [] });
-		expect(first.left.groups[0]?.tabs).toEqual([toolTab("projects")]);
+		expect(first.left.groups[0]?.tabs).toEqual([toolTab("projects"), toolTab("unity-project")]);
 		expect(first.right.groups.flatMap((group) => group.tabs)).toEqual([
 			toolTab("specs"),
 			toolTab("files"),
+			toolTab("unity"),
 			toolTab("plan"),
 			toolTab("review"),
 		]);
@@ -448,7 +449,7 @@ describe("frontend-local layout state", () => {
 
 		const restored = await ensureWorkspaceLayoutState("workspace");
 		expect(restored.center).toMatchObject({ kind: "group", tabs: [] });
-		expect(restored.left.groups[0]?.tabs).toEqual([toolTab("projects")]);
+		expect(restored.left.groups[0]?.tabs).toEqual([toolTab("projects"), toolTab("unity-project")]);
 		expect(restored.bottom.visible).toBe(true);
 	});
 
@@ -477,6 +478,41 @@ describe("frontend-local layout state", () => {
 			kind: "group",
 			previewTabId: "ws:changes:branch",
 			tabs: [{ kind: "changes", id: "ws:changes:branch", scope: { kind: "branch" } }],
+		});
+	});
+
+	test("a persisted turn scope keeps its nested snapshot pairs", async () => {
+		const local = new MemoryStorage();
+		const session = new MemoryStorage();
+		session.setItem("thinkrail:layout-surface-id", "surface-a");
+		setLayoutStateStorageForTests({ local, session }, endpoint);
+		const initial = await ensureWorkspaceLayoutState("workspace");
+		if (initial.center.kind !== "group") throw new Error("expected a single center group");
+		const scope = {
+			kind: "turn" as const,
+			id: "s1:1",
+			baseTree: "a".repeat(40),
+			headTree: "b".repeat(40),
+			startedAt: 1,
+			nestedTrees: [{ repo: "libs/lib", baseTree: "c".repeat(40), headTree: "d".repeat(40) }],
+		};
+		const opened = openCenterTab(
+			initial,
+			{ kind: "changes", id: "ws:changes:turn", name: "Changes", scope },
+			initial.center.id,
+			"preview",
+		);
+		if (!("document" in opened)) throw new Error(opened.reason);
+		await commitWorkspaceLayout("workspace", opened.document);
+
+		resetLayoutStateForTests();
+		resetStore();
+		setLayoutStateStorageForTests({ local, session }, endpoint);
+
+		const restored = await ensureWorkspaceLayoutState("workspace");
+		expect(restored.center).toMatchObject({
+			kind: "group",
+			tabs: [{ kind: "changes", id: "ws:changes:turn", scope }],
 		});
 	});
 

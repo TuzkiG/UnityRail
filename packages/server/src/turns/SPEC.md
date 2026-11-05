@@ -17,6 +17,9 @@ scratch `GIT_INDEX_FILE`, `add -A` runs against the copy, `write-tree` returns t
 and untracked files included, ignored files and the user's real index untouched); at `agent_settled` it
 snapshots again and, when the trees differ, records a `TurnChangeSet` — both tree oids, the run's wall
 clock, and `gitStatus` over the `turn` scope between them — persists it, and pushes `turn.changed`.
+Each boundary also snapshots every **nested repository** under the worktree
+(`snapshotNestedWorktrees`, same scratch-index rule), so a run that only edited files inside a submodule
+still gets a receipt: the root trees can be equal while a nested tree moved.
 The run boundary is `agent_start`→`agent_settled`, pi's round (a prompt and everything it caused), not
 pi's `turn_*` (one assistant message): a receipt per message would fragment one answer into many cards.
 
@@ -25,6 +28,11 @@ pi's `turn_*` (one assistant message): a receipt per message would fragment one 
 - **Owns:** `TurnTracker` (per-session pending run → settle, plus `drain()` for in-flight recording), `turns.json` under the data dir
   (`persistence.loadTurns` / `saveTurns`, versioned, atomic, capped at 30 runs per workspace, dropped
   with the workspace), `listTurns(workspaceId)`, `turnScope(turn)`, the `turn.changed` publisher seam.
+  A receipt carries optional **`nestedTrees`** (`{ repo, baseTree, headTree }[]`), and `turnScope` copies
+  them onto the `turn` scope so both `gitStatus` and `gitDiffFile` read the same snapshot pair. The
+  persistence parser validates and re-emits those pairs (and `GitFileChange.submodule`), so a reload
+  never loses the nested side; it also preserves each nested row's `repo` marker for the Changes
+  grouping. Older records without them stay valid.
 - **Public surface (barrel):** `TurnTracker`, `listTurns`, `forgetWorkspaceTurns`, `setTurnPublisher`,
   `turnScope`.
 - **Consumers:** `host` wires the tracker into the session publisher beside run analytics and serves
@@ -47,7 +55,11 @@ pi's `turn_*` (one assistant message): a receipt per message would fragment one 
   receipt too. Exclusive attribution would need per-write provenance the host does not have; tool
   arguments were exactly the unreliable source this module replaces.
 - **Zero-change runs record nothing.** A receipt that says "0 files" is noise, and *Last turn* means
-  the last run that changed something.
+  the last run that changed something. A run whose root tree is unchanged is still a change when a
+  nested tree moved; only when both the root tree and every nested pair are unchanged is nothing recorded.
+  A nested repository whose snapshot failed is omitted from the receipt rather than voiding it; a repo
+  that appeared or disappeared during the run is represented by the parent's pointer row (the root
+  snapshot stages it) and has no nested pair.
 - **The first `agent_start` of a run wins.** pi re-emits `agent_start` on retries; a pending run is kept
   until its settle, so the base snapshot is the state before the agent's first write.
 - **Both snapshots start at their boundary.** The base snapshot starts at `agent_start` and the head

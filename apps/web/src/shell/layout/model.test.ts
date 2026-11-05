@@ -560,7 +560,7 @@ describe("workspace layout model", () => {
 		expect(unplacedTools(document)).toContain("projects");
 		expect(unplacedToolsForRegion(document, "right")).toContain("files");
 		expect(unplacedToolsForRegion(document, "right")).not.toContain("projects");
-		expect(unplacedToolsForRegion(document, "left")).toEqual(["projects"]);
+		expect(unplacedToolsForRegion(document, "left")).toEqual(["projects", "unity-project"]);
 
 		const placedAgain = mutation(revealTool(document, "files", 6)).document;
 		expect(unplacedToolsForRegion(placedAgain, "right")).not.toContain("files");

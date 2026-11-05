@@ -14,7 +14,7 @@ references: [module-ci-release]
 The project's public website at `thinkrail.ai`: the IDE-shell landing, its blog, and the audience-specific
 vibecoding experience at `/vibecoding/` (also served, with per-route hero titles and copy variants
 and a canonical back to `/vibecoding/`, at `/agentic-development/` and `/agentic-ide/`). The landing and blog's creative conceit is that **the site IS
-the IDE**: a faithful HTML/CSS recreation of the ThinkRail shell (title bar, project rail, tab strip,
+the IDE**: a faithful HTML/CSS recreation of the UnityRail shell (title bar, project rail, tab strip,
 files rail, terminal, status bar) whose center "editor" is the normally-scrolling page content. Each
 landing section poses as a file of a `website` workspace (`README.md`, `why.md`, `features/*.md`,
 `INSTALL.md`, `CONTRIBUTING.md`). The **file tree is the source of truth for the page's navigation
@@ -216,7 +216,7 @@ creates and stores a canonical per-download bridge ID before `download_started`,
 the same ID. A later desktop download replaces only the stored latest bridge ID; a download without
 consent remains bridge-less. A primary click on one of those four downloads also opens the
 thank-you dialog and does not cancel the file. The dialog records the PostHog survey
-`Thanks for downloading ThinkRail`: `survey shown` when it opens, `survey dismissed` if it
+`Thanks for downloading UnityRail`: `survey shown` when it opens, `survey dismissed` if it
 closes before an answer, and `survey sent` on each Continue or Finish. One
 `$survey_submission_id` ties those sends together, each send repeats the answers collected so
 far, and `$survey_completed` is true only on Finish, so the furthest event is how far that
@@ -417,10 +417,10 @@ canonical URLs and do not become a second search identity.
 Discord link the site, blog posts, README, and app use — a rotated invite is a one-line site deploy, never
 an app release. `validateBuild` fails a build that drops it. Discord clicks emit no analytics event yet.
 
-`public/favicon.svg` is the IDE-shell landing/blog tab icon: a rounded tile in the brand primary green carrying the
-**header wordmark's TR mark** (same `viewBox` + paths, not redrawn) in black, centred with balanced
-padding for legibility at tab sizes. It is wired via `<link rel="icon" type="image/svg+xml">` in
-`index.html`; there is no `.ico` fallback.
+`public/favicon.svg` is the IDE-shell landing/blog tab icon: the same monochrome UnityRail symbol the app
+serves — the cube-and-rail mark as one even-odd path in `currentColor`, near-black in light browser chrome
+and near-white in dark — with no tile behind it, so a tab shows the symbol rather than a filled square. It
+is wired via `<link rel="icon" type="image/svg+xml">` in `index.html`; there is no `.ico` fallback.
 
 `public/og.png` is a capture of the site's own hero inside the IDE shell (dark theme, Landing
 selected, terminal install transcript finished, worktree note visible). The transcript in the

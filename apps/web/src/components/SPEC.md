@@ -53,20 +53,19 @@ primitive. The shared shadcn primitives live in [[module-ui]] (`@thinkrail/ui/*`
 - **`AttentionDot.tsx`** — the store-free, static green/accent dot whose sole accessible label is “Needs
   attention.” It carries no reason, count, tooltip, motion, or clearing behavior; callers decide only whether
   it is present. It is the one marker for both needs-input and unread-result attention.
-- **`RunningIcon.tsx`** — the store-free **“ThinkRail is working” badge**: the brand monogram inside a
-  rounded-square frame, drawn in `currentColor` so it sizes with `size-*` and colours with `text-*` like a
-  Remix icon, with the accessible label “Agent working”. While motion is allowed, the frame (two halves
-  leaving a gap on the left and meeting on the right) and the six letter strokes of the monogram draw and
-  erase on one 3.263s cycle (`loader-*` keyframes in `index.css`); a beat with only the frame showing is
-  part of the design. Each letter stroke is a wide line clipped to its region of `BRAND_MARK_SEGMENTS`, the
-  same segments `BRAND_MARK_PATH` is joined from, so the fully drawn badge is the shell's mark rather than a
-  second copy that could drift. Only the stroke centre-lines, the frame, and the small gap between the R's
-  stem and top bar (the stem stroke stops short) are local animation geometry. Reduced motion leaves every
-  stroke at its fully drawn dash: the static, complete badge. This loader replaced a ring with a lapping
-  train and a pulsing monogram; before that the row's own identity glyph breathed, dropped because a
-  dimming folder reads as “disabled” at 14px. Callers pass only size/colour classes and decide from
-  normalized host state whether a top-level session is running; the icon renders no dot, spinner, count,
-  tooltip, or idle state.
+- **`RunningIcon.tsx`** — the store-free **“UnityRail is working” badge**: the brand mark, an isometric cube
+  on its rail track, inside a rounded-square frame, drawn in `currentColor` so it sizes with `size-*` and
+  colours with `text-*` like a Remix icon, with the accessible label “Agent working”. While motion is allowed,
+  the frame (two halves leaving a gap on the left and meeting on the right) and the mark's five strokes — the
+  three cube faces as outlines, the two rails as their centre lines — draw and erase on one 3.263s cycle
+  (`loader-*` keyframes in `index.css`); a beat with only the frame showing is part of the design. Every
+  stroke path comes from `BRAND_MARK_SEGMENTS`, the same segments the shell's mark is built from, so the fully
+  drawn badge is that mark rather than a second copy that could drift. Only the frame and the strokes' two
+  weights are local animation geometry. Reduced motion leaves every stroke at its fully drawn dash: the
+  static, complete badge. This loader replaced a ring with a lapping train and a pulsing monogram; before that
+  the row's own identity glyph breathed, dropped because a dimming folder reads as “disabled” at 14px. Callers
+  pass only size/colour classes and decide from normalized host state whether a top-level session is running;
+  the icon renders no dot, spinner, count, tooltip, or idle state.
 - **Also governs (implementation in `@thinkrail/ui/skeleton`, [[module-ui]], so the app and
   [[module-resource-renderers]] share it):** `SkeletonRows`, the one pulsing-rows placeholder every loading surface
   uses, and `LoadingRegion`, the sized-wrapper shape around it that most call sites actually want (a
@@ -90,8 +89,9 @@ primitive. The shared shadcn primitives live in [[module-ui]] (`@thinkrail/ui/*`
   itself).
 - **Allowed deps:** React, `@remixicon/react`, `@thinkrail/ui/utils` (`cn`), `@thinkrail/ui/button` (the
   error fallback's Reload / Try again are shared buttons), `@thinkrail/locales` (UI strings), `lib` (`shallowEqualArrays` — the reset-keys comparison, shared
-  rather than re-stated), `constants` (`BRAND_MARK_SEGMENTS` — the monogram regions `RunningIcon` clips to,
-  shared with the shell logo rather than copied). Kept dependency-light on purpose, and both are leaves, so *any* region
+  rather than re-stated), `constants` (`BRAND_MARK_SEGMENTS` — the cube faces and rail centre lines
+  `RunningIcon` strokes, shared with the shell logo rather than copied). Kept dependency-light on purpose, and
+  both are leaves, so *any* region
   (shell, panels, `main.tsx`) can still wrap in it without creating a cycle.
 - **Forbidden:** `store`/`transport`/`panels`/`shell`/`chat`/`contracts`; `server`/`shared`/`pi`; inline
   `style` objects or raw hex (fallback is themed with token utilities only).

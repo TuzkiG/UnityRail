@@ -65,7 +65,7 @@ another.
    startup continues. An update-metadata failure here precedes host acquisition and quits directly.
    Unless the neutral or hidden artifact modes are set, startup then opens a small, centered, frameless
    splash.
-   - It reads "Starting ThinkRail…", or "Finishing update to X…" when the update journal is pending,
+   - It reads "Starting UnityRail…", or "Finishing update to X…" when the update journal is pending,
      from the saved native labels (`desktop.splash.*`, the desktop fills in `{{version}}`).
    - Its content is a `data:` URL given at creation. The SDK delays `html:` content behind a 100 ms timer,
      which the synchronous server import would block. Startup awaits the splash's own `dom-ready`,
@@ -73,7 +73,7 @@ another.
    - It closes when the main window first reaches `dom-ready`, and the main window is activated.
    - Before the startup error dialog it is hidden, not closed: as the last window it would trigger
      `exitOnLastWindowClosed` before the dialog appears.
-   - Closing the splash before the main window exists quits ThinkRail. Closing the main window before
+   - Closing the splash before the main window exists quits UnityRail. Closing the main window before
      it is ready also closes the splash, so the last window still goes and quit runs through the
      coordinator. A splash the user closed natively is never closed again.
    - The main window, RPC, navigation rules and first-`dom-ready` readiness are unchanged. Creating the
@@ -94,7 +94,7 @@ another.
    `pi-thinkrail-workflow`, `pi-todos`) and calls `registerBundledRuntime()` with those factories, the
    staged skills (every `BuildRuntimeSources.skillRoots` entry copied into one dir under its `route` —
    host roots under `host/`, a registry extension's under `extensions/<name>/` — duplicate routes rejected), and
-   macOS/Windows trash helpers. ThinkRail extensions from the server
+   macOS/Windows trash helpers. UnityRail extensions from the server
    registry ([[submodule-server-extensions]]) need no generated entry: their factories reach the bundle
    through `@thinkrail/server`'s static import graph. The generator's key map must satisfy every key of the server-owned
    `BundledExtensions` contract, so adding a required launcher field fails desktop typecheck instead of
@@ -372,7 +372,7 @@ grammar validator, and the preload exposes no host/domain capability.
 
 Webview-to-main RPC uses Electrobun's default loopback WebSocket on every platform. Post-mortem: Electrobun
 2.0.1 bound its fixed default port `50000` with address reuse on Windows, so a second running Electrobun app
-(another ThinkRail channel included) shared the port and received this webview's socket traffic; every
+(another UnityRail channel included) shared the port and received this webview's socket traffic; every
 request timed out and every message was lost. The launcher stripped the injected socket-port globals from
 the Windows preload to force the native host bridge. Electrobun 2.0.5's core binds the host transport with
 `SO_EXCLUSIVEADDRUSE` on Windows and moves to the next free port, injecting the port it actually bound, so
@@ -478,8 +478,8 @@ and shows them as two taskbar buttons (blackboardsh/electrobun#514). The desktop
 itself:
 
 - **Process ID.** The first thing startup does, before any window, is set an explicit per-channel ID
-  derived from the product name: `JetBrains.ThinkRail`, `JetBrains.ThinkRail.Nightly`,
-  `JetBrains.ThinkRail.Dev`. Stable and nightly stay separate apps.
+  derived from the product name: `JetBrains.UnityRail`, `JetBrains.UnityRail.Nightly`,
+  `JetBrains.UnityRail.Dev`. Stable and nightly stay separate apps.
 - **Shortcut IDs.** Once the main window first reaches `dom-ready` and readiness is reported, the desktop
   writes the same ID onto every shortcut whose target is this install's `bin\launcher.exe`:
   - the Start-menu shortcut Electrobun records in `<channel root>\.electrobun-uninstall.json`

@@ -139,13 +139,15 @@ const NAVIGATION_PROBE_SCRIPTS: Record<string, (url: string) => string> = {
 	document.body.append(frame);
 })();`,
 };
-const WINDOW_CONTROLS_PROBE_TARGETS: Record<string, { testId: string; label: string }> = {
-	"window-controls-maximize": { testId: "window-maximize", label: "Maximize" },
-	"window-controls-restore": { testId: "window-maximize", label: "Restore" },
+// The controls carry a localized accessible name, so the probe keys on the control's stable test id and
+// the maximize state it already exposes rather than on one language's label.
+const WINDOW_CONTROLS_PROBE_TARGETS: Record<string, { testId: string; maximized: boolean }> = {
+	"window-controls-maximize": { testId: "window-maximize", maximized: false },
+	"window-controls-restore": { testId: "window-maximize", maximized: true },
 };
-function windowControlsProbeScript(target: { testId: string; label: string }): string {
+function windowControlsProbeScript(target: { testId: string; maximized: boolean }): string {
 	return `(() => {
-	const selector = ${JSON.stringify(`[data-testid="${target.testId}"][aria-label="${target.label}"]`)};
+	const selector = ${JSON.stringify(`[data-testid="${target.testId}"][data-maximized="${target.maximized}"]`)};
 	const deadline = Date.now() + 15000;
 	const poll = () => {
 		const element = document.querySelector(selector);
@@ -448,7 +450,7 @@ async function start(): Promise<void> {
 					windowChromePreloadSeed(windowChrome),
 				);
 	mainWindow = new BrowserWindow({
-		title: "ThinkRail",
+		title: "UnityRail",
 		url: neutral ? "about:blank" : `${origin}/${initialRoute}`,
 		preload,
 		...(neutral ? {} : { rpc }),

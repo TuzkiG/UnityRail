@@ -45,7 +45,7 @@ const COPY: Record<
 	compounding: {
 		heading: "Designed to compound",
 		subtitle:
-			"Most agents forget everything between sessions.\u00a0\nThinkRail remembers — and what it learns today makes it faster tomorrow.",
+			"Most agents forget everything between sessions.\u00a0\nUnityRail remembers — and what it learns today makes it faster tomorrow.",
 		principles: [
 			transparency,
 			{

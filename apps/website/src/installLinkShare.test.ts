@@ -46,7 +46,7 @@ describe("shareInstallLink", () => {
 			url,
 		);
 		expect(result).toBe("shared");
-		expect(shared).toEqual([{ title: "ThinkRail", text: "Install ThinkRail on my computer", url }]);
+		expect(shared).toEqual([{ title: "UnityRail", text: "Install UnityRail on my computer", url }]);
 	});
 
 	test("treats a dismissed share sheet as cancelled without copying", async () => {

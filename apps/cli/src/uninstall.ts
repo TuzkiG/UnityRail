@@ -29,7 +29,7 @@ export const RC_BLOCK_END = "# <<< thinkrail PATH <<<";
 
 export const UNINSTALL_USAGE = `Usage: thinkrail uninstall [options]
 
-Remove ThinkRail from this machine: the executable, the installer's PATH entry, the install
+Remove UnityRail from this machine: the executable, the installer's PATH entry, the install
 metadata, and the binary's staging cache. Your app state (~/.thinkrail) is kept unless you ask
 for it to be removed. pi's own state (~/.pi) is never touched.
 
@@ -226,18 +226,18 @@ function Get-PathWithoutEntry {
     return ($kept -join ';')
 }
 
-function Send-ThinkRailSettingChange {
+function Send-UnityRailSettingChange {
     # Broadcast WM_SETTINGCHANGE "Environment" so terminals opened after this see the new PATH without a
     # sign-out (the same best-effort call install.ps1 makes after adding the entry).
     try {
-        if (-not ('ThinkRail.NativeMethods' -as [type])) {
-            Add-Type -Namespace ThinkRail -Name NativeMethods -MemberDefinition @'
+        if (-not ('UnityRail.NativeMethods' -as [type])) {
+            Add-Type -Namespace UnityRail -Name NativeMethods -MemberDefinition @'
 [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
 public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
 '@
         }
         $result = [UIntPtr]::Zero
-        [void][ThinkRail.NativeMethods]::SendMessageTimeout([IntPtr]0xffff, 0x1a, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result)
+        [void][UnityRail.NativeMethods]::SendMessageTimeout([IntPtr]0xffff, 0x1a, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result)
     } catch {
         # Non-fatal: the registry is already updated; new terminals see it after the next sign-in.
     }
@@ -253,7 +253,7 @@ try {
     $next = Get-PathWithoutEntry -Raw $raw -Dir $Dir
     if ($null -eq $next) { 'absent'; return }
     $key.SetValue('Path', $next, $kind)
-    Send-ThinkRailSettingChange
+    Send-UnityRailSettingChange
     'removed'
 } catch {
     'failed'
@@ -323,7 +323,7 @@ function removeExecutable(path: string): Step {
 				"executable",
 				path,
 				"failed",
-				"it is locked by a running ThinkRail — close it and try again",
+				"it is locked by a running UnityRail — close it and try again",
 			);
 		}
 		const quoted = psQuote(aside);
@@ -335,7 +335,7 @@ function removeExecutable(path: string): Step {
 			path,
 			"removed",
 			scheduled
-				? `Windows can't delete a running program: renamed to ${basename(aside)}, which goes once no ThinkRail is running`
+				? `Windows can't delete a running program: renamed to ${basename(aside)}, which goes once no UnityRail is running`
 				: `Windows can't delete a running program: renamed to ${aside} — delete that file by hand`,
 		);
 	}
@@ -460,7 +460,7 @@ function describePlan(
 	const width = Math.max(0, ...rows.map(([label]) => label.length));
 	const body = rows.length
 		? rows.map(([label, path]) => `  ${label.padEnd(width)}  ${path}`).join("\n")
-		: "  (nothing found — ThinkRail doesn't look installed from here)";
+		: "  (nothing found — UnityRail doesn't look installed from here)";
 	return `thinkrail ${version} (${channel}) — uninstall\n\n${body}\n`;
 }
 
@@ -535,8 +535,8 @@ export async function runUninstall(
 				removeData = await askYesNo(rl, lines, "Delete it too? [y/N] ", false);
 			}
 			const question = removeData
-				? "Uninstall ThinkRail and delete the app state? [y/N] "
-				: "Uninstall ThinkRail (keeping the app state)? [y/N] ";
+				? "Uninstall UnityRail and delete the app state? [y/N] "
+				: "Uninstall UnityRail (keeping the app state)? [y/N] ";
 			if (!(await askYesNo(rl, lines, question, false))) {
 				console.log("\nAborted — nothing was removed.");
 				return 0;
@@ -575,7 +575,7 @@ export async function runUninstall(
 	console.log(
 		failed.length
 			? `Uninstall finished with ${failed.length} problem(s) — see FAILED above.`
-			: "ThinkRail is uninstalled.",
+			: "UnityRail is uninstalled.",
 	);
 	if (steps.some((item) => item.kind === "PATH entry" && item.outcome === "removed")) {
 		console.log("Open a new terminal for the PATH change to take effect.");

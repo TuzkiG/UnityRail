@@ -1,7 +1,7 @@
 # Publishing pi packages
 
 How-to for the packages under `pi-extensions/*`, published to npm as `@thinkrail/pi-<name>` and usable
-in vanilla `pi` without ThinkRail. Decisions and rationale live in [SPEC.md](SPEC.md); this file is the
+in vanilla `pi` without UnityRail. Decisions and rationale live in [SPEC.md](SPEC.md); this file is the
 checklist.
 
 ## Add a new package
@@ -12,7 +12,7 @@ checklist.
    - `name: "@thinkrail/pi-<name>"`, `version: "0.0.0"` (the first changeset produces the first
      real version), `private` absent, `license: "Apache-2.0"`, `repository.directory`,
      `publishConfig: { access: "public", provenance: true }`.
-   - `homepage` and the README's ThinkRail link carry `utm_source=pi-package&utm_medium=referral`,
+   - `homepage` and the README's UnityRail link carry `utm_source=pi-package&utm_medium=referral`,
      `utm_campaign=pi-<name>` and `utm_content=homepage` / `readme`: pi.dev and npm send no referrer.
    - `keywords` include `"pi-package"` and a `pi` manifest (`extensions`, `skills` …) **only** for an
      installable extension. A portable library (no factory) gets neither.

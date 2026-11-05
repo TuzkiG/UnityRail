@@ -9,6 +9,6 @@ describe("vibecoding metadata", () => {
 		expect(new URL(siteMetadata.openGraphImagePath, siteMetadata.origin).href).toBe(
 			"https://thinkrail.ai/vibecoding/og.png",
 		);
-		expect(siteMetadata.title).toContain("ThinkRail");
+		expect(siteMetadata.title).toContain("UnityRail");
 	});
 });

@@ -1,21 +1,21 @@
-# ThinkRail
+# UnityRail
 
 [![JetBrains incubator project](https://jb.gg/badges/incubator-plastic.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
 [![GitHub stars](https://img.shields.io/github/stars/JetBrains/thinkrail?style=social)](https://star-history.com/#JetBrains/thinkrail&Date)
 [![Discord](https://img.shields.io/badge/Discord-Join%20the%20chat-5865F2?logo=discord&logoColor=white)](https://thinkrail.ai/discord)
 
-ThinkRail is the agentic IDE that gets better every time you use it — learning your project through
+UnityRail is the agentic IDE that gets better every time you use it — learning your project through
 living specs today, and building its own capabilities tomorrow.
 
 We built a rich interface around the [`pi`](https://www.npmjs.com/package/@earendil-works/pi-coding-agent)
 coding agent, isolated work into separate workspaces, and gave the agent durable project knowledge
-through living specs and reusable skills. Next, we're adding full extension support, so ThinkRail can
+through living specs and reusable skills. Next, we're adding full extension support, so UnityRail can
 create the tools it needs based on how you actually work.
 
 **Website:** [thinkrail.ai](https://thinkrail.ai/) · **Blog:** [thinkrail.ai/blog](https://thinkrail.ai/blog/) ·
 **Discord:** [thinkrail.ai/discord](https://thinkrail.ai/discord)
 
-⭐ If you find ThinkRail useful, give it a star — it helps others discover it.
+⭐ If you find UnityRail useful, give it a star — it helps others discover it.
 
 <p align="center">
  <a href="https://www.star-history.com/jetbrains/thinkrail">
@@ -25,7 +25,7 @@ create the tools it needs based on how you actually work.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme-assets/workbench-dark.png">
-  <img src=".github/readme-assets/workbench-light.png" alt="ThinkRail workbench: the Projects pane beside the left tool rail listing worktree workspaces and their Settled shelf, a finished pi conversation with its tool steps in the center, the resulting diff beside it, and the Specs tree above the Changes list on the right with their tools on the edge rail" width="900">
+  <img src=".github/readme-assets/workbench-light.png" alt="UnityRail workbench: the Projects pane beside the left tool rail listing worktree workspaces and their Settled shelf, a finished pi conversation with its tool steps in the center, the resulting diff beside it, and the Specs tree above the Changes list on the right with their tools on the edge rail" width="900">
 </picture>
 
 *A `pi` session and the change it made, scoped to an isolated git-worktree workspace.*
@@ -34,7 +34,8 @@ create the tools it needs based on how you actually work.
 
 - **Isolated workspaces.** Open any git repo as a project and cut workspaces from it as `git worktree`s,
   each with its own branch and working directory. Agents work in parallel without touching your
-  checkout; merge the good branch, delete the rest. You can also attach existing worktrees or explicitly
+  checkout; merge the good branch, delete the rest. New worktrees initialize their submodules, and
+  Changes/Review follow edits inside nested repositories at any depth, including a business checkout mounted by a directory link. You can also attach existing worktrees or explicitly
   work in the project folder itself. Finished and dormant workspaces settle onto a per-project shelf on
   their own — when their pull request merges or closes, or after a quiet week — and come back the moment
   you work in them. The topbar shows where the active branch stands against `origin` and its pull request,
@@ -62,7 +63,7 @@ create the tools it needs based on how you actually work.
 - **Agent tools beyond the shell.** Web research, structured multiple-choice questions the agent asks you
   in the chat instead of guessing, and inline diagrams, option comparisons and file previews rendered right
   in the chat — when the agent proposes a UI change it shows a before/after mockup you can comment on like
-  a diff. Settings → Extensions lists the ThinkRail extensions the agent gets and lets you switch each one
+  a diff. Settings → Extensions lists the UnityRail extensions the agent gets and lets you switch each one
   off — and installs any `pi` package by source (npm, git or a local folder), for you or for a repository,
   showing what each one adds and letting you switch packages, their individual extensions and skills, and
   pi's built-ins on or off; open chats pick a change up when their turn ends. The questions and visualize
@@ -73,13 +74,13 @@ create the tools it needs based on how you actually work.
   ([`@thinkrail/pi-visualize`](https://www.npmjs.com/package/@thinkrail/pi-visualize)) — so a vanilla `pi`
   in the terminal gets the same tools.
 - **MCP servers.** Connect the MCP servers in your `pi` `mcp.json` (or add them, and a few presets, from
-  Settings): ThinkRail asks in the chat before calls the server does not mark read-only (or always allows
+  Settings): UnityRail asks in the chat before calls the server does not mark read-only (or always allows
   the tools you trust in a project), keeps servers a repository
   defines off until you approve them, signs you in to OAuth servers from Settings, and shows each chat's
   servers next to its background commands and subagents.
 - **Your providers, your credentials.** Sign in with [JetBrains AI](https://www.jetbrains.com/ai/) or
-  connect any provider through `pi`'s own auth. ThinkRail has no accounts of its own.
-- **Your pi setup.** ThinkRail reads your existing `pi` configuration (`~/.pi/agent`). To use another one
+  connect any provider through `pi`'s own auth. UnityRail has no accounts of its own.
+- **Your pi setup.** UnityRail reads your existing `pi` configuration (`~/.pi/agent`). To use another one
   — say a personal `~/.pi/agent-personal` — or to pass extra environment variables to the agent, terminals
   and MCP servers, set them in Settings → Environment; they apply on the next start. A variable you set
   when launching (`PI_CODING_AGENT_DIR=… thinkrail`) still wins.
@@ -91,7 +92,7 @@ create the tools it needs based on how you actually work.
 - **Desktop app or browser.** A native desktop app, or the `thinkrail` CLI that opens the same app in your
   browser. Both embed the same engine host; app state lives under `~/.thinkrail`.
 - **Your language.** Settings → Language follows your system language or a language you pick; English,
-  Japanese, Russian, Simplified Chinese, and Spanish are built in. Add a language ThinkRail doesn't ship yet by
+  Japanese, Russian, Simplified Chinese, and Spanish are built in. Add a language UnityRail doesn't ship yet by
   dropping a translated `en.json` into `~/.thinkrail/locales` — it applies as you save. Agent replies and
   tool output stay as the agent wrote them.
 - **Your themes.** Settings → Appearance ships dark, light, minimal and high-contrast themes. Make your own
@@ -99,6 +100,11 @@ create the tools it needs based on how you actually work.
 - **Your fonts.** Settings → Appearance picks the interface and code fonts from the bundled Geist and
   JetBrains Mono, any font installed on your computer, or font files you drop in (kept in
   `~/.thinkrail/fonts`), with fallback fonts for icon glyphs, a code size, ligatures and a text-weight slider.
+- **Unity projects.** In a workspace inside a Unity project, the agent can compile, read the Console,
+  drive Play Mode, capture the Game or Scene view, run EditMode and PlayMode tests, and inspect the scene
+  hierarchy through a small Editor bridge package — with a Unity panel for the same view. What you select
+  in the Editor also appears beside the chat input and reaches the agent as context. Setup and
+  limits are in [Unity](#unity).
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme-assets/specs-dark.png">
@@ -107,9 +113,32 @@ create the tools it needs based on how you actually work.
 
 *The project's spec graph as a tree, with the spec itself rendered alongside.*
 
+### Unity
+
+Open a folder that is inside a Unity project and UnityRail finds the project root, its editor version,
+packages, assembly definitions and scenes. With the Editor bridge package installed and the project open
+in Unity, the agent stops guessing: it can wait for a compile and read the compiler diagnostics, read
+and clear the Console, enter, pause and stop Play Mode, capture the Game View or Scene View as an image
+it can inspect, run EditMode and PlayMode tests, and read the open scene's hierarchy and components. A
+Unity tool in the workbench shows the same overview, Console, hierarchy, inspectors, Game View and test
+results without spending a chat turn, and bundled Unity skills cover project orientation, verification,
+gameplay code, testing and asset safety. The object selected in the Editor shows beside the chat input
+and rides into the agent's context on its next turn, so "fix this" starts from what you are looking at.
+If something is missing, `unity_doctor` (and the panel's overview) says whether it is the project, the
+Unity install, or the bridge.
+
+The bridge is the Editor-only package `com.thinkrail.bridge` in this repository under
+`unity-package/com.thinkrail.bridge`. Add it to the project's `Packages/manifest.json` as a local file
+dependency (or copy the folder into `Packages/`), then open the project in Unity; the bridge starts with
+the Editor by default, and **Tools → UnityRail → Start Unity Bridge** starts it manually. It listens on
+`127.0.0.1` only and needs no account. Verified against Unity 2022.3 LTS (2022.3.62f3), with Unity 6 as a
+target to validate before release, Windows first. The
+Editor remains the source of truth: UnityRail reads and drives it, but does not edit scene or prefab
+structure for you.
+
 ## Install
 
-ThinkRail ships in two additive forms: a native desktop installer and the self-contained `thinkrail` CLI.
+UnityRail ships in two additive forms: a native desktop installer and the self-contained `thinkrail` CLI.
 Both are published with `SHA256SUMS` on the [releases page](https://github.com/JetBrains/thinkrail/releases).
 
 ### Desktop
@@ -129,7 +158,7 @@ Download the `thinkrail-desktop-*` asset for your platform:
 
 Packaged stable and nightly desktop builds check for updates in the background and offer them in
 **Settings → Updates**: **Download** → **Preparing update** → **Install & Restart**. Nothing is applied until
-you choose **Install & Restart**. ThinkRail then shows the installation's progress and log, closes, and
+you choose **Install & Restart**. UnityRail then shows the installation's progress and log, closes, and
 reopens on the new version. After the restart it tells you whether the update installed. If it didn't, it
 explains why and offers to retry. The updater appears only when the package carries a valid HTTPS feed
 identity; installations that predate that identity need one manual installation first.
@@ -160,7 +189,7 @@ thinkrail ~/code/my-repo
 your own provider credentials. The first launch walks you through connecting a provider and picking a
 project; **Start a new project** creates an empty git repository (under `~/thinkrail` by default), so you
 don't need one ready. **Add project → Clone repository…** clones a Git URL into a new folder on the
-computer running ThinkRail and opens it as a project. Choose the parent folder and folder name, optionally
+computer running UnityRail and opens it as a project. Choose the parent folder and folder name, optionally
 limit the history depth, or cancel an in-progress clone. GitHub and other Git hosts work with the host's
 existing Git credentials and SSH keys; existing destination folders are never overwritten.
 `thinkrail --help` lists the flags; `thinkrail --version` prints the build.
@@ -217,32 +246,32 @@ and locally built packages may still be unsigned and blocked by Gatekeeper. Linu
 
 ## Analytics & privacy
 
-ThinkRail apps collect basic usage events — launches, chat creation, message sends, provider connections — tied to
+UnityRail apps collect basic usage events — launches, chat creation, message sends, provider connections — tied to
 a random installation ID. Usage analytics never include prompts, code, files, credentials, or account
 identity. Error reports are also always sent, tied to the same installation ID, so we can fix crashes: the
-error type and code and where in ThinkRail's own code it happened. They never include error messages, file
+error type and code and where in UnityRail's own code it happened. They never include error messages, file
 paths, names, URLs, or anything from your projects or extensions. Additional product
-usage and how you found ThinkRail are shared only while **Share additional usage
+usage and how you found UnityRail are shared only while **Share additional usage
 data** is on; the switch is offered as a step of first-run setup (or right after you skip it) and lives in **Settings → Privacy**. When launching from
 the command line, `thinkrail --no-analytics` (or `THINKRAIL_NO_ANALYTICS=1`) turns additional sharing off for
-that run. With additional sharing on, a packaged build may open the ThinkRail blog in your browser once to
+that run. With additional sharing on, a packaged build may open the UnityRail blog in your browser once to
 link your installation to the website visit that brought you here — only where you accepted marketing cookies on the
 website or no consent is required — and that link expires after 30 days.
 
-Feedback surveys are separate from usage analytics. ThinkRail may invite you to a short survey, and you can
+Feedback surveys are separate from usage analytics. UnityRail may invite you to a short survey, and you can
 also open it from **Settings → Feedback**. Your answers, including anything you type, are sent to the
-ThinkRail team only when you press **Send**, whatever your analytics settings, and are tied to the same
+UnityRail team only when you press **Send**, whatever your analytics settings, and are tied to the same
 random installation ID — not to your name or account. Please don't include secrets, code, or personal data;
 to have your answers deleted, email info@thinkrail.ai.
 
-The ThinkRail apps and the ThinkRail website ([thinkrail.ai](https://thinkrail.ai)) use PostHog Inc. services for
+The UnityRail apps and the UnityRail website ([thinkrail.ai](https://thinkrail.ai)) use PostHog Inc. services for
 analytics. The website also uses PostHog Surveys to collect feedback after a desktop download and, only if you
 choose to enter one, your email address, which is used to ask for further feedback and to send product updates.
 PostHog's privacy policy is at [posthog.com/privacy](https://posthog.com/privacy).
 
 ## Under the hood
 
-ThinkRail is a thin host that runs `pi` in-process and bridges it to a rich web UI. `pi` owns models,
+UnityRail is a thin host that runs `pi` in-process and bridges it to a rich web UI. `pi` owns models,
 skills, compaction, cost, and session state; the app owns the workspace, the editor, and the wire — it
 never assembles prompts behind your back. Three rings:
 
@@ -253,10 +282,10 @@ never assembles prompts behind your back. Three rings:
   the wire and depends on the contracts only.
 
 [`goal-and-requirements.md`](goal-and-requirements.md) and [`architecture.md`](architecture.md) are the
-canonical product and design specs. ThinkRail is developed spec-first: a `SPEC.md` sits beside every
+canonical product and design specs. UnityRail is developed spec-first: a `SPEC.md` sits beside every
 module, and a change that moves a boundary, contract, or decision updates the spec in the same change.
 
-## Developing ThinkRail
+## Developing UnityRail
 
 You need **Bun** 1.4.4 (the pinned package manager and runtime), **Node.js** ≥ 22.19 (required by the
 in-process `pi` engine), and an authenticated `pi` provider for agent work.

@@ -1,8 +1,8 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"$id": "https://thinkrail.dev/schemas/theme-manifest-v1.json",
-	"title": "ThinkRail theme manifest",
-	"description": "A complete, declarative ThinkRail UI, terminal, and syntax palette. Selected-text foreground overrides may be null to retain native behavior.",
+	"title": "UnityRail theme manifest",
+	"description": "A complete, declarative UnityRail UI, terminal, and syntax palette. Selected-text foreground overrides may be null to retain native behavior.",
 	"type": "object",
 	"additionalProperties": false,
 	"required": [

@@ -11,7 +11,7 @@ tags: [providers, central]
 
 ## Drivers
 
-JetBrains AI models reach ThinkRail through the user's own `central` CLI, which writes a `pi` extension to
+JetBrains AI models reach UnityRail through the user's own `central` CLI, which writes a `pi` extension to
 one global path and reports the account's recurring AI-credit quota. Central therefore behaves as a
 cross-module chain rather than one module boundary. Its end-to-end lifecycle mapping, liveness, and
 quota-read composition live only in that chain.

@@ -49,7 +49,7 @@ function SendLinkAction() {
 				<Send size={14} aria-hidden="true" />
 			</button>
 			<p className="mt-2 text-[11px] leading-4 text-text-muted">
-				ThinkRail runs on macOS, Windows, and Linux.
+				UnityRail runs on macOS, Windows, and Linux.
 			</p>
 		</div>
 	);

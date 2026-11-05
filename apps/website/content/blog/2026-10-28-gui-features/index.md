@@ -3,15 +3,15 @@ title: "GUI overview"
 slug: gui-overview
 date: 2026-10-28
 author: maciej-gorywoda
-excerpt: "A guided tour of ThinkRail's interface: the chat, the workspace panels around it, and the settings, one screenshot each."
+excerpt: "A guided tour of UnityRail's interface: the chat, the workspace panels around it, and the settings, one screenshot each."
 draft: false
 tags:
   - gui
   - overview
 ---
 
-This blog post is going to be a bit different from the others. We will take a quick walk through ThinkRail's
-Graphical User Interface. Below, you will find ThinkRail's graphical components, grouped into the chat, the workspace
+This blog post is going to be a bit different from the others. We will take a quick walk through UnityRail's
+Graphical User Interface. Below, you will find UnityRail's graphical components, grouped into the chat, the workspace
 around it, and the settings. For each component, there is a screenshot with the most important visual elements
 highlighted, plus a one-sentence description of the component's purpose. Click a screenshot to see it in full size.
 In addition, if we have already published a separate blog post about the given feature, there is a link to it.
@@ -22,7 +22,7 @@ In addition, if we have already published a separate blog post about the given f
 |---|---|
 | The main GUI | [![The main GUI](./images/00_whole_screen.png)](./images/00_whole_screen.png) |
 
-Please note that ThinkRail is still in development. This blog post discusses features and their visual elements
+Please note that UnityRail is still in development. This blog post discusses features and their visual elements
 as they appear in version 0.3.0 (Nightly) on October 27, 2026. If you are reading this a few months later,
 your experience may differ.
 
@@ -32,7 +32,7 @@ your experience may differ.
 
 |  |  |
 |---|---|
-| **1**. The chat tab where you talk with the AI agent. A turn that changed files ends with a summary and a **Review turn** button ([ThinkRail 0.2.0](/blog/thinkrail-0-2-0-review-the-turn/)). | [![Chat tab with a finished turn and the message box](./images/01_chat_window_tab.png)](./images/01_chat_window_tab.png) |
+| **1**. The chat tab where you talk with the AI agent. A turn that changed files ends with a summary and a **Review turn** button ([UnityRail 0.2.0](/blog/thinkrail-0-2-0-review-the-turn/)). | [![Chat tab with a finished turn and the message box](./images/01_chat_window_tab.png)](./images/01_chat_window_tab.png) |
 
 |  |  |
 |---|---|
@@ -72,7 +72,7 @@ your experience may differ.
 
 |  |  |
 |---|---|
-| [![Projects panel with three projects and their workspaces](./images/10_projects.png)](./images/10_projects.png) | **10**. The Projects panel: your open projects, the workspaces in each, and the Settled shelf for finished ones ([ThinkRail Workspaces](/blog/thinkrail-workspaces/)). |
+| [![Projects panel with three projects and their workspaces](./images/10_projects.png)](./images/10_projects.png) | **10**. The Projects panel: your open projects, the workspaces in each, and the Settled shelf for finished ones ([UnityRail Workspaces](/blog/thinkrail-workspaces/)). |
 
 |  |  |
 |---|---|
@@ -80,7 +80,7 @@ your experience may differ.
 
 |  |  |
 |---|---|
-| [![Specs panel showing the spec tree](./images/12_specs.png)](./images/12_specs.png) | **12**. The Specs panel, where you can browse all the specifications of the project ([ThinkRail Spec-Driven Development](/blog/thinkrail-sdd/)). |
+| [![Specs panel showing the spec tree](./images/12_specs.png)](./images/12_specs.png) | **12**. The Specs panel, where you can browse all the specifications of the project ([UnityRail Spec-Driven Development](/blog/thinkrail-sdd/)). |
 
 |  |  |
 |---|---|
@@ -88,7 +88,7 @@ your experience may differ.
 
 |  |  |
 |---|---|
-| [![Changes tab with a side-by-side diff and the changed files](./images/14_changes.png)](./images/14_changes.png) | **14**. The Changes panel, where you review what the agent changed in the last turn or on the whole branch ([ThinkRail 0.2.0](/blog/thinkrail-0-2-0-review-the-turn/)). |
+| [![Changes tab with a side-by-side diff and the changed files](./images/14_changes.png)](./images/14_changes.png) | **14**. The Changes panel, where you review what the agent changed in the last turn or on the whole branch ([UnityRail 0.2.0](/blog/thinkrail-0-2-0-review-the-turn/)). |
 
 |  |  |
 |---|---|
@@ -96,7 +96,7 @@ your experience may differ.
 
 |  |  |
 |---|---|
-| [![TODO List rail next to the plan of a chat](./images/16_todo.png)](./images/16_todo.png) | **16**. The TODO list, where you and your agent plan the next steps, with the full plan one click away ([ThinkRail 0.2.0](/blog/thinkrail-0-2-0-review-the-turn/)). |
+| [![TODO List rail next to the plan of a chat](./images/16_todo.png)](./images/16_todo.png) | **16**. The TODO list, where you and your agent plan the next steps, with the full plan one click away ([UnityRail 0.2.0](/blog/thinkrail-0-2-0-review-the-turn/)). |
 
 ---
 
@@ -104,11 +104,11 @@ your experience may differ.
 
 |  |  |
 |---|---|
-| The Welcome screen lets you choose between starting a new project by drafting specifications, start to code immediately in a new workspace, or simply open an existing project. ([Introducing ThinkRail](/blog/introducing-thinkrail/)| [![Welcome screen](./images/34_welcome_screen.png)](./images/34_welcome_screen.png) |
+| The Welcome screen lets you choose between starting a new project by drafting specifications, start to code immediately in a new workspace, or simply open an existing project. ([Introducing UnityRail](/blog/introducing-thinkrail/)| [![Welcome screen](./images/34_welcome_screen.png)](./images/34_welcome_screen.png) |
 
 |  |  |
 |---|---|
-| [![Create a workspace](./images/35_create_workspace.png)](./images/35_create_workspace.png) | The window that lets you create a configure a new workspace (git worktree) within your project. ([ThinkRail Workspaces](/blog/thinkrail-workspaces/)) |
+| [![Create a workspace](./images/35_create_workspace.png)](./images/35_create_workspace.png) | The window that lets you create a configure a new workspace (git worktree) within your project. ([UnityRail Workspaces](/blog/thinkrail-workspaces/)) |
 
 |  |  |
 |---|---|
@@ -128,7 +128,7 @@ your experience may differ.
 
 |  |  |
 |---|---|
-| Add MCP servers from presets or your own configuration; ThinkRail asks in the chat before calls that may change data ([ThinkRail 0.2.0](/blog/thinkrail-0-2-0-review-the-turn/)). | [![Settings, MCP servers page](./images/19_mcp_servers.png)](./images/19_mcp_servers.png) |
+| Add MCP servers from presets or your own configuration; UnityRail asks in the chat before calls that may change data ([UnityRail 0.2.0](/blog/thinkrail-0-2-0-review-the-turn/)). | [![Settings, MCP servers page](./images/19_mcp_servers.png)](./images/19_mcp_servers.png) |
 
 |  |  |
 |---|---|
@@ -136,7 +136,7 @@ your experience may differ.
 
 |  |  |
 |---|---|
-| Choose the Pi config folder ThinkRail uses, and set environment variables for the agent, terminals, and MCP servers. | [![Settings, Environment page](./images/21_environment.png)](./images/21_environment.png) |
+| Choose the Pi config folder UnityRail uses, and set environment variables for the agent, terminals, and MCP servers. | [![Settings, Environment page](./images/21_environment.png)](./images/21_environment.png) |
 
 |  |  |
 |---|---|
@@ -168,7 +168,7 @@ your experience may differ.
 
 |  |  |
 |---|---|
-| Switch ThinkRail's extensions on or off, such as Visualize, which lets the agent draw diagrams, comparisons, and mockups in the chat. | [![Settings, Extensions page](./images/29_extensions.png)](./images/29_extensions.png) |
+| Switch UnityRail's extensions on or off, such as Visualize, which lets the agent draw diagrams, comparisons, and mockups in the chat. | [![Settings, Extensions page](./images/29_extensions.png)](./images/29_extensions.png) |
 
 |  |  |
 |---|---|
@@ -186,19 +186,19 @@ your experience may differ.
 
 ## Other features, not pictured here
 
-Some features don't fit in a single screenshot, for example that in ThinkRail the agent asks you multiple-choice 
+Some features don't fit in a single screenshot, for example that in UnityRail the agent asks you multiple-choice 
 questions in the chat instead of guessing what you want, and that it can display mockups for "before" and "after" right 
 in the conversation, when working on diagrams, infographics, icons, etc. There is also the **Cmd/Ctrl+K** key shortcut 
 that takes you to the chat waiting for you; the approval prompt on MCP calls that may change data; the full Plan page, 
 where each finished step shows its summary and verification; and the top bar actions which you can use to publish 
-your branch, open a pull request, and show its CI checks. The [ThinkRail 0.2.0 post](/blog/thinkrail-0-2-0-review-the-turn/) discusses some of those 
+your branch, open a pull request, and show its CI checks. The [UnityRail 0.2.0 post](/blog/thinkrail-0-2-0-review-the-turn/) discusses some of those 
 features in more detail.
 
-## Try out ThinkRail
+## Try out UnityRail
 
-Grab the desktop app below, or see the rest of what ThinkRail does on [**our main webpage**](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=gui-overview).
+Grab the desktop app below, or see the rest of what UnityRail does on [**our main webpage**](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=gui-overview).
 
-Find us on social media platforms: [**X/Twitter**](https://x.com/ThinkRailAI), [**YouTube**](https://www.youtube.com/@ThinkRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
+Find us on social media platforms: [**X/Twitter**](https://x.com/UnityRailAI), [**YouTube**](https://www.youtube.com/@UnityRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
 You can also browse [**our GitHub repository**](https://github.com/JetBrains/thinkrail),
 take [**our survey**](https://forms.gle/es1ksqAax6hnDWCP8), and join [**our Discord server**](https://thinkrail.ai/discord)
 to say "hi!" and let us know what you think. Your feedback is greatly appreciated.
@@ -209,4 +209,4 @@ Happy developing!
 
 
 
-*ThinkRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*
+*UnityRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*

@@ -1,4 +1,4 @@
-# ThinkRail Blog Author Guide
+# UnityRail Blog Author Guide
 
 This guide documents how to write and publish blog posts for thinkrail.ai/blog.
 
@@ -86,7 +86,7 @@ light/dark themes that follow the site's theme toggle:
 
 ````markdown
 ```typescript
-const greeting: string = "Hello, ThinkRail!";
+const greeting: string = "Hello, UnityRail!";
 console.log(greeting);
 ```
 ````

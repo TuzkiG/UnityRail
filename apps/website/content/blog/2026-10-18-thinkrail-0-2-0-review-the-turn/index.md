@@ -1,5 +1,5 @@
 ---
-title: "ThinkRail 0.2.0: review the turn, not the chat log"
+title: "UnityRail 0.2.0: review the turn, not the chat log"
 slug: thinkrail-0-2-0-review-the-turn
 date: 2026-10-18
 author: rinat-s
@@ -11,7 +11,7 @@ tags:
   - mcp
 ---
 
-[ThinkRail](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=release-0-2-0) 0.2.0 is out. The new release of ThinkRail introduces a few new features that we’ve been working on for some time, as well as a number of fixes and other changes. Here's what I find the most important among them.
+[UnityRail](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=release-0-2-0) 0.2.0 is out. The new release of UnityRail introduces a few new features that we’ve been working on for some time, as well as a number of fixes and other changes. Here's what I find the most important among them.
 
 ## Every turn gets a receipt
 
@@ -29,7 +29,7 @@ Rough edge: the single-turn view is read-only, so Keep only works on the branch 
 
 ## MCP servers, finally
 
-ThinkRail now runs the MCP servers from your `mcp.json` in chats, on pi's built-in engine. **Settings › MCP servers** has presets for Context7, DeepWiki, Linear (read-only), Sentry and Playwright, a form, and a paste-JSON route. Settings stores references only: secrets have to be `${VAR}` or `!command`, and it refuses credentials pasted into URLs. Servers a repository ships in `.pi/mcp.json` don't start until you approve exactly what they'll run.
+UnityRail now runs the MCP servers from your `mcp.json` in chats, on pi's built-in engine. **Settings › MCP servers** has presets for Context7, DeepWiki, Linear (read-only), Sentry and Playwright, a form, and a paste-JSON route. Settings stores references only: secrets have to be `${VAR}` or `!command`, and it refuses credentials pasted into URLs. Servers a repository ships in `.pi/mcp.json` don't start until you approve exactly what they'll run.
 
 ![The MCP approval prompt on the tool card](./images/02-mcp-approval.png)
 
@@ -67,7 +67,7 @@ Projects, Specs, Files, Changes and Review moved to edge tool rails. The layout 
 
 - The design interview is back by default: every feature, behavior change or bug fix starts with the agent questioning you and updating the specs. It also has to show you the alternatives it rejected instead of deciding silently.
 - Untrusted projects no longer load their own `.pi` settings, extensions, skills, prompts or `SYSTEM.md`, and the trust notice names what trusting would load.
-- **Settings › Extensions** lists ThinkRail's extensions with an on/off switch each.
+- **Settings › Extensions** lists UnityRail's extensions with an on/off switch each.
 - Subagents per chat are a setting now (1–16, default 4), globally and per workspace, and changes apply to running chats.
 - Rename projects from the project's context menu.
 - Chats reopen even when their saved model is unavailable. They fall back to your current default, and the saved model only changes if you send a message.
@@ -79,9 +79,9 @@ Thanks to everyone who sent PRs, and welcome to first-time contributors [@zhurav
 
 ## Try it
 
-Grab the desktop app below, or see the rest of what ThinkRail does on [**our main webpage**](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=release-0-2-0). The full list of changes is in the [**v0.2.0 release notes**](https://github.com/JetBrains/thinkrail/releases/tag/v0.2.0).
+Grab the desktop app below, or see the rest of what UnityRail does on [**our main webpage**](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=release-0-2-0). The full list of changes is in the [**v0.2.0 release notes**](https://github.com/JetBrains/thinkrail/releases/tag/v0.2.0).
 
-Find us on social media platforms: [**X/Twitter**](https://x.com/ThinkRailAI), [**YouTube**](https://www.youtube.com/@ThinkRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
+Find us on social media platforms: [**X/Twitter**](https://x.com/UnityRailAI), [**YouTube**](https://www.youtube.com/@UnityRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
 You can also browse [**our GitHub repository**](https://github.com/JetBrains/thinkrail),
 take [**our survey**](https://forms.gle/es1ksqAax6hnDWCP8), and join [**our Discord server**](https://thinkrail.ai/discord)
 to say "hi!" and let us know what you think. Your feedback is greatly appreciated.
@@ -92,4 +92,4 @@ Happy developing!
 
 
 
-*ThinkRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*
+*UnityRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*

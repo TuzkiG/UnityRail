@@ -1,0 +1,18 @@
+<svg width="1180" height="220" viewBox="0 0 1180 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+	<title>UnityRail</title>
+	<defs>
+		<linearGradient id="ur-grad" x1="0" y1="0" x2="1180" y2="220" gradientUnits="userSpaceOnUse">
+			<stop offset="0" stop-color="#A3FF5E" />
+			<stop offset="1" stop-color="#59D915" />
+		</linearGradient>
+	</defs>
+	<text
+		x="4"
+		y="166"
+		fill="url(#ur-grad)"
+		font-family="Orbitron, Geist, Inter, system-ui, sans-serif"
+		font-size="176"
+		font-weight="600"
+		letter-spacing="-2"
+	>UnityRail</text>
+</svg>

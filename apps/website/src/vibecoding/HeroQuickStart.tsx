@@ -27,13 +27,13 @@ export function HeroQuickStart() {
 		<div className="flex flex-col gap-3">
 			<p className="label-mono">Quick start</p>
 
-			<StepCard title="Install ThinkRail">
+			<StepCard title="Install UnityRail">
 				<InstallPicker />
 			</StepCard>
 
 			<StepCard
 				title="Open your project"
-				description="Launch ThinkRail and choose a Git repository."
+				description="Launch UnityRail and choose a Git repository."
 			/>
 
 			<StepCard

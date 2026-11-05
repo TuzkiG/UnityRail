@@ -11,7 +11,7 @@ references: [module-workflow-tests, module-pi-ask-user-question, module-ext-ask-
 
 ## Responsibility
 
-`pi-thinkrail-workflow` is a pi extension that ships ThinkRail's **workflow system** — skills that
+`pi-thinkrail-workflow` is a pi extension that ships UnityRail's **workflow system** — skills that
 codify how the agent should *run a piece of work*. (Contrast: `pi-spec-graph` defines what the spec
 model *is*; `visualize` is a rendering tool.) It contributes exactly two things, wired by the
 `package.json` pi manifest (`pi: { extensions: ["./index.ts"], skills: ["./skills"] }`):
@@ -60,19 +60,19 @@ dispatcher to load rather than relying on description-matching (see [[module-web
   tool *name* (`ask_user_question`, `spec_*`), never by import.
 - **Workspace-internal, no longer tied to a host-only tool.** The skill content reaches capabilities by
   tool *name* only: `spec_*` from the portable `pi-spec-graph`, and `ask_user_question` from the portable
-  `@thinkrail/pi-ask-user-question` package ([[module-pi-ask-user-question]]) — composed into ThinkRail by
+  `@thinkrail/pi-ask-user-question` package ([[module-pi-ask-user-question]]) — composed into UnityRail by
   [[module-ext-ask-user-question]], installable from npm in vanilla `pi`. When the tool is absent
   (switched off in Settings → Extensions, or never installed), `asking-user-questions` asks the round as a
   plain chat message and ends the turn, so no workflow blocks on it. The package still does not claim to
-  run under vanilla `pi` — it is unpublished and staged only by ThinkRail — and it stays its own package
+  run under vanilla `pi` — it is unpublished and staged only by UnityRail — and it stays its own package
   rather than folding into `packages/server` for the same reason `packages/shared` isn't folded into
   `server`: a `SKILL.md` has no runtime coupling to the WS/session layer — it only needs a path handed to
   `additionalSkillPaths`.
 - **The authoring checklist ships with the product — deliberately.** `writing-workflow-skills` is
-  dev-facing (it edits this package), yet it stages into every ThinkRail project like the rest of the
+  dev-facing (it edits this package), yet it stages into every UnityRail project like the rest of the
   family: excluding one skill would complicate the staging path for little gain, and its trigger is
   narrow. The skill body carries the corresponding workspace guard — when `packages/pi-thinkrail-workflow`
-  is not in the workspace (a ThinkRail-managed project, where these skills are a read-only staged
+  is not in the workspace (a UnityRail-managed project, where these skills are a read-only staged
   cache), it says so in one line and stops; the family is extended only at its source, the thinkrail
   repo.
 

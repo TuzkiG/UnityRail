@@ -25,8 +25,8 @@ test("selects real Bun and preserves the physical runtime resources without reti
 	expect(result.exitCode).toBe(0);
 	const config = JSON.parse(result.stdout.toString());
 	expect(config.app).toEqual({
-		name: "ThinkRail",
-		identifier: "ai.thinkrail.app",
+		name: "UnityRail",
+		identifier: "ai.unityrail.app",
 		version,
 	});
 	expect(config.runtime).toEqual({ exitOnLastWindowClosed: true });

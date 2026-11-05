@@ -67,7 +67,7 @@ export function Isolation() {
 						Parallel workspaces.&nbsp;
 					</h2>
 					<Subtitle className="mt-6">
-						No more switching branches back and forth. ThinkRail uses local Git worktrees so
+						No more switching branches back and forth. UnityRail uses local Git worktrees so
 						concurrent tasks can work in separate directories and branches without sharing a dirty
 						index or overwriting one another's files.
 					</Subtitle>

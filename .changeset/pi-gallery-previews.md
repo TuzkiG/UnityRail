@@ -4,4 +4,4 @@
 ---
 
 The pi.dev gallery now shows a short terminal demo of each package, and the package description names
-ThinkRail as an example host.
+UnityRail as an example host.

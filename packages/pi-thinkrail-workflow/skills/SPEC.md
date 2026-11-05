@@ -317,7 +317,7 @@ follows is only the rationale the skill bodies don't state:
   `starting-a-new-project`'s saved shape was later revised (2026-09): the V1-features and MVP-scope
   (`In v1` / `Out of v1`) sections gave way to Capabilities + Non-goals, and finalizing flips
   `draft → active` instead of `done`. A version-split goal doc goes stale the moment work ships:
-  ThinkRail's own V1/V2 goal doc accumulated "ships in V1 as …" carve-outs, and agents read its "not in
+  UnityRail's own V1/V2 goal doc accumulated "ships in V1 as …" carve-outs, and agents read its "not in
   V1" list as a prohibition against work being built. MVP discipline survives as elicitation (smallest
   useful first build); what is cut goes back to the user rather than into a later-list.
 - **`asking-user-questions`** carries the family's `ask_user_question` norms once: rounds, option

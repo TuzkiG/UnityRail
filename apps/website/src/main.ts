@@ -182,7 +182,7 @@ if (terminal && termScreen) {
 		await drawLines(
 			[
 				`⬇ thinkrail latest (${INSTALL_TARGET[selection.platform]}) · sha256 verified ✓`,
-				"✓ installed — starting ThinkRail …",
+				"✓ installed — starting UnityRail …",
 			],
 			"term-out",
 			420,

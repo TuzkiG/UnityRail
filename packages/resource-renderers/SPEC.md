@@ -563,7 +563,7 @@ content's own height.
   the **preview** tab through the shared **`openFileInTab`** (the same flow `FileTree` uses) — following a
   link is browsing, so the slot is reused rather than promoting the source doc the way VS Code does; an
   accepted file target is a button styled as document-link text, never an anchor with a raw relative
-  `href`, because that URL is not a ThinkRail route and native navigation would escape to the Main page;
+  `href`, because that URL is not a UnityRail route and native navigation would escape to the Main page;
   URL pathnames are decoded once and both path-separator forms are normalized before resolution, while
   malformed encoding and traversal above the worktree root produce an inert control instead of opening the
   wrong file; the slot is the slot, whatever

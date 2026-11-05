@@ -24,7 +24,7 @@ and process-boot logic lives in `packages/server`.
    logging, repairs the login-shell environment, initializes the current PI runtime/Central watcher,
    resolves a free serving port at or above the requested one, and embeds the host in this Bun process. Another CLI or desktop
    host using the same data directory does not block startup; each process serves its own endpoint.
-4. On interactive stdout render the shared recursive ThinkRail startup mark with honest `host ready`
+4. On interactive stdout render the shared recursive UnityRail startup mark with honest `host ready`
    status + the resolved endpoint, retain the parse-stable `thinkrail → <url>` line, and open the browser
    there (cross-platform: `open` / `start` / `xdg-open`, best-effort), unless `--no-open`. Exit-only
    commands and redirected output omit the mark.
@@ -87,7 +87,7 @@ installation, then its baked channel. A source invocation without a running bina
   minefield) hands the installer's own params through argv. All three params are passed **always**,
   including `-Version latest`: install.ps1's params *default from the `THINKRAIL_*` env vars*, which the
   child would inherit, so being explicit is what makes an update deterministic for a user who has one
-  set. Replacing the *running* exe works because install.ps1's `Install-ThinkRailBinary` renames a locked
+  set. Replacing the *running* exe works because install.ps1's `Install-UnityRailBinary` renames a locked
   `thinkrail.exe` aside to `thinkrail.exe.<rand>.old` (Windows refuses to *delete* a running image but
   permits *renaming* it) and drops the fresh one in; the next install sweeps the leftover.
 
@@ -137,7 +137,7 @@ worktrees and any uncommitted work in them. pi's own state (`~/.pi`) is never to
   user's own `C:/…/bin` entry counts as already present: install never appends a duplicate it would then
   record as its own, which the uninstaller would remove together with the user's entry. The edit itself runs
   as an embedded PowerShell script —
-  the exact inverse of install.ps1's `Add-ThinkRailToUserPath` (same `HKCU\Environment` handling,
+  the exact inverse of install.ps1's `Add-UnityRailToUserPath` (same `HKCU\Environment` handling,
   preserving the value's `REG_EXPAND_SZ` kind, comparing entries raw *and* `%VAR%`-expanded, then
   broadcasting `WM_SETTINGCHANGE`) — because round-tripping a raw PATH value through a pipe would risk
   mangling non-ASCII entries in the console code page.
@@ -194,7 +194,7 @@ and `trash`'s **native helper sidecars** (which macOS/Windows must execute from 
 - `scripts/build-binary.ts` consumes `@thinkrail/server/build-support`, writes three **transient** generated modules, runs
   `bun build --compile --no-compile-autoload-bunfig --bytecode --format=esm --sourcemap --target=<host|--target>` on
   `src/compiled-entry.ts`, then deletes them (so the artifact cannot execute a project-local
-  `bunfig.toml` preload before ThinkRail boots, and the working tree + `tsc` stay clean); each generated
+  `bunfig.toml` preload before UnityRail boots, and the working tree + `tsc` stay clean); each generated
   module has a committed `.d.ts` type contract `tsc` resolves against
   when the `.ts` is absent:
   - `src/web-assets.generated.ts` — enumerates `apps/web/dist`: a Bun file-attribute import per asset +
@@ -202,7 +202,7 @@ and `trash`'s **native helper sidecars** (which macOS/Windows must execute from 
   - `src/bundled-extensions.generated.ts` — **value-imports the three bundled pi-package entries**
     (`pi-spec-graph`, `pi-thinkrail-workflow`, `pi-todos`), resolved from the
     *server package's* module context (absolute paths — they aren't deps of `cli`), so Bun compiles the
-    raw `.ts` and their real deps (`yaml`, …) into the binary. ThinkRail extensions listed in the server
+    raw `.ts` and their real deps (`yaml`, …) into the binary. UnityRail extensions listed in the server
     registry ([[submodule-server-extensions]]) get no generated entry — `@thinkrail/server` imports them
     statically, so `bun build --compile` carries them (and their deps such as `linkedom`, or
     `pi-web-access` with `unpdf`) through the normal server graph. Plus every `BuildRuntimeSources.skillRoots`
@@ -293,7 +293,7 @@ and `trash`'s **native helper sidecars** (which macOS/Windows must execute from 
   (recorded as a skipped dir in the script, stale-checked like the allowlist): pi ≥ 0.84.3 ships a bundled
   runtime there for its own CLI `bin` and `./rpc-entry` export — the only two ways to reach it — while the
   in-process library import (`.` → `dist/index.js`) stays on the modular runtime, so the bundle's opaque
-  imports (content-hashed chunk duplicates of the allowlisted modular seams) are dead code in ThinkRail and
+  imports (content-hashed chunk duplicates of the allowlisted modular seams) are dead code in UnityRail and
   allowlisting them by chunk name would churn on every pi release.
 - **The smoke's fixtures are host-OS-shaped, not POSIX-shaped.** Every one of them was a Windows failure
   in a green-on-Linux suite:

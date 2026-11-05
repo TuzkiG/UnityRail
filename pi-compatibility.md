@@ -38,7 +38,7 @@ removed (entry below). Every other adaptation stays, with this evidence:
 - `pi.exec()` gained `maxBuffer`/`truncated`; `Usage.cost.totalFromProvider` marks billed totals; the
   extension view that pi maps `@earendil-works/pi-ai` to for extensions re-adds TypeBox's `Type`. The
   host relies on pi's own virtual-module map, so bundled artifacts need no change. pi-ai's root no longer
-  exports TypeBox; ThinkRail extensions import `typebox` directly and build string enums themselves.
+  exports TypeBox; UnityRail extensions import `typebox` directly and build string enums themselves.
 - `DefaultPackageManager.resolve()` no longer throws when a declared package fails to install: it skips
   the package and reports `installFailures`, which the loader turns into startup warnings. The host's
   catalog still resolves with `onMissing → skip` and installs through `install()`, which still throws. A
@@ -210,7 +210,7 @@ apart from the recorded selection. Run the manager's restart regressions on upgr
   - path extensions (user packages) load before inline factories;
   - tool conflicts are reported only between extensions, before the override runs.
 
-  The override moves a ThinkRail registry extension ahead of the first user package registering one of
+  The override moves a UnityRail registry extension ahead of the first user package registering one of
   its tool names, so a same-name package such as rpiv's `ask_user_question` cannot take over the card,
   mailbox and repair that key on the name. Remove it when pi offers an inline-extension precedence or
   replace option. Re-verify the three facts in the installed dist, and run the collision tests in
@@ -330,7 +330,7 @@ the limitations must persist. Do not compensate with host retries or compaction-
 ## Not temporary SDK workarounds
 
 Project-server approvals, private project/chat overrides, confirmation policy, credential masking,
-wire capability checks and React presentation are deliberate ThinkRail behavior. Their owners are
+wire capability checks and React presentation are deliberate UnityRail behavior. Their owners are
 [[submodule-server-agent-mcp]] and [[submodule-server-agent]]. A pi upgrade does not silently remove
 or weaken them. Reusing an upstream policy is a separate compatibility/product decision, not an
 assumption that similarly named APIs have identical semantics.

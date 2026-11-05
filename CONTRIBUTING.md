@@ -1,6 +1,6 @@
-# Contributing to ThinkRail
+# Contributing to UnityRail
 
-Thanks for your interest in ThinkRail! Contributions of all kinds are welcome — bug
+Thanks for your interest in UnityRail! Contributions of all kinds are welcome — bug
 reports, fixes, features, docs, and feedback.
 
 By contributing, you agree that your contributions will be licensed under the
@@ -44,7 +44,7 @@ bun run desktop:build                # package without opening it
 ```
 
 Desktop commands use the standard Electrobun CLI/configuration. Its pre-build hook builds the shared UI
-and stages ThinkRail's PI/native resources; Electrobun owns preload bundling and installer creation.
+and stages UnityRail's PI/native resources; Electrobun owns preload bundling and installer creation.
 Create host-native installers with `bun run desktop:package:stable` or `bun run desktop:package:canary`;
 `canary` is Electrobun's internal name for the public **nightly** channel. Native/installer smoke and shared
 CLI/desktop probes live in `packages/artifact-tests`, outside the application packages. Run
@@ -92,7 +92,7 @@ and run against a real provider on an **isolated** `pi` agent dir — never your
 
 ## Module boundaries
 
-ThinkRail is built as a set of clearly bounded, fractal modules: each package is a
+UnityRail is built as a set of clearly bounded, fractal modules: each package is a
 module, and directories inside a package are modules too. A sub-module exposes its
 public surface through an `index.ts` barrel; siblings import through that barrel,
 never its internals. Every module has a `SPEC.md` that states what it owns, what it
@@ -101,7 +101,7 @@ cover a module's public surface with tests where practical.
 
 ## Specification-driven development
 
-ThinkRail is developed spec-first: hierarchical, interconnected specs live in the
+UnityRail is developed spec-first: hierarchical, interconnected specs live in the
 repo alongside the code — top-level specs at the root
 ([`goal-and-requirements.md`](goal-and-requirements.md),
 [`architecture.md`](architecture.md)) and a co-located `SPEC.md` for every module.
@@ -111,7 +111,7 @@ it. See [`AGENTS.md`](AGENTS.md) for the spec workflow.
 
 ## Translations
 
-ThinkRail's interface strings live in one file,
+UnityRail's interface strings live in one file,
 [`packages/locales/en.json`](packages/locales/en.json): a flat JSON object of named keys
 (`"settings.language.title": "Language"`). A translation is the same file with the values translated.
 
@@ -129,7 +129,7 @@ ThinkRail's interface strings live in one file,
    `"tools.read.firstLines_few": "первые {{count}} строки"`,
    `"tools.read.firstLines_many": "первые {{count}} строк"`. Each form may show `{{count}}` or leave it
    out; a form you skip falls back to your `_other`, so a counter never switches to English.
-4. Open **Settings → Language** and pick your language. ThinkRail reloads the file every time you save,
+4. Open **Settings → Language** and pick your language. UnityRail reloads the file every time you save,
    and the page shows a problem with the file if it can't be read.
 
 To ship a translation built-in for everyone, open a pull request that adds it as

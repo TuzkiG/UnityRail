@@ -1,5 +1,5 @@
 ---
-title: ThinkRail Workspaces
+title: UnityRail Workspaces
 slug: thinkrail-workspaces
 date: 2026-09-03
 author: maciej-gorywoda
@@ -9,7 +9,7 @@ tags:
   - workspace
 ---
 
-When you start a project in ThinkRail, you have two options: work directly in the project folder or create a new workspace. 
+When you start a project in UnityRail, you have two options: work directly in the project folder or create a new workspace. 
 Working directly on the project folder means that all changes will immediately affect the current git branch. 
 This is straightforward but can also be unsafe. Unsaved changes may be removed by the AI agent. Saved changes could 
 still be overwritten if the agent has permissions to perform certain git operations.
@@ -30,7 +30,7 @@ are safely contained and will only be propagated to the parent branch when you r
 
 <iframe src="https://youtube.com/embed/RhxFnVy9vaU" width="640" height="360" allow="autoplay" allowfullscreen></iframe>
 
-ThinkRail uses `git worktree` functionality to create and manage these isolated environments. You can read more about 
+UnityRail uses `git worktree` functionality to create and manage these isolated environments. You can read more about 
 git worktrees [here](https://git-scm.com/docs/git-worktree).
 
 ## Work safely on many tasks at the same time
@@ -48,8 +48,8 @@ from the terminal.
 
 <iframe src="https://www.youtube.com/embed/rJDV4qrLZlo" width="640" height="360" allow="autoplay" allowfullscreen></iframe>
 
-That is all for now. To try out ThinkRail, visit [**our main webpage**](https://jb.gg/osk2n7) and follow the installation 
-instructions. Find us on social media platforms: [**X/Twitter**](https://x.com/ThinkRailAI), [**YouTube**](https://www.youtube.com/@ThinkRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
+That is all for now. To try out UnityRail, visit [**our main webpage**](https://jb.gg/osk2n7) and follow the installation 
+instructions. Find us on social media platforms: [**X/Twitter**](https://x.com/UnityRailAI), [**YouTube**](https://www.youtube.com/@UnityRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
 You can also browse [**our GitHub repository**](https://github.com/JetBrains/thinkrail), 
 take [**our survey**](https://forms.gle/es1ksqAax6hnDWCP8), and join [**our Discord server**](https://thinkrail.ai/discord) 
 to say "hi!" and let us know what you think. Your feedback is greatly appreciated.
@@ -60,4 +60,4 @@ Happy developing!
 
 
 
-*ThinkRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*
+*UnityRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*

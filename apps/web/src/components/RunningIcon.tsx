@@ -8,61 +8,18 @@ const FRAME_HALVES = [
 	"M20 225 V650 A90 90 0 0 0 110 740 H650 A90 90 0 0 0 740 650 V548",
 ] as const;
 
-const STROKES: ReadonlyArray<{
-	d: string;
-	join: "miter" | "round";
-	width: number;
-	clip: keyof typeof BRAND_MARK_SEGMENTS;
-	className: string;
-}> = [
-	{
-		d: "M0 20 H312",
-		join: "miter",
-		width: 40,
-		clip: "tHorizontal",
-		className: "motion-safe:animate-loader-t-bar",
-	},
-	{
-		d: "M0 90 H130 V449.5",
-		join: "miter",
-		width: 40,
-		clip: "tVertical",
-		className: "motion-safe:animate-loader-t-stem",
-	},
-	{
-		d: "M340 20 H401 C444.6 20 481 55.5 481 98.5 V190 C481 235 462 272 432 290 L540 466",
-		join: "round",
-		width: 46,
-		clip: "rUpperTail",
-		className: "motion-safe:animate-loader-r-tail",
-	},
-	{
-		d: "M200 449.5 V321 C200 270 245 228 304 228 H374 C394 228 410 213 410 194 V120 C410 102 398 90 380 90 H180",
-		join: "miter",
-		width: 44,
-		clip: "rBowl",
-		className: "motion-safe:animate-loader-r-bowl",
-	},
-	{
-		d: "M200 335 V140",
-		join: "miter",
-		width: 40,
-		clip: "rBowl",
-		className: "motion-safe:animate-loader-r-stem",
-	},
-	{
-		d: "M269 449.5 V332 C269 312 285 300 305 300 H350 L457 466",
-		join: "miter",
-		width: 46,
-		clip: "rLowerLeg",
-		className: "motion-safe:animate-loader-r-leg",
-	},
+/** The mark's own cube faces and rail centre lines, stroked inside the 760-unit loader frame. */
+const STROKES: ReadonlyArray<{ d: string; width: number; className: string }> = [
+	{ d: BRAND_MARK_SEGMENTS.topFace, width: 26, className: "animate-loader-t-bar" },
+	{ d: BRAND_MARK_SEGMENTS.leftFace, width: 26, className: "animate-loader-r-bowl" },
+	{ d: BRAND_MARK_SEGMENTS.rightFace, width: 26, className: "animate-loader-r-tail" },
+	{ d: BRAND_MARK_SEGMENTS.leftRail, width: 40, className: "animate-loader-t-stem" },
+	{ d: BRAND_MARK_SEGMENTS.rightRail, width: 40, className: "animate-loader-r-leg" },
 ];
 
 export function RunningIcon({ className }: { className?: string | undefined }) {
 	const t = useT();
 	const id = useId();
-	const clipId = (name: string) => `${id}-${name}`;
 
 	return (
 		<span
@@ -72,14 +29,7 @@ export function RunningIcon({ className }: { className?: string | undefined }) {
 			aria-label={t("components.runningIcon.label")}
 			className={cn("inline-flex shrink-0 items-center justify-center", className)}
 		>
-			<svg aria-hidden="true" viewBox="0 0 760 760" className="size-full">
-				<defs>
-					{Object.entries(BRAND_MARK_SEGMENTS).map(([name, d]) => (
-						<clipPath key={name} id={clipId(name)}>
-							<path d={d} />
-						</clipPath>
-					))}
-				</defs>
+			<svg aria-hidden="true" viewBox="0 0 760 760" className="size-full" data-icon-id={id}>
 				{FRAME_HALVES.map((d) => (
 					<path
 						key={d}
@@ -94,7 +44,7 @@ export function RunningIcon({ className }: { className?: string | undefined }) {
 						className="motion-safe:animate-loader-frame"
 					/>
 				))}
-				<g transform="translate(101.5 155)">
+				<g transform="translate(-81 23) scale(0.9)">
 					{STROKES.map((stroke) => (
 						<path
 							key={stroke.d}
@@ -102,11 +52,11 @@ export function RunningIcon({ className }: { className?: string | undefined }) {
 							fill="none"
 							stroke="currentColor"
 							strokeWidth={stroke.width}
-							strokeLinejoin={stroke.join}
+							strokeLinejoin="round"
+							strokeLinecap="round"
 							strokeDasharray="1000 1000"
 							pathLength="1000"
-							clipPath={`url(#${clipId(stroke.clip)})`}
-							className={stroke.className}
+							className={`motion-safe:${stroke.className}`}
 						/>
 					))}
 				</g>

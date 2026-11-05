@@ -1,4 +1,4 @@
-# ThinkRail
+# UnityRail
 
 The agentic IDE that gets better every time you use it, built around the `pi` coding agent. The app is
 a thin host that runs `pi` and bridges it to a rich UI; `pi` owns models, skills, compaction, cost, and
@@ -55,7 +55,7 @@ Clear, fractal module boundaries are a top-priority requirement:
   continuations may follow an attempt-level `agent_end`.
 - UI panels are layout-agnostic; the shell arranges them.
 - Errors are reported to PostHog Error Tracking unconditionally, but only as a classifier — type, `code`,
-  source/scope/request method and ThinkRail-only stack frames — never `message` text. Give a failure worth
+  source/scope/request method and UnityRail-only stack frames — never `message` text. Give a failure worth
   telling apart a `CodedError` code rather than relying on its message. Host diagnostics that carry an
   error go through `logger(scope)`, not `console.*`. The allow-list lives in
   `packages/server/src/analytics/SPEC.md`.

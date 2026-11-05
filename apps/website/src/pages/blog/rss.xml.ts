@@ -5,8 +5,8 @@ import { postPath, publishedPosts } from "../../blogCollection";
 export async function GET(context: APIContext) {
 	const posts = await publishedPosts();
 	return rss({
-		title: "ThinkRail Blog",
-		description: "Updates, tutorials, and insights from the ThinkRail team.",
+		title: "UnityRail Blog",
+		description: "Updates, tutorials, and insights from the UnityRail team.",
 		site: context.site ?? "https://thinkrail.ai",
 		items: posts.map((post) => ({
 			title: post.data.title,

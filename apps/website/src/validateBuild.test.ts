@@ -17,7 +17,7 @@ describe("relativeLinkTargets", () => {
 		expect(
 			relativeLinkTargets(
 				"blog/gui-overview/index.html",
-				'<a href="/blog/"><a href="https://x.com/ThinkRailAI"><a href="mailto:a@b.c"><a href="#top">',
+				'<a href="/blog/"><a href="https://x.com/UnityRailAI"><a href="mailto:a@b.c"><a href="#top">',
 			),
 		).toEqual([]);
 	});

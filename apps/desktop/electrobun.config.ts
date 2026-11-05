@@ -7,15 +7,18 @@ const bun = { entrypoint: "src/index.ts", version: "1.4.4" };
 
 export default {
 	app: {
-		name: "ThinkRail",
-		identifier: "ai.thinkrail.app",
+		name: "UnityRail",
+		identifier: "ai.unityrail.app",
 		version,
 	},
 	runtime: {
 		exitOnLastWindowClosed: true,
 	},
+	// This fork publishes no update feed of its own. An empty base URL keeps the native updater disabled
+	// (`nativeUpdatesEnabled` refuses it), so the app never advertises upstream UnityRail releases it
+	// cannot install.
 	release: {
-		baseUrl: "https://github.com/JetBrains/thinkrail/releases/download/desktop-updates",
+		baseUrl: "",
 		generatePatch: false,
 	},
 	build: {

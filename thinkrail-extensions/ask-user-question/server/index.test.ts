@@ -63,7 +63,7 @@ const text = (result: { content: { text: string }[] }) =>
 	result.content.map((block) => block.text).join("");
 
 describe("the ask-user-question server half", () => {
-	test("is a session-only extension that registers the tool with ThinkRail's wording", () => {
+	test("is a session-only extension that registers the tool with UnityRail's wording", () => {
 		expect(askUserQuestion.name).toBe("ask-user-question");
 		expect(askUserQuestion.extensions).toEqual([]);
 		const { tool, factories } = compose(async () => ({ kind: "deferred" }));

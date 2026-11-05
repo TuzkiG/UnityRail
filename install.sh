@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ThinkRail binary installer — downloads the single-file `thinkrail` executable for your platform from
+# UnityRail binary installer — downloads the single-file `thinkrail` executable for your platform from
 # the GitHub releases, verifies its checksum, and puts it on your PATH.
 #
 #   curl -fsSL https://raw.githubusercontent.com/JetBrains/thinkrail/main/install.sh | bash
@@ -28,7 +28,7 @@ MODIFY_PATH=1
 
 usage() {
     cat >&2 <<'EOF'
-ThinkRail binary installer.
+UnityRail binary installer.
 
 Usage:
   curl -fsSL https://raw.githubusercontent.com/JetBrains/thinkrail/main/install.sh | bash
@@ -306,11 +306,11 @@ DEST="$BIN_DIR/thinkrail"
 [ "$OS" = "windows" ] && DEST="$BIN_DIR/thinkrail.exe"
 STAGED_BINARY=$(mktemp "$BIN_DIR/.thinkrail.new.XXXXXX")
 if ! cp "$TMP/$ASSET_NAME" "$STAGED_BINARY"; then
-    echo "Failed to stage ThinkRail in $BIN_DIR; the previous executable was left unchanged." >&2
+    echo "Failed to stage UnityRail in $BIN_DIR; the previous executable was left unchanged." >&2
     exit 1
 fi
 if ! chmod +x "$STAGED_BINARY"; then
-    echo "Failed to make the staged ThinkRail executable runnable; the previous executable was left unchanged." >&2
+    echo "Failed to make the staged UnityRail executable runnable; the previous executable was left unchanged." >&2
     exit 1
 fi
 if ! mv -f "$STAGED_BINARY" "$DEST"; then
@@ -340,7 +340,7 @@ fi
 META_TMP=""
 
 echo
-echo "ThinkRail ${TAG#v} ($CHANNEL) installed."
+echo "UnityRail ${TAG#v} ($CHANNEL) installed."
 
 PATH_NEEDS_MANUAL_ADD=0
 case ":$PATH:" in
@@ -390,7 +390,7 @@ case ":$PATH:" in
                     END { exit (bad || in_block) ? 1 : 0 }
                 ' "$rc_file" 2>/dev/null; then
                     markers_valid=0
-                    echo "PATH:           warning: malformed ThinkRail PATH markers in $rc_file; left it unchanged" >&2
+                    echo "PATH:           warning: malformed UnityRail PATH markers in $rc_file; left it unchanged" >&2
                     PATH_NEEDS_MANUAL_ADD=1
                 fi
 

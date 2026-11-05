@@ -45,13 +45,13 @@ test("the splash message names a pending update target or a plain start", () => 
 	expect(splashMessage(DEFAULT_DIALOG_LABELS, "0.3.0-nightly.4")).toBe(
 		"Finishing update to 0.3.0-nightly.4…",
 	);
-	expect(splashMessage(DEFAULT_DIALOG_LABELS, null)).toBe("Starting ThinkRail…");
+	expect(splashMessage(DEFAULT_DIALOG_LABELS, null)).toBe("Starting UnityRail…");
 	const translated = readDialogLabels({
 		"desktop.splash.finishingUpdate": "Update auf {{version}} wird abgeschlossen…",
-		"desktop.splash.starting": "ThinkRail startet…",
+		"desktop.splash.starting": "UnityRail startet…",
 	});
 	expect(splashMessage(translated, "0.4.0")).toBe("Update auf 0.4.0 wird abgeschlossen…");
-	expect(splashMessage(translated, null)).toBe("ThinkRail startet…");
+	expect(splashMessage(translated, null)).toBe("UnityRail startet…");
 	expect(splashDocument("<b>&")).toContain("&lt;b&gt;&amp;");
 	expect(splashDocument("x")).toContain("prefers-color-scheme: light");
 });
@@ -59,7 +59,7 @@ test("the splash message names a pending update target or a plain start", () => 
 test("the splash is a centered data URL window that resolves on its own dom-ready", async () => {
 	const window = fakeWindow(false);
 	let opened = false;
-	const pending = openStartupSplash(window.create, "Starting ThinkRail…", 10_000).then((splash) => {
+	const pending = openStartupSplash(window.create, "Starting UnityRail…", 10_000).then((splash) => {
 		opened = true;
 		return splash;
 	});
@@ -69,7 +69,7 @@ test("the splash is a centered data URL window that resolves on its own dom-read
 	const splash = await pending;
 	const options = window.options();
 	expect(options?.url.startsWith("data:text/html;charset=utf-8,")).toBe(true);
-	expect(decodeURIComponent(options?.url ?? "")).toContain("Starting ThinkRail…");
+	expect(decodeURIComponent(options?.url ?? "")).toContain("Starting UnityRail…");
 	expect(options?.titleBarStyle).toBe("hidden");
 	splash.hide();
 	splash.close();
@@ -81,13 +81,13 @@ test("the splash is a centered data URL window that resolves on its own dom-read
 test("a splash that never reports readiness stops blocking startup after the bound", async () => {
 	const window = fakeWindow(false);
 	const started = performance.now();
-	await openStartupSplash(window.create, "Starting ThinkRail…", 30);
+	await openStartupSplash(window.create, "Starting UnityRail…", 30);
 	expect(performance.now() - started).toBeGreaterThanOrEqual(25);
 });
 
 test("a splash the user closed natively is never closed or hidden again", async () => {
 	const window = fakeWindow(true);
-	const splash = await openStartupSplash(window.create, "Starting ThinkRail…");
+	const splash = await openStartupSplash(window.create, "Starting UnityRail…");
 	window.closeNatively();
 	splash.hide();
 	splash.close();
@@ -111,7 +111,7 @@ function fakeMainWindow() {
 
 test("the splash hands off to a ready main window and activates it once", async () => {
 	const splashWindow = fakeWindow(true);
-	const splash = await openStartupSplash(splashWindow.create, "Starting ThinkRail…");
+	const splash = await openStartupSplash(splashWindow.create, "Starting UnityRail…");
 	const main = fakeMainWindow();
 	const release = handOffStartupSplash(splash, main.window);
 	release();
@@ -123,7 +123,7 @@ test("the splash hands off to a ready main window and activates it once", async 
 
 test("closing the main window before it is ready closes the splash so the app can quit", async () => {
 	const splashWindow = fakeWindow(true);
-	const splash = await openStartupSplash(splashWindow.create, "Starting ThinkRail…");
+	const splash = await openStartupSplash(splashWindow.create, "Starting UnityRail…");
 	const main = fakeMainWindow();
 	const release = handOffStartupSplash(splash, main.window);
 	main.close();

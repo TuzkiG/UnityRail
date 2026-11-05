@@ -34,7 +34,7 @@ export async function shareInstallLink(
 ): Promise<InstallLinkShareResult> {
 	if (nav.share) {
 		try {
-			await nav.share({ title: "ThinkRail", text: "Install ThinkRail on my computer", url });
+			await nav.share({ title: "UnityRail", text: "Install UnityRail on my computer", url });
 			return "shared";
 		} catch (error) {
 			if (typeof error === "object" && error !== null && "name" in error) {

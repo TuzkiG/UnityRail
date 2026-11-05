@@ -13,16 +13,16 @@ type Block =
 	| { type: "done" };
 
 const worktreeExchange: Block[] = [
-	{ type: "user", text: "What is a worktree, and why does ThinkRail use them?" },
+	{ type: "user", text: "What is a worktree, and why does UnityRail use them?" },
 	{ type: "activity", text: "read architecture.md · workspace spec" },
 	{
 		type: "says",
-		text: "A worktree is an isolated working directory connected to the same Git repository. ThinkRail uses worktrees so each task can have its own branch, files, terminal, and agent session without interfering with other work.",
+		text: "A worktree is an isolated working directory connected to the same Git repository. UnityRail uses worktrees so each task can have its own branch, files, terminal, and agent session without interfering with other work.",
 	},
 ];
 
 const featureExchange: Block[] = [
-	{ type: "user", text: "How should I start a new feature in ThinkRail?" },
+	{ type: "user", text: "How should I start a new feature in UnityRail?" },
 	{ type: "activity", text: "read specs/ · project graph" },
 	{
 		type: "says",
@@ -53,11 +53,11 @@ const featureExchange: Block[] = [
 
 const SCRIPTS: Record<Positioning, Block[]> = {
 	control: [
-		{ type: "user", text: "What is ThinkRail? Keep it brief." },
+		{ type: "user", text: "What is UnityRail? Keep it brief." },
 		{ type: "activity", text: "read README · specs" },
 		{
 			type: "says",
-			text: "ThinkRail is a worktree IDE for the pi coding agent. It lets you run isolated coding sessions across worktrees, with the editor, terminal, diffs, and specs in one interface.",
+			text: "UnityRail is a worktree IDE for the pi coding agent. It lets you run isolated coding sessions across worktrees, with the editor, terminal, diffs, and specs in one interface.",
 		},
 		...worktreeExchange,
 		...featureExchange,
@@ -68,11 +68,11 @@ const SCRIPTS: Record<Positioning, Block[]> = {
 		{ type: "done" },
 	],
 	compounding: [
-		{ type: "user", text: "What is ThinkRail? Keep it brief." },
+		{ type: "user", text: "What is UnityRail? Keep it brief." },
 		{ type: "activity", text: "read README · specs" },
 		{
 			type: "says",
-			text: "ThinkRail is an agentic IDE built around the pi coding agent — isolated workspaces for every task, and project memory in living specs and reusable skills. The longer we work together, the sharper I get.",
+			text: "UnityRail is an agentic IDE built around the pi coding agent — isolated workspaces for every task, and project memory in living specs and reusable skills. The longer we work together, the sharper I get.",
 		},
 		...worktreeExchange,
 		{ type: "user", text: "How do you get better over time?" },

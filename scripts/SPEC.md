@@ -35,7 +35,7 @@ depends on providers' live endpoints.
 
 The extension boundary follows [[module-thinkrail-extensions]] and is registered from discovered manifests, not a fixed extension-name list:
 
-- Discover workspace roots under `apps/*`, `packages/*`, `pi-extensions/*`, and `thinkrail-extensions/*`. Every discovered pi extension has no host workspace dependencies. Every ThinkRail extension is scanned, including extensions other than the pilot.
+- Discover workspace roots under `apps/*`, `packages/*`, `pi-extensions/*`, and `thinkrail-extensions/*`. Every discovered pi extension has no host workspace dependencies. Every UnityRail extension is scanned, including extensions other than the pilot.
 - Register `packages/ui` and `packages/extension-api` only when present, so the boundary-first delivery does not require future SDK manifests. Both may depend on contracts, never host internals. UI permits per-file public imports; browser consumers of extension-api must use exactly `@thinkrail/extension-api/web`, not its root, server entry, deep paths, or relative bypasses. Server consumers use its public `./server` entry.
 - An extension manifest may declare the union of its halves' dependencies. Its `web/**` sources may use UI, extension-api's public `./web`, and contracts; its `server/**` sources may use extension-api's public `./server` and its corresponding `pi-extensions/<name>` package. Neither half may import the other, even within the same package, with relative paths, or with type-only syntax. Extension code may not import host internals.
 - `apps/web` may consume only the exact public `@thinkrail/ext-*/web` entry of a discovered extension; `packages/server` only `@thinkrail/ext-*/server`. Root, deep, opposite-half, and relative source imports are rejected. Their manifests may depend on the extension package because manifests cannot express subpath edges. Existing server pi-package edges remain until each extension's server-wiring delivery.
@@ -85,7 +85,7 @@ shapes: JSX text; text-bearing JSX attributes (`aria-label`, `title`, `placehold
 conditionals, `||`/`??`, `+`, and template parts; literal children inside `{…}`; prose in text-named object
 properties (`label`, `title`, `description`, `detail`, `hint`, `message`, `reason`, …); and literal
 `toast.*()` messages or `errorText()` fallbacks. "Text" means a run of two or more letters after trimming
-symbols, so `⌘K`, `·`, and counts pass; the bare brand `ThinkRail` is the one allowed word. It is a
+symbols, so `⌘K`, `·`, and counts pass; the bare brand `UnityRail` is the one allowed word. It is a
 heuristic floor, not a proof: review still owns strings returned from plain functions. It also checks
 `packages/locales/en.json`: keys sorted, values non-empty, and every key (plural base for `_one`/`_other`)
 referenced as a string literal by some UI, desktop, or locales source, so removed UI leaves no orphaned

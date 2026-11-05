@@ -30,7 +30,7 @@ const isCurrent = (path: string) => normalizePath(Astro.url.pathname) === normal
 		<meta property="og:image" content={new URL("/og.png", Astro.site)} />
 		<meta name="twitter:card" content="summary_large_image" />
 		{article && <meta property="article:published_time" content={article.publishedTime.toISOString()} />}
-		<link rel="alternate" type="application/rss+xml" title="ThinkRail Blog" href="/blog/rss.xml" />
+		<link rel="alternate" type="application/rss+xml" title="UnityRail Blog" href="/blog/rss.xml" />
 	</head>
 	<body>
 		<IdeShell workspace="blog" nav="blog" skipHref="#blog-content">

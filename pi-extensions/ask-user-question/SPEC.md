@@ -11,9 +11,9 @@ tags: [pi-extension, questionnaire]
 
 The published, portable half of the structured-question capability: one tool, `ask_user_question`, that
 pauses the run until a person answers multiple-choice questions and returns a model-facing envelope. It
-knows nothing about ThinkRail. It asks in one of three ways: a terminal questionnaire (pi's interactive
+knows nothing about UnityRail. It asks in one of three ways: a terminal questionnaire (pi's interactive
 mode), one dialog per question (RPC hosts such as VS Code or Zed), or an embedder's injected asker.
-ThinkRail composes it through [[module-ext-ask-user-question]], injecting an asker backed by the host's
+UnityRail composes it through [[module-ext-ask-user-question]], injecting an asker backed by the host's
 answer mailbox.
 
 ## Public surface
@@ -27,7 +27,7 @@ answer mailbox.
     the assistant's stop reason lets it execute (`executableAskCallIds`). An embedder that tracks calls
     outside `execute()` starts tracking here, so only calls this extension runs are tracked.
   - `guidance` replaces the description, `promptSnippet` and `promptGuidelines`, for a host whose UI
-    behaves differently, such as ThinkRail's composer supersede.
+    behaves differently, such as UnityRail's composer supersede.
 - **`./core`**: no runtime imports. Exports the tool name, limits, reserved labels, result types and texts,
   plus `validateQuestionnaire`, `buildQuestionnaireResponse`, `outcomeResult`, `isAckDetails`,
   `isAskUserQuestionArgs`, `isAskUserQuestionResult`, `isolateAskUserQuestionBatch` and
@@ -46,9 +46,9 @@ answer mailbox.
     | `abandoned` | the stopped text | cancelled | yes |
     | asker rejects | thrown, so pi records a tool error | — | — |
 
-  The argument and result types are the one definition of the questionnaire shape: ThinkRail's card
+  The argument and result types are the one definition of the questionnaire shape: UnityRail's card
   type-imports them from `./core`, and the deferral ack `{kind: "ack"}` doubles as the host's generic
-  "response pending" marker ([[module-extension-api]]). Changing either breaks ThinkRail's card and its
+  "response pending" marker ([[module-extension-api]]). Changing either breaks UnityRail's card and its
   restart repair.
 
 ## Decisions
@@ -57,17 +57,17 @@ answer mailbox.
   an answer given before Stop and resolve `abandoned` otherwise: the stopped text with `terminate`, so pi
   makes no further model request into the aborted run (a thrown error would leave pi to issue one that
   fails as aborted). An embedder applies its own
-  ordering; ThinkRail's mailbox lets an accepted Submit beat a later Stop.
+  ordering; UnityRail's mailbox lets an accepted Submit beat a later Stop.
 - **Deferred ends the run.** With `terminate: true`, pi skips the model request the tool batch would
   trigger but still drains queued steering. A host that queued the user's own message, such as
-  ThinkRail's composer supersede, therefore continues with that message. Verified against pi's agent loop
+  UnityRail's composer supersede, therefore continues with that message. Verified against pi's agent loop
   and in `src/session.test.ts`.
 - **Built-in asking by mode:**
   - `ctx.mode === "tui"`: the terminal questionnaire through `ctx.ui.custom`. If `custom()` resolves
     `undefined`, it falls back to dialogs.
   - Any other mode with UI: the dialog walker.
   - No UI: "not available" without asking; the workflow skills then proceed on stated assumptions.
-- **The terminal questionnaire matches ThinkRail's card.**
+- **The terminal questionnaire matches UnityRail's card.**
   - Same answer model: `src/questionnaire.ts` ports the card's `deriveAnswer` on purpose, because the card
     may not import a pi package.
   - Single-select: ↑↓ move and select. Multi-select: Space toggles.
@@ -98,7 +98,7 @@ answer mailbox.
 
 - **Allowed deps:** peers `@earendil-works/pi-coding-agent`, `@earendil-works/pi-tui` and `typebox`;
   test-only `@earendil-works/pi-ai` (faux provider).
-- **Forbidden:** anything from ThinkRail (`@thinkrail/*`, `apps/*`, `packages/server`) and Bun APIs in
+- **Forbidden:** anything from UnityRail (`@thinkrail/*`, `apps/*`, `packages/server`) and Bun APIs in
   shipped code.
 
 ## Structure

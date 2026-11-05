@@ -305,7 +305,7 @@ export function ButtonsCatalog({ forcedRules }: { forcedRules: number }) {
 		<div className="bk-app">
 			<header className="bk-top">
 				<div>
-					<div className="bk-title">ThinkRail buttons</div>
+					<div className="bk-title">UnityRail buttons</div>
 					<div className="bk-sub">
 						packages/ui/button.tsx — Button &amp; IconButton · 5 variants × 3 sizes × 4 content
 						configurations · production stylesheet · {forcedRules} forced-state rules

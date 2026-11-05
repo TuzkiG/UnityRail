@@ -126,19 +126,19 @@ export async function validateBuild(distDirectory = `${import.meta.dir}/../dist`
 	const pages = {
 		landing: requiredPage("index.html"),
 		blog: requiredPage("blog/index.html"),
-		introducingThinkRail: requiredPage("blog/introducing-thinkrail/index.html"),
+		introducingUnityRail: requiredPage("blog/introducing-thinkrail/index.html"),
 		vibecoding: requiredPage("vibecoding/index.html"),
 		agenticDevelopment: requiredPage("agentic-development/index.html"),
 		agenticIde: requiredPage("agentic-ide/index.html"),
 		claim: requiredPage("attribution/claim/index.html"),
 	};
 	const islandPages = ["vibecoding", "agenticDevelopment", "agenticIde"] as const;
-	const staticPages = ["landing", "blog", "introducingThinkRail", "claim"] as const;
+	const staticPages = ["landing", "blog", "introducingUnityRail", "claim"] as const;
 	const installPages = [
 		{ name: "landing", html: pages.landing, expectedDownloads: 1 },
 		{
-			name: "introducingThinkRail",
-			html: pages.introducingThinkRail,
+			name: "introducingUnityRail",
+			html: pages.introducingUnityRail,
 			expectedDownloads: 2,
 		},
 		...islandPages.map((name) => ({ name, html: pages[name], expectedDownloads: 1 })),
@@ -150,7 +150,7 @@ export async function validateBuild(distDirectory = `${import.meta.dir}/../dist`
 			'<meta property="og:url" content="https://thinkrail.ai/vibecoding/">',
 			'<meta property="og:image" content="https://thinkrail.ai/vibecoding/og.png">',
 			'<link rel="icon" href="/vibecoding/favicon.svg" type="image/svg+xml">',
-			'src="/vibecoding/thinkrail-text-logo-gradient.svg"',
+			'src="/vibecoding/unityrail-text-logo-gradient.svg"',
 		]) {
 			if (!pages[name].includes(required)) {
 				failures.push(`${name}: missing ${required}`);
@@ -218,7 +218,7 @@ export async function validateBuild(distDirectory = `${import.meta.dir}/../dist`
 	if (!pages.landing.includes("data-hero-download")) {
 		failures.push("landing: hero download is missing");
 	}
-	if (!pages.landing.includes("Thanks for downloading ThinkRail!")) {
+	if (!pages.landing.includes("Thanks for downloading UnityRail!")) {
 		failures.push("landing: download thanks dialog is missing");
 	}
 	if (
@@ -262,7 +262,7 @@ export async function validateBuild(distDirectory = `${import.meta.dir}/../dist`
 		const secondaryLabel =
 			name === "landing"
 				? "Browser UI via command line"
-				: name === "introducingThinkRail"
+				: name === "introducingUnityRail"
 					? "Prefer the command line?"
 					: null;
 		const secondaryIndex = secondaryLabel ? html.indexOf(secondaryLabel) : -1;

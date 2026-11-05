@@ -28,7 +28,7 @@ restart/rerun, daemon discovery, or arbitrary-process management.
   `BackgroundCommandsBinding`, `BackgroundCommandsOptions`.
 - **Allowed deps:** public package-root Pi SDK APIs and `typebox` as peers; Node standard libraries.
   Execution delegates to Pi's exported `createLocalBashOperations`, not a copied spawn runner.
-- **Forbidden:** ThinkRail packages, web/TUI widget ownership, Pi private imports, delegation
+- **Forbidden:** UnityRail packages, web/TUI widget ownership, Pi private imports, delegation
   ownership, workspace PTYs, and generic resource-provider/plugin machinery. Wire DTOs are mirrored
   in contracts, never imported from or re-exported through this package.
 

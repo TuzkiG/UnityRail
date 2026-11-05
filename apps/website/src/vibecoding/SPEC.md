@@ -19,7 +19,7 @@ Two props parameterize `Landing` per route. `heroTitle` defaults to the vibecodi
 without losing control."); `/agentic-development/` passes "Agentic development without losing
 control.". `positioning` (`"control" | "compounding"`, default `control`) selects the marketing
 copy variant: `/agentic-ide/` passes `compounding` with hero title "The agentic IDE that gets
-better every time you use it." — a positioning test (2026-02) framing ThinkRail as the IDE that
+better every time you use it." — a positioning test (2026-02) framing UnityRail as the IDE that
 improves with use (living specs, reusable skills, upcoming extensions) rather than the control
 framing. Under `compounding`, the hero subtitle, chat-demo script (one added "how do you get better
 over time" exchange; the worktree exchange stays), principles, capabilities (plus a coming-soon

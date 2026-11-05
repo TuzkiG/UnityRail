@@ -44,3 +44,10 @@ playwright-report-desktop/
 
 # Astro's generated type cache
 .astro/
+
+# Windows e2e lane data (kept outside the user profile; see e2e/fixtures/paths.ts)
+.e2e-data/
+
+# Local logs and icon-lab scratch directories
+*.log
+.icon-lab*/

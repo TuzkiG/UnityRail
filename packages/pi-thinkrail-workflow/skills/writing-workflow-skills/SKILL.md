@@ -11,7 +11,7 @@ lives once in the workflow-system spec beside this directory, **`skills/SPEC.md`
 first; where this checklist and that spec disagree, the spec wins.
 
 **Workspace guard.** This checklist edits `packages/pi-thinkrail-workflow` in the thinkrail repo. If
-that package is not in the current workspace (a ThinkRail-managed project, where these skills are a
+that package is not in the current workspace (a UnityRail-managed project, where these skills are a
 read-only staged cache), the family cannot be extended from here: say so in one line and stop — the
 terminal state for foreign workspaces.
 

@@ -2,7 +2,7 @@
 id: web-notices
 type: submodule-design
 status: active
-title: ThinkRail in-app notices — one look for toasts and inline banners
+title: UnityRail in-app notices — one look for toasts and inline banners
 parent: module-web
 references: [web-color, web-spacing, web-typography]
 ---

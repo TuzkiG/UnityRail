@@ -196,7 +196,7 @@ test("a handoff that never starts shutdown fails the attempt with the SDK error 
 	expect(await controller.getState()).toMatchObject({
 		status: "error",
 		failedPhase: "install",
-		error: "ThinkRail couldn't start the installer",
+		error: "UnityRail couldn't start the installer",
 	});
 });
 

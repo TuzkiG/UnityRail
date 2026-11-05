@@ -21,7 +21,7 @@ const MAX_VERSION_PART = 0xffff;
 export function windowsProductName(channel: string): string {
 	const suffix = CHANNEL_SUFFIXES[channel];
 	if (suffix === undefined) throw new Error(`unknown release channel "${channel}"`);
-	return `ThinkRail${suffix}`;
+	return `UnityRail${suffix}`;
 }
 
 export function windowsFileIdentity(release: {
@@ -32,8 +32,8 @@ export function windowsFileIdentity(release: {
 	const fileVersionParts = windowsVersionParts(release.version);
 	return {
 		productName,
-		companyName: "JetBrains s.r.o.",
-		copyright: "Copyright © 2026 JetBrains s.r.o.",
+		companyName: "UnityRail",
+		copyright: "Copyright © 2026 UnityRail",
 		fileVersion: fileVersionParts.join("."),
 		fileVersionParts,
 	};

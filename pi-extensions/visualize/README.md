@@ -25,7 +25,7 @@ pi install npm:@thinkrail/pi-visualize
   part, or is a family the renderer does not know (gantt, xychart, …), the tool shows the Mermaid
   source in a code fence instead — it never wraps a diagram. Expand the tool result to see the source
   under the drawing. Comparisons render as markdown. A file preview prints the path(s) — open them in a
-  browser; hosts with a file renderer (ThinkRail) render the file inline.
+  browser; hosts with a file renderer (UnityRail) render the file inline.
 - **Readable everywhere.** The tool's text result is markdown — a ```mermaid fence or a sectioned
   comparison — so it also reads fine in `pi -p`, JSON/RPC mode, or any host without a renderer.
 
@@ -73,4 +73,4 @@ are peer dependencies supplied by your pi install). Works under Node (vanilla pi
 
 ## License
 
-Apache-2.0 — part of [ThinkRail](https://thinkrail.ai/?utm_source=pi-package&utm_medium=referral&utm_campaign=pi-visualize&utm_content=readme).
+Apache-2.0 — part of [UnityRail](https://thinkrail.ai/?utm_source=pi-package&utm_medium=referral&utm_campaign=pi-visualize&utm_content=readme).

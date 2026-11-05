@@ -1,5 +1,5 @@
 ---
-title: "ThinkRail 0.3.1: bring your own model, your own packages, your own font. Then try to lose a chat"
+title: "UnityRail 0.3.1: bring your own model, your own packages, your own font. Then try to lose a chat"
 slug: thinkrail-0-3-1-release
 date: 2026-11-01
 author: rinat-s
@@ -11,7 +11,7 @@ tags:
   - models
 ---
 
-[ThinkRail](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=release-0-3-1) 0.3.1 is out. The new release of ThinkRail introduces a few new features that we've been working on for some time, as well as a number of fixes and other changes. Here's what I find the most important among them.
+[UnityRail](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=release-0-3-1) 0.3.1 is out. The new release of UnityRail introduces a few new features that we've been working on for some time, as well as a number of fixes and other changes. Here's what I find the most important among them.
 
 ## One box to find and run things
 
@@ -25,7 +25,7 @@ Type a few letters to find any chat, workspace or project, run a command, or jum
 
 ![A few letters narrow it to matching workspaces and chats](./images/02-search-query.png)
 
-This is step one. The plan is to make this box the way you do everything in ThinkRail; files and specs are next.
+This is step one. The plan is to make this box the way you do everything in UnityRail; files and specs are next.
 
 ## Your own model server, no JSON
 
@@ -45,7 +45,7 @@ Limits: OpenAI chat-completions API only, no per-model tuning in the UI.
 
 ![What the package brings](./images/05-pi-package-installed.png)
 
-Don't like it? Switch it off (ThinkRail chats only, the pi CLI still loads it), update it or remove it from the same row.
+Don't like it? Switch it off (UnityRail chats only, the pi CLI still loads it), update it or remove it from the same row.
 
 ## Hate our font? Swap it
 
@@ -75,9 +75,9 @@ Thanks to everyone who sent PRs, and welcome to first-time contributors [@arhipo
 
 ## Try it
 
-Grab the desktop app below, or see the rest of what ThinkRail does on [**our main webpage**](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=release-0-3-1). The full list of changes is in the [**v0.3.1 release notes**](https://github.com/JetBrains/thinkrail/releases/tag/v0.3.1).
+Grab the desktop app below, or see the rest of what UnityRail does on [**our main webpage**](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=release-0-3-1). The full list of changes is in the [**v0.3.1 release notes**](https://github.com/JetBrains/thinkrail/releases/tag/v0.3.1).
 
-Find us on social media platforms: [**X/Twitter**](https://x.com/ThinkRailAI), [**YouTube**](https://www.youtube.com/@ThinkRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
+Find us on social media platforms: [**X/Twitter**](https://x.com/UnityRailAI), [**YouTube**](https://www.youtube.com/@UnityRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
 You can also browse [**our GitHub repository**](https://github.com/JetBrains/thinkrail),
 take [**our survey**](https://forms.gle/es1ksqAax6hnDWCP8), and join [**our Discord server**](https://thinkrail.ai/discord)
 to say "hi!" and let us know what you think. Your feedback is greatly appreciated.
@@ -88,4 +88,4 @@ Happy developing!
 
 
 
-*ThinkRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*
+*UnityRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*

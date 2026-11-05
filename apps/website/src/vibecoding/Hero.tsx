@@ -9,7 +9,7 @@ import { VerticalBars } from "./VerticalBars";
 
 const subtitles: Record<Positioning, string> = {
 	control:
-		"ThinkRail gives every AI agent a clear plan, a separate place to work, and a visible trail of progress. Run multiple agents at once while your project knowledge stays organized.",
+		"UnityRail gives every AI agent a clear plan, a separate place to work, and a visible trail of progress. Run multiple agents at once while your project knowledge stays organized.",
 	compounding:
 		"Built around the Pi coding agent. Every task gets its own workspace, every decision lands in a living spec, every workflow becomes a reusable skill.",
 };
@@ -28,8 +28,8 @@ export function Hero({ title, positioning }: { title: string; positioning: Posit
 					<div className="lg:flex-1">
 						<Reveal delay={60}>
 							<img
-								src="/vibecoding/thinkrail-text-logo-gradient.svg"
-								alt="ThinkRail"
+								src="/vibecoding/unityrail-text-logo-gradient.svg"
+								alt="UnityRail"
 								className="mx-auto h-[41px] w-auto max-w-full sm:mx-0 sm:-ml-2 md:h-[58px]"
 							/>
 						</Reveal>

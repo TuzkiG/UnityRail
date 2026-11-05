@@ -27,9 +27,9 @@ export const USAGE = `Usage: thinkrail [options] [project-dir]
        thinkrail update [--channel stable|nightly] [--version X.Y.Z|X.Y.Z-nightly.N|latest]
        thinkrail uninstall [--remove-data|--keep-data] [-y]
 
-Boots the ThinkRail engine host in-process and opens the browser to the app.
+Boots the UnityRail engine host in-process and opens the browser to the app.
 The \`update\` subcommand re-downloads + installs the latest build for your channel;
-\`uninstall\` removes ThinkRail from this machine (your ~/.thinkrail app state is kept
+\`uninstall\` removes UnityRail from this machine (your ~/.thinkrail app state is kept
 unless you ask for it to go). Both take \`--help\`.
 
 Options:

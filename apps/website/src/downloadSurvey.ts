@@ -47,7 +47,7 @@ export const downloadSurveySteps: readonly SurveyStep[] = [
 	{
 		index: 1,
 		questionId: "3060825b-fbc8-4a3a-b0d5-4585076084b1",
-		prompt: "What makes ThinkRail interesting to you?",
+		prompt: "What makes UnityRail interesting to you?",
 		kind: "multi",
 		required: true,
 		hint: "Choose all that apply",
@@ -124,7 +124,7 @@ export const downloadSurveySteps: readonly SurveyStep[] = [
 	{
 		index: 5,
 		questionId: "26a0ff6b-e15b-407e-a0e7-c210e3df5d3e",
-		prompt: "What’s the first thing you’d like to try doing with ThinkRail? (optional)",
+		prompt: "What’s the first thing you’d like to try doing with UnityRail? (optional)",
 		kind: "text",
 		required: false,
 		placeholder: "Optional — a few words is enough",

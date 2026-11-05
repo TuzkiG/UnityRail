@@ -85,7 +85,7 @@ bundled into `apps/web`. Exposed through explicit subpath exports, not a barrel.
   - **`SSH_AUTH_SOCK`** (darwin only) — when absent, recover the launchd ssh-agent socket via
     `launchctl getenv SSH_AUTH_SOCK` (3s timeout, never throws, no-op when launchd reports none).
     Without it both the host's own git pushes (`pr`) and every embedded terminal lose the user's
-    ssh-agent: `ssh-add` inside a ThinkRail terminal answers "Could not open a connection to your
+    ssh-agent: `ssh-add` inside a UnityRail terminal answers "Could not open a connection to your
     authentication agent", and a key loaded in Terminal.app never reaches the host's push.
 
   All repairs land on `process.env`, which is what makes them reach *every* shell the host spawns: the PTY
@@ -107,9 +107,9 @@ bundled into `apps/web`. Exposed through explicit subpath exports, not a barrel.
   `--version`, desktop package metadata, analytics, and `server.welcome.appVersion` cannot drift. It
   contains identity data plus the release-only public `posthogProjectKey` (empty in source, so
   unstamped builds never report) and has no launcher dependency.
-- **/windowsIdentity** — `windowsFileIdentity({ version, channel })`: what Windows shows for a ThinkRail
+- **/windowsIdentity** — `windowsFileIdentity({ version, channel })`: what Windows shows for a UnityRail
   executable. The product name, which also serves as the file description Task Manager displays, is
-  `ThinkRail` on stable, `ThinkRail Nightly` on nightly and `ThinkRail Dev` on unstamped builds. The
+  `UnityRail` on stable, `UnityRail Nightly` on nightly and `UnityRail Dev` on unstamped builds. The
   publisher and copyright are JetBrains s.r.o., as in `LICENSE` and the signing certificate. The version
   takes the four numeric parts Windows requires: `X.Y.Z` plus the prerelease's trailing number
   (`0.3.0-nightly.6` → `0.3.0.6`), else `.0`. An unknown channel or a part above 65535 throws, so a
@@ -119,9 +119,15 @@ bundled into `apps/web`. Exposed through explicit subpath exports, not a barrel.
   Never hand-edit a raster; regenerate them with `bun run --cwd packages/shared generate-icons`
   (`@resvg/resvg-js` rasterizes straight from the vector, `resedit` packs the ICO). The outputs are the
   macOS iconset, the Linux 512 px PNG, and the Windows ICO, whose path `windowsIconPath` exports.
-  - **Artwork.** The mark keeps its rounded-square silhouette: the ThinkRail glyph in the dark-family
-    brand green (`#8dff4f`) on a solid black tile. Translucent glass, highlights, and decorative edging
-    are excluded so small taskbar frames stay crisp.
+  - **Artwork.** The mark keeps its rounded-square silhouette and the original ThinkRail construction: one
+    flat brand green (`#8dff4f`) on a solid black tile — no second tint, no gradient, no translucent glass or
+    outer glow. It is an isometric cube whose lower body carries a rail track cut clean through it: the rails
+    leave the cube's two lower edges and converge on a horizon twelve units below its front vertex, while the
+    ties narrow, thin and close in with them. The track never leaves the cube's silhouette — only its two
+    open ends, where the rails meet the lower edges, touch it — so the perspective reads as a line running
+    into the cube. One even-odd path carries the hexagon, the cube's two top-face edge cuts, and the track,
+    so the colour icon and the monochrome favicon glyph stay one geometry. Flat fills keep small taskbar
+    frames crisp.
   - **ICO frames.** PNG-compressed at 256/128/80/72/64/56/48/40/36/32/28/24/20/16: Microsoft's
     documented minimum (16/24/32/48/256), plus 64/128 and every small and big icon size Windows asks for
     between 125% and 250% scaling. `LoadImage` picks the closest frame that does not exceed the requested
@@ -146,7 +152,7 @@ bundled into `apps/web`. Exposed through explicit subpath exports, not a barrel.
   locked past the backoff throws, and a failure no delay can fix (`ENOTDIR`, …) throws on the first
   attempt. `options.remove` is the injected-remover seam the unit test drives; `attempts`/`delayMs` let a
   caller trade patience for speed.
-- **/paths** — the worktree-relative path conventions ThinkRail owns, named once so current and future
+- **/paths** — the worktree-relative path conventions UnityRail owns, named once so current and future
   consumers agree (today: `workspaces` *creates* the scratch dir and git *ignores* it):
   `WORKSPACE_INTERNAL_DIR` (`.thinkrail` — the repo-local host-managed dir, today holding the ephemeral
   scratch, the intended home for future host files like a cached spec index; **not** hidden from the file
@@ -301,7 +307,7 @@ bundled into `apps/web`. Exposed through explicit subpath exports, not a barrel.
   `homedir()` only as the fallback. This is the *same* home pi resolves for `getAgentDir()`, which is the
   whole point: the adapter and pi must name one artifact. Two rejected forms, both real bugs:
   `env.HOME ?? homedir()` (the original) silently loses on Windows, where `HOME` is ignored by pi but *is*
-  set by Git Bash to an MSYS path — Central would be installed and configured and ThinkRail would report
+  set by Git Bash to an MSYS path — Central would be installed and configured and UnityRail would report
   `absent`; and plain `homedir()` cannot be redirected in-process under Bun, which resolves it **once at
   startup** rather than per call (Node re-reads it), so the tests and e2e/smoke hosts that redirect a home
   would silently read the developer's real one. The platform is an injectable dependency (`platform`), so
@@ -310,7 +316,7 @@ bundled into `apps/web`. Exposed through explicit subpath exports, not a barrel.
   compatibility bounds, the opaque path, typed outcomes, and independently authored fakes. Never copy or
   paraphrase Central source/output, and never read, parse, hash, snapshot, copy, log, upload, persist elsewhere,
   or serve the generated extension.
-- **No standalone PI dependency.** Central writes global PI configuration; ThinkRail loads its path into the
+- **No standalone PI dependency.** Central writes global PI configuration; UnityRail loads its path into the
   embedded PI runtime, including when `PI_CODING_AGENT_DIR` points elsewhere and no `pi` command exists.
   Watcher events are hints only: every rebuild re-inspects version + existence, and in-app actions explicitly
   request the same rebuild after their postcondition, so a dropped/coalesced filesystem event cannot lose a

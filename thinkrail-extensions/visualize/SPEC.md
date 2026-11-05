@@ -10,7 +10,7 @@ references: [submodule-web-chat, submodule-server-extensions]
 
 ## Responsibility
 
-The ThinkRail halves of the `visualize` tool. `./server` composes the portable capability
+The UnityRail halves of the `visualize` tool. `./server` composes the portable capability
 ([[module-pi-visualize]]) with the **strict** mermaid validator the browser renderer agrees with; `./web`
 is the props-driven presentation. The tool name joins the two without a wire change.
 
@@ -53,7 +53,7 @@ project changes.
 
 The host composes this descriptor from the server registry ([[submodule-server-extensions]]); a strict
 validation call through that composition is pinned in `packages/server` (dev) and in the artifact probes
-(CLI binary and desktop), so the vanilla probe can never be what runs in ThinkRail.
+(CLI binary and desktop), so the vanilla probe can never be what runs in UnityRail.
 
 ## Rendering contract (web)
 

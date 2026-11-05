@@ -13,7 +13,7 @@ projections, passive notice delivery and standalone composition. The public barr
 `createDagExtension`, `DagExtensionOptions`, and `default` (the zero-config extension factory).
 External dependencies are public pi APIs, typebox, pi-delegation's barrel and Node APIs. Sibling
 edges are declared in the parent spec. Forbidden reaches: runtime/domain/delegation internals,
-ThinkRail/UI/server packages, pi private fields, credential copying and independent worker loops.
+UnityRail/UI/server packages, pi private fields, credential copying and independent worker loops.
 
 ## Adapter
 

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import askUserQuestion from "@thinkrail/ext-ask-user-question/web";
+import unity from "@thinkrail/ext-unity/web";
 import visualize, { MermaidView } from "@thinkrail/ext-visualize/web";
 import type { ToolRenderProps } from "@thinkrail/extension-api/web";
 import { currentTranslator } from "@thinkrail/locales/react";
@@ -23,7 +24,7 @@ const props: ToolRenderProps = {
 };
 
 test("the ordered web registry composes the public visualize descriptor without replacing fallback", () => {
-	expect(webExtensions).toEqual([visualize, askUserQuestion]);
+	expect(webExtensions).toEqual([visualize, askUserQuestion, unity]);
 	expect(typeof MermaidView).toBe("function");
 	for (let i = 0; i < 2; i++) {
 		registerWebExtensions();

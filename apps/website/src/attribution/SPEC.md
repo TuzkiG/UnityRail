@@ -9,7 +9,7 @@ tags: [website, analytics, attribution, cloudflare]
 
 ## Responsibility and boundary
 
-Own the same-origin browser-claim protocol that transfers a consented website acquisition context to an installed ThinkRail host. Cloudflare Pages Functions expose the protocol and D1 provides short-lived atomic claim state.
+Own the same-origin browser-claim protocol that transfers a consented website acquisition context to an installed UnityRail host. Cloudflare Pages Functions expose the protocol and D1 provides short-lived atomic claim state.
 
 - **Public surface:** `index.ts` exposes normal-page browser attribution; target-specific `claim.ts` and `server.ts` expose the analytics-free claim page and Pages handlers. These secondary entrypoints are the code-splitting boundary that prevents normal analytics/GTM modules entering the claim page or Worker bundle. The service and D1 repository remain internal.
 - **Allowed dependencies:** the website analytics facade for normal-page recording, Web Platform APIs, Pages Functions, and the `ATTRIBUTION_DB` D1 binding.

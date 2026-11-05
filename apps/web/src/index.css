@@ -82,7 +82,7 @@
 		}
 	}
 
-	/* The "agent working" brand badge (`components/RunningIcon`): the split frame and the six monogram strokes draw and erase on one 3.263s cycle. */
+	/* The "agent working" brand badge (`components/RunningIcon`): the split frame and the mark's five strokes draw and erase on one 3.263s cycle. */
 	--animate-loader-frame: loader-frame 3.263s infinite;
 	@keyframes loader-frame {
 		0% {

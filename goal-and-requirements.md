@@ -2,14 +2,14 @@
 id: goal-and-requirements
 type: goal-and-requirements
 status: active
-title: ThinkRail — product goal and scope
+title: UnityRail — product goal and scope
 covers: [product-goal, product-audience, product-principles, product-capabilities, product-non-goals, engine-decision]
 tags: [product, scope]
 ---
 
 ## Goal
 
-ThinkRail is the agentic IDE that gets better every time you use it. It is a thin host that runs `pi`
+UnityRail is the agentic IDE that gets better every time you use it. It is a thin host that runs `pi`
 and bridges it to a rich UI, isolates work into separate workspaces, and gives the agent durable
 project knowledge through living specs and reusable skills — so agent work is approachable without a
 terminal and stays isolated, reviewable, and grounded in specs: building with agents without losing
@@ -37,15 +37,15 @@ to move fast without losing control of what the agent did.
 
 ## Value
 
-- **Isolation by default.** A workspace ThinkRail creates is a git worktree with its own branch and cwd:
+- **Isolation by default.** A workspace UnityRail creates is a git worktree with its own branch and cwd:
   agents run in parallel and the main branch stays clean until the user merges. Working directly in the
   project folder (the Default workspace) is an explicit choice, never the default — except the setup chat of
-  a project ThinkRail just created empty, which has nothing to isolate yet.
+  a project UnityRail just created empty, which has nothing to isolate yet.
 - **A real IDE around the agent.** Editor, diffs, terminals, and review in one workbench, so the user
   sees and steers the agent's work instead of reconstructing it from a scrollback.
 - **Specs as ground truth.** The project's intent lives in a spec graph beside the code that the agent
   reads, searches, and maintains, so intent survives the session.
-- **All of pi, nothing hidden.** Models, skills, extensions, and session state stay pi's; ThinkRail adds
+- **All of pi, nothing hidden.** Models, skills, extensions, and session state stay pi's; UnityRail adds
   a surface, not a second agent.
 
 ## Principles
@@ -58,16 +58,16 @@ Durable decisions every feature follows; [[architecture]] carries the structure 
   `pi` — prompt context, files, pi's own skills/extensions — and the flags a session starts with.
 - **Expose, don't recompute.** The host shows what `pi` reports rather than deriving its own copy.
 - **The user's own tools and credentials.** Git, GitHub, and model access go through the user's `git`,
-  `gh`, `central` CLI, and pi's provider auth; ThinkRail keeps no accounts or tokens of its own.
+  `gh`, `central` CLI, and pi's provider auth; UnityRail keeps no accounts or tokens of its own.
 - **Trust is explicit.** What a cloned repository could inject into the agent — its committed skill
   aliases, pi's own project resources (`.pi/` settings, extensions, skills, prompts, subagent definitions),
   and MCP servers it defines — loads only after a per-project trust grant; a repo-defined MCP server also
   needs a per-entry approval that lapses when the entry changes.
-- **Spec-first.** ThinkRail is built spec-first and helps the projects it opens work the same way.
+- **Spec-first.** UnityRail is built spec-first and helps the projects it opens work the same way.
 
 ## Capabilities
 
-What ThinkRail does, at product level; the linked spec owns the detail.
+What UnityRail does, at product level; the linked spec owns the detail.
 
 - **Two launchers, one app** — a native desktop app and the `thinkrail` CLI that opens the same UI in a
   browser, both embedding the same host; state lives under `~/.thinkrail` ([[module-desktop]],
@@ -120,12 +120,22 @@ What ThinkRail does, at product level; the linked spec owns the detail.
 - **Pi packages** — install a pi package by source (npm, git or a local folder) from Settings, for the
   user or for a repository, and see everything pi loads: each package's extensions, skills and prompts
   with their tools, hand-dropped extension files, and pi's built-ins — switching any of them off in pi's
-  own settings format, a whole package through a ThinkRail setting. Changes reach open chats when their
+  own settings format, a whole package through a UnityRail setting. Changes reach open chats when their
   turn ends ([[submodule-server-agent-packages]], [[submodule-web-panels]]).
 - **MCP servers** — pi's built-in MCP, read from the user's `mcp.json`, managed from Settings and visible
   per chat next to background commands and subagents; a confirm in the chat, on the call, before calls
   that may change data, with a per-project "Always allow" for tools the user trusts
   ([[submodule-server-agent]], [[submodule-web-panels]]).
+- **Unity** — a workspace inside a Unity project is recognized with its editor version, packages,
+  assembly definitions and scenes; with the `com.thinkrail.bridge` package installed in the project and the
+  Editor open, the agent gets a live verification loop through `unity_*` tools — compile diagnostics,
+  Console, Play Mode, Game/Scene screenshots, EditMode/PlayMode tests, hierarchy and component
+  inspection, asset search — and a Unity workbench panel (Overview, Console, Hierarchy, Inspector, Game,
+  Tests) over the same host methods; the Editor's selected object is mirrored beside the chat input and
+  enters the agent's context on the next turn; bundled Unity skills cover project orientation, verification,
+  gameplay code, testing and asset safety, and `unity_doctor` diagnoses a missing project, install or
+  bridge ([[module-unity-project]], [[module-ext-unity]], [[module-pi-unity-skills]],
+  [[submodule-server-unity]]).
 - **Around the workspace** — open a worktree in an installed editor or IDE, and keep the app itself up
   to date ([[submodule-server-editors]], [[submodule-web-updates]]).
 - **Interface language** — the UI follows the system language or the user's choice; English and
@@ -140,7 +150,7 @@ What ThinkRail does, at product level; the linked spec owns the detail.
   fallback fonts, a code size, code ligatures and one text-weight knob; one choice per host, applied at
   once in every window, and a font missing on a device falls back to the bundled face with a warning
   ([[submodule-web-fonts]], [[submodule-server-fonts]]).
-- **Brand** — ThinkRail green accent (bright on dark themes, deepened on light ones so it clears AA on
+- **Brand** — UnityRail green accent (bright on dark themes, deepened on light ones so it clears AA on
   both), a Darcula-family dark background, Orbitron for the brand display role, Geist and JetBrains Mono
   as the default UI and code faces ([[submodule-web-themes]], [[web-typography]]).
 
@@ -150,5 +160,5 @@ Only these are excluded by decision. Anything neither listed above nor excluded 
 forbidden.
 
 - **A second agent runtime**, or any host-side agent loop or prompt assembly (see Principles).
-- **ThinkRail accounts or a login UI.** Who may reach a host is decided by the network — Tailscale ACLs
+- **UnityRail accounts or a login UI.** Who may reach a host is decided by the network — Tailscale ACLs
   and device identity ([[architecture]]).

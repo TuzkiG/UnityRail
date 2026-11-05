@@ -11,7 +11,7 @@ tags: [pi-extension, visualization, mermaid]
 
 The published, portable half of the visualization capability: one tool, `visualize`, that validates a
 diagram, comparison or file-preview request, returns a markdown fallback as the model-facing result, and draws the
-result in pi's terminal UI. It knows nothing about ThinkRail. ThinkRail composes it through [[module-ext-visualize]]'s server half
+result in pi's terminal UI. It knows nothing about UnityRail. UnityRail composes it through [[module-ext-visualize]]'s server half
 (the successor of the deleted `packages/pi-visualize`), injecting its strict validator.
 
 ## Public surface
@@ -30,7 +30,7 @@ result in pi's terminal UI. It knows nothing about ThinkRail. ThinkRail composes
 - **The tool contract** renderers key on: the name `"visualize"`, its argument shape
   (`type: "diagram" | "comparison" | "file"`, `title?`, `mermaid?`, `options?[]`, `path?`, `before?`),
   and `details` = the validated params. Changing this shape is a breaking change for every renderer,
-  including ThinkRail's.
+  including UnityRail's.
 
 ## Decisions
 
@@ -83,7 +83,7 @@ result in pi's terminal UI. It knows nothing about ThinkRail. ThinkRail composes
   render from `result.content`; partial results show a placeholder. Image-tier rendering
   (Kitty/iTerm2) is deferred: it needs SVG rasterisation without a browser and degrades under tmux/SSH.
 - **Dual runtime.** Shipped code uses `node:`-free standard ESM and pi's host-provided packages only,
-  so it runs under Node (vanilla pi, jiti) and Bun (ThinkRail). Runtime imports from
+  so it runs under Node (vanilla pi, jiti) and Bun (UnityRail). Runtime imports from
   `@earendil-works/pi-coding-agent` are limited to `getMarkdownTheme`; `@earendil-works/pi-tui` supplies
   `Text`, `Markdown`, `visibleWidth`.
 
@@ -91,7 +91,7 @@ result in pi's terminal UI. It knows nothing about ThinkRail. ThinkRail composes
 
 - **Allowed deps:** `lovely-mermaid` (exact pin); peers `@earendil-works/pi-coding-agent`,
   `@earendil-works/pi-tui`, `typebox`.
-- **Forbidden:** anything from ThinkRail (`@thinkrail/*`, `apps/*`, `packages/server`), `mermaid`,
+- **Forbidden:** anything from UnityRail (`@thinkrail/*`, `apps/*`, `packages/server`), `mermaid`,
   `linkedom`, Bun-specific APIs.
 
 ## Structure

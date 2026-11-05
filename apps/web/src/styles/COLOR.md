@@ -2,7 +2,7 @@
 id: web-color
 type: submodule-design
 status: active
-title: ThinkRail colour — one JSON source, generated CSS, semantic roles
+title: UnityRail colour — one JSON source, generated CSS, semantic roles
 parent: module-web
 depends-on: [submodule-web-themes]
 references: [web-typography]

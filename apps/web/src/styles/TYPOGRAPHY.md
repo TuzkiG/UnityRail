@@ -2,7 +2,7 @@
 id: web-typography
 type: submodule-design
 status: active
-title: ThinkRail typography — one JSON source, generated CSS, semantic styles
+title: UnityRail typography — one JSON source, generated CSS, semantic styles
 parent: module-web
 ---
 

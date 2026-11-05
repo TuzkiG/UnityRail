@@ -2,7 +2,7 @@
 id: web-spacing
 type: submodule-design
 status: active
-title: ThinkRail spacing — one JSON source, one canonical numeric scale
+title: UnityRail spacing — one JSON source, one canonical numeric scale
 parent: module-web
 references: [web-color, web-typography]
 ---

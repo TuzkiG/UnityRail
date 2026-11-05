@@ -30,7 +30,7 @@ choice was settled: the decision log below.
   awaits `disposeChildrenOf(parent)` and drops the service, so a
   vanilla-pi background child never outlives its parent session burning tokens with an
   undeliverable completion (PR #302 review finding). An embedder-injected service is deliberately
-  untouched — its lifecycle belongs to the embedder (ThinkRail cascades in `removeSession`).
+  untouched — its lifecycle belongs to the embedder (UnityRail cascades in `removeSession`).
   Default and legacy factories own their completion lifetime per factory invocation: reload ends that
   lifetime, while parent-turn abort does not. Late tool updates are dropped by Pi after the tool returns.
 - `createSubagentsExtension(options?)` — the compatible runner-scoped extension factory. Options include
@@ -62,7 +62,7 @@ choice was settled: the decision log below.
 
 | Tool | Behavior |
 | --- | --- |
-| `Agent({ subagent_type, task, model?, run_in_background? })` | Snapshots definitions before each parent model turn (editable mid-session), then maps the named one plus the optional invocation model to `SessionOptions` and spawns via `createChild` + `runQueued`; the description and execution closure use that same snapshot, so a mid-session edit cannot make advertised model policy disagree with execution. Model precedence is definition pin → invocation model → live parent; a definition pin silently wins over a supplied invocation value, and the available-agent description advertises each definition's model pin or call/parent selection and any explicit thinking policy before use. The description also states that subagents cannot call MCP tools — children never load an MCP engine (the curated child set has none, in pi and in ThinkRail), so the parent calls them itself and passes results in the task — and that a background report arrives on its own, so the model ends its turn to wait instead of polling or sleeping. Foreground: awaits the outcome and rides the tool signal; `error` outcomes throw (tool error, reason-first) — and the error tool result **still carries the run's final `details`**: pi replaces a thrown tool error's result with `{content, details: {}}`, so the extension stashes the outcome details by `toolCallId` before throwing and re-injects them via a `tool_result` hook override (the stash is swept on `turn_end` — after finalization — and on `session_shutdown`, so a turn aborted before tool finalization cannot strand entries); a failed run's card keeps its child session id and the transcript stays openable (PR #304 review finding). Background: **never rides the parent turn's abort signal** (a detached run survives a parent abort — core-spec semantics, test-pinned); records `info.detached` so an embedder's resource summaries can tell it from a foreground run; returns `{childSessionId}` text immediately; the terminal outcome becomes a `subagent-completion` custom message delivered once under Result delivery below. Live `onUpdate` details flow to `partialResult` (REPLACE). Results bounded to 50k chars — the full text stays in the child transcript. |
+| `Agent({ subagent_type, task, model?, run_in_background? })` | Snapshots definitions before each parent model turn (editable mid-session), then maps the named one plus the optional invocation model to `SessionOptions` and spawns via `createChild` + `runQueued`; the description and execution closure use that same snapshot, so a mid-session edit cannot make advertised model policy disagree with execution. Model precedence is definition pin → invocation model → live parent; a definition pin silently wins over a supplied invocation value, and the available-agent description advertises each definition's model pin or call/parent selection and any explicit thinking policy before use. The description also states that subagents cannot call MCP tools — children never load an MCP engine (the curated child set has none, in pi and in UnityRail), so the parent calls them itself and passes results in the task — and that a background report arrives on its own, so the model ends its turn to wait instead of polling or sleeping. Foreground: awaits the outcome and rides the tool signal; `error` outcomes throw (tool error, reason-first) — and the error tool result **still carries the run's final `details`**: pi replaces a thrown tool error's result with `{content, details: {}}`, so the extension stashes the outcome details by `toolCallId` before throwing and re-injects them via a `tool_result` hook override (the stash is swept on `turn_end` — after finalization — and on `session_shutdown`, so a turn aborted before tool finalization cannot strand entries); a failed run's card keeps its child session id and the transcript stays openable (PR #304 review finding). Background: **never rides the parent turn's abort signal** (a detached run survives a parent abort — core-spec semantics, test-pinned); records `info.detached` so an embedder's resource summaries can tell it from a foreground run; returns `{childSessionId}` text immediately; the terminal outcome becomes a `subagent-completion` custom message delivered once under Result delivery below. Live `onUpdate` details flow to `partialResult` (REPLACE). Results bounded to 50k chars — the full text stays in the child transcript. |
 | `get_subagent_result({ session_id })` | **Lineage-checked**: a child whose `record.parentSessionId` is not the calling session takes the unknown-id error path — with a shared (workspace-scoped) service, one tab must not read or mark-collected another parent's child (PR #302 review finding). Reads the core registry via `findChild` + `collectResult`: terminal → final text + details through the **same reason-first, 50k-bounded shaping** as a foreground result (marks collected, which suppresses the pending push — Result delivery; an errored run reports its `errorMessage` first — core decision #24 — and an aborted one its status and reason, so the pull never hides what the push would have said); running → status snapshot whose text says the report arrives on its own; unknown id → error naming the restart-loss case + the derived transcript path. |
 
 Both tools register inside `session_start` (emitted by `bindExtensions`). `Agent` additionally
@@ -122,7 +122,7 @@ reviewer — user-settled), not `.md` files, so they survive `bun build --compil
 typechecked; the `worker` alone can mutate files, and its prompt forbids history/index git
 (`commit`/`add`/`stash`/`reset`/`push`): a child shares the parent's worktree and branch, so a
 self-commit fragments the parent's history and detaches the work from whatever tracks it (in
-ThinkRail, the per-plan-step commit map); the parent/host owns
+UnityRail, the per-plan-step commit map); the parent/host owns
 committing, git-read stays open. User-authored definitions keep the community `.md` + frontmatter convention
 (`name`, `description`, `tools`, `model`, `thinking`, `max_turns`, `inherit_project_context`,
 `skills`, `extensions`; body = system prompt). Malformed files are skipped, never fatal. All four
@@ -214,7 +214,7 @@ commit/CI gate.
    per-session-discovery fix survives upstream as tintinweb/pi-subagents PR #223 (no longer a
    dependency).
 1. **Portable workspace package** — a pure-pi extension (pi SDK as a `peerDependency`) consuming
-   `pi-delegation`. ThinkRail's server embeds the factory per session, handing it the host-bound
+   `pi-delegation`. UnityRail's server embeds the factory per session, handing it the host-bound
    `DelegationService`; under vanilla pi the extension constructs the service with default
    bindings. It must load and work in pure pi (the core SPEC's pure-pi bar). *Supersedes the original "host-owned bundled extension" decision — reversed in the PR #261
    review round; research + rationale: core decision log #17–21.*
@@ -228,7 +228,7 @@ commit/CI gate.
    host restart. Background completion delivery (Result delivery and the User stop policy above)
    is lost on host restart and suppressed once its session is shutting down —
    accepted; the transcript survives regardless.
-5. **Built-in agents: a small curated set** tuned to ThinkRail's spec-first workflow (roster +
+5. **Built-in agents: a small curated set** tuned to UnityRail's spec-first workflow (roster +
    TS-constant form: Definitions above); personal + worktree definitions add more.
 6. **Precedence/trust: worktree definitions can never shadow built-in or personal names** (mirrors
    the skills invariant; community libs order it the other way — that enabled the "repo ships

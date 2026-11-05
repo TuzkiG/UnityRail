@@ -1,5 +1,5 @@
 ---
-title: "ThinkRail 0.3.0: the whole loop in one window, now in your language"
+title: "UnityRail 0.3.0: the whole loop in one window, now in your language"
 slug: thinkrail-0-3-0-whole-loop-one-window
 date: 2026-10-29
 author: rinat-s
@@ -11,7 +11,7 @@ tags:
   - localization
 ---
 
-[ThinkRail](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=release-0-3-0) 0.3.0 is out. The new release of ThinkRail introduces a few new features that we've been working on for some time, as well as a number of fixes and other changes. Here's what I find the most important among them.
+[UnityRail](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=release-0-3-0) 0.3.0 is out. The new release of UnityRail introduces a few new features that we've been working on for some time, as well as a number of fixes and other changes. Here's what I find the most important among them.
 
 ## Ship the branch from the topbar
 
@@ -25,7 +25,7 @@ Now the topbar always shows **Remote** and **Pull request** for the open workspa
 
 Once the PR is open, the topbar shows the checks and the review decision, and the button moves to whatever comes next: **Fix with agent** when checks fail, **Ready for review** for a draft, **Merge PR** when GitHub says it's mergeable. Merge goes by GitHub's merge state, not by counting approvals. The merge dialog offers only the methods your repo allows and remembers your choice per project. A merged or closed PR gets **Reopen** and **Delete remote branch**. While checks run, it re-reads them every 20 seconds.
 
-![Merging from ThinkRail](./images/02-merge-dialog.png)
+![Merging from UnityRail](./images/02-merge-dialog.png)
 
 It talks to GitHub through your `gh` CLI, so `gh` has to be installed and signed in. Not there yet: merging locally, and review actions on GitLab.
 
@@ -33,19 +33,19 @@ It talks to GitHub through your `gh` CLI, so `gh` has to be installed and signed
 
 A fresh install used to open on an empty Projects rail, a "No model provider connected" warning and a long list of providers in Settings. Not a great first five minutes.
 
-Now a short wizard takes over the window: a quick intro, the privacy question, then **Connect a model**. If Claude Code, Codex, Copilot, Kimi CLI or Grok Build is already signed in on your machine, it shows up under **Detected** with your plan. ThinkRail only reads those tools' own config files to find them (no Keychain, no network), and it never borrows their credentials: you still sign in through pi's own flow. When a provider is connected, it checks that the provider really lists models and a default, without spending tokens, and drops you on **Start a new project** or **Open project**. **Skip setup** is there if you know what you're doing.
+Now a short wizard takes over the window: a quick intro, the privacy question, then **Connect a model**. If Claude Code, Codex, Copilot, Kimi CLI or Grok Build is already signed in on your machine, it shows up under **Detected** with your plan. UnityRail only reads those tools' own config files to find them (no Keychain, no network), and it never borrows their credentials: you still sign in through pi's own flow. When a provider is connected, it checks that the provider really lists models and a default, without spending tokens, and drops you on **Start a new project** or **Open project**. **Skip setup** is there if you know what you're doing.
 
 ![Connect a model, with the accounts it found on this computer](./images/03-onboarding-connect.png)
 
 Related fix: the model list now shows only the models your account can actually use. Signing in with ChatGPT used to offer the whole OpenAI API catalog, and the first chat died on `gpt-4` with a 400. New chats now start on pi's default for the provider instead of whatever came first in the list.
 
-## ThinkRail in your language
+## UnityRail in your language
 
 The interface is no longer English-only. Spanish, Simplified Chinese and Japanese ship built in, and **System** follows your OS language. Switch it in **Settings › Language**.
 
 ![The same workspace in Japanese](./images/04-interface-japanese.png)
 
-Missing your language? Download `en.json` from that page, translate it, and save it as `~/.thinkrail/locales/<code>.json`. ThinkRail picks it up as you save, and any string you haven't translated stays in English. If it's good, send it to us and it ships for everyone, which is exactly how Chinese, Spanish and Japanese got in. Agent replies, tool output and skills aren't translated: that's the model's job, not the UI's.
+Missing your language? Download `en.json` from that page, translate it, and save it as `~/.thinkrail/locales/<code>.json`. UnityRail picks it up as you save, and any string you haven't translated stays in English. If it's good, send it to us and it ships for everyone, which is exactly how Chinese, Spanish and Japanese got in. Agent replies, tool output and skills aren't translated: that's the model's job, not the UI's.
 
 ## Files and Changes are one panel now
 
@@ -77,10 +77,10 @@ The `$` in the chat toolbar only counted the parent session. Every subagent runs
 
 - **Clone a repository.** **Clone repository…** in the Projects rail and on Welcome takes any Git URL and uses your existing Git credentials and SSH keys. It opens the checkout without starting an agent or trusting the project for you.
 - **Your own themes.** Copy a bundled theme into `~/.thinkrail/themes/<name>.theme.json`, change the colours, and it appears in **Settings › Appearance** without a restart. Editing the active file re-themes the app live. A broken file is listed with the reason instead of breaking anything.
-- **Your pi setup, your env vars.** **Settings › Environment** lets you point ThinkRail at another pi config folder (settings, sign-ins, extensions, skills, history) and pass environment variables to the agent, terminals and MCP servers. It needs a restart, and chat history follows the folder, same as pi's CLI.
+- **Your pi setup, your env vars.** **Settings › Environment** lets you point UnityRail at another pi config folder (settings, sign-ins, extensions, skills, history) and pass environment variables to the agent, terminals and MCP servers. It needs a restart, and chat history follows the folder, same as pi's CLI.
 - **Skills survive compaction.** After a context compaction the agent used to keep "following" a skill it could no longer see. Skills loaded before the cut are now re-attached after it. pi's fixed compaction output caps are gone too.
 - **Extensions you can switch off.** Ask user question and Web access are now regular extensions in **Settings › Extensions**. Web access brings its `librarian` skill along. The questions tool and `visualize` are published as pi packages, so they work in plain pi too.
-- **Platforms.** There's a desktop build for Intel Macs now. On Windows, updates actually install (before, **Install & Restart** brought the old version back), and the executables show ThinkRail's icon and name instead of Bun's.
+- **Platforms.** There's a desktop build for Intel Macs now. On Windows, updates actually install (before, **Install & Restart** brought the old version back), and the executables show UnityRail's icon and name instead of Bun's.
 - **Polish.** Mark a workspace as read or unread. Chats nobody named are labelled by their first prompt instead of all saying "Chat". Buttons look and behave the same everywhere. Settings links our Discord. Scala highlighting is back, long messages stay inside their bubble, deleted folders drop out of Recent Projects, and the history search closes when it should.
 - **Speed.** Restored chats no longer sit blank for about 0.7 s waiting on the file watcher, and they skip an extra ~300 ms skeleton. The desktop app doesn't wait for your `.zshrc` to boot, file opens skip a Monaco wrapper that cost 50–65 ms each time, the CLI binary is compiled to bytecode so it starts faster, and diffs stop blinking when you open them.
 
@@ -88,9 +88,9 @@ Thanks to everyone who sent PRs, and welcome to first-time contributors [@suryak
 
 ## Try it
 
-Grab the desktop app below, or see the rest of what ThinkRail does on [**our main webpage**](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=release-0-3-0). The full list of changes is in the [**v0.3.0 release notes**](https://github.com/JetBrains/thinkrail/releases/tag/v0.3.0).
+Grab the desktop app below, or see the rest of what UnityRail does on [**our main webpage**](https://thinkrail.ai/?utm_source=blog&utm_medium=organic-social&utm_campaign=release-0-3-0). The full list of changes is in the [**v0.3.0 release notes**](https://github.com/JetBrains/thinkrail/releases/tag/v0.3.0).
 
-Find us on social media platforms: [**X/Twitter**](https://x.com/ThinkRailAI), [**YouTube**](https://www.youtube.com/@ThinkRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
+Find us on social media platforms: [**X/Twitter**](https://x.com/UnityRailAI), [**YouTube**](https://www.youtube.com/@UnityRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
 You can also browse [**our GitHub repository**](https://github.com/JetBrains/thinkrail),
 take [**our survey**](https://forms.gle/es1ksqAax6hnDWCP8), and join [**our Discord server**](https://thinkrail.ai/discord)
 to say "hi!" and let us know what you think. Your feedback is greatly appreciated.
@@ -101,4 +101,4 @@ Happy developing!
 
 
 
-*ThinkRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*
+*UnityRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*

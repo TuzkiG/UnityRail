@@ -125,7 +125,7 @@ mock.module("electrobun/main", () => ({
       calls.push("updates");
       cwd.updates = process.cwd();
       if (failure === "updates") throw new Error("update metadata failed");
-      return { identifier: "ai.thinkrail.app", channel: "canary", version: "0.0.1", hash: "abc", baseUrl: "https://example.invalid/u", name: "ThinkRail-canary" };
+      return { identifier: "ai.thinkrail.app", channel: "canary", version: "0.0.1", hash: "abc", baseUrl: "https://example.invalid/u", name: "UnityRail-canary" };
     },
     updateInfo: () => updateInfo,
     onStatusChange: () => {},
@@ -176,7 +176,7 @@ console.log(JSON.stringify({ calls, cwd, splashText }));
 			};
 			if (failure !== "updates") {
 				expect(run.splashText).toContain(
-					pendingInstall ? "Finishing update to 0.0.2…" : "Starting ThinkRail…",
+					pendingInstall ? "Finishing update to 0.0.2…" : "Starting UnityRail…",
 				);
 			}
 			expect(run.calls).toEqual([

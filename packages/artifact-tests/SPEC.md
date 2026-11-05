@@ -48,7 +48,7 @@ the seam),
 exercise the bundled factories/skills, run **two scripted provider turns** — the fixture also registers a
 pi-ai faux `streamSimple` under its own `api` name that calls `visualize` with a dangling flowchart edge,
 so the probe asserts the strict mermaid parse error reaches the transcript as an `isError` tool result
-(the packaged host composes the ThinkRail extension registry, never the portable package's best-effort
+(the packaged host composes the UnityRail extension registry, never the portable package's best-effort
 probe; [[module-ext-visualize]]), and on a second prompt calls `ask_user_question`, so the probe sees the
 session block with `needsInput.kind === "tool-response"`, answers through `session.respondToTool`, and reads
 the answer back as the call's non-error tool result (the registry's per-session composition and the host

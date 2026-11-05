@@ -1,9 +1,9 @@
 ---
-title: Introducing ThinkRail
+title: Introducing UnityRail
 slug: introducing-thinkrail
 date: 2026-08-19
 author: maciej-gorywoda
-excerpt: ThinkRail is an agentic IDE for the Pi Coding Agent, designed to complement its powerful command-line workflow.
+excerpt: UnityRail is an agentic IDE for the Pi Coding Agent, designed to complement its powerful command-line workflow.
 tags:
   - announcement
   - thinkrail
@@ -11,9 +11,9 @@ tags:
 
 #### An IDE for Pi Coding Agent
 
-ThinkRail is an agentic IDE for the [Pi Coding Agent](https://pi.dev/), designed to complement its powerful command-line workflow. Pi’s strength lies in its flexibility: it is a minimal harness that lets you customize extensions and skills, and configure your working environment to fit your exact needs. This power, however, comes at a cost. New users often find themselves spending significant time learning how to navigate Pi, and even experienced users may find the workflow unnecessarily clunky.
+UnityRail is an agentic IDE for the [Pi Coding Agent](https://pi.dev/), designed to complement its powerful command-line workflow. Pi’s strength lies in its flexibility: it is a minimal harness that lets you customize extensions and skills, and configure your working environment to fit your exact needs. This power, however, comes at a cost. New users often find themselves spending significant time learning how to navigate Pi, and even experienced users may find the workflow unnecessarily clunky.
 
-We believe ThinkRail can make Pi more accessible without compromising its power. It provides a visual layer on top of Pi, making it easier to onboard and become productive while preserving all of Pi’s depth and extensibility. What's more, ThinkRail’s integration with Git and GitHub also makes it easier to collaborate on projects in real time.
+We believe UnityRail can make Pi more accessible without compromising its power. It provides a visual layer on top of Pi, making it easier to onboard and become productive while preserving all of Pi’s depth and extensibility. What's more, UnityRail’s integration with Git and GitHub also makes it easier to collaborate on projects in real time.
 
 ## Great, how can I get it?
 
@@ -55,26 +55,26 @@ After setup, return to the main screen, open your project, click its entry in th
 
 ## What's next?
 
-In the near future, we will publish several short blog posts like this one to discuss ThinkRail’s features and respond to your feedback. Among the features we want to tell you about are:
+In the near future, we will publish several short blog posts like this one to discuss UnityRail’s features and respond to your feedback. Among the features we want to tell you about are:
 
-* **Worktrees**: Every workspace in ThinkRail is a real Git worktree: its own branch, its own working directory. This means that if you run several agents in parallel, each one stays on its branch, and the main branch stays clean until you say "merge".
+* **Worktrees**: Every workspace in UnityRail is a real Git worktree: its own branch, its own working directory. This means that if you run several agents in parallel, each one stays on its branch, and the main branch stays clean until you say "merge".
 
 * **Specification-driven development**: Create a collection of documents specifying what your project is about and citing each other (i.e. a "spec graph"), and let the agent treat them as documentation, guidelines, and handrails for thinking.
 
-* **GUI for Pi**: ThinkRail wraps around the Pi coding agent and enhances it with a clear, readable AI chat window, Monaco tabs, and a visual way to handle settings and models.
+* **GUI for Pi**: UnityRail wraps around the Pi coding agent and enhances it with a clear, readable AI chat window, Monaco tabs, and a visual way to handle settings and models.
 
-* **Code reviews**: Reviewing changes made by the agent in a CLI has always been troublesome. ThinkRail aims to solve this.
+* **Code reviews**: Reviewing changes made by the agent in a CLI has always been troublesome. UnityRail aims to solve this.
 
 ## How to get involved?
 
-ThinkRail is in the early stages of development, and we are eager to hear your questions and comments. As we continue to build, we want to ensure it addresses the real needs of the Pi community. To help us, we invite you to:
+UnityRail is in the early stages of development, and we are eager to hear your questions and comments. As we continue to build, we want to ensure it addresses the real needs of the Pi community. To help us, we invite you to:
 
-1. **Try ThinkRail**: Launch it locally and try it out!
-2. [**Visit our webpage**](https://jb.gg/osk2n7): The ThinkRail landing page serves a dual purpose: it both describes and demonstrates the product. There you can learn more about each feature and the team behind ThinkRail.
+1. **Try UnityRail**: Launch it locally and try it out!
+2. [**Visit our webpage**](https://jb.gg/osk2n7): The UnityRail landing page serves a dual purpose: it both describes and demonstrates the product. There you can learn more about each feature and the team behind UnityRail.
 3. [**Browse our GitHub repository**](https://github.com/JetBrains/thinkrail)
-4. Find us on social media platforms: [**X/Twitter**](https://x.com/ThinkRailAI), [**YouTube**](https://www.youtube.com/@ThinkRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
-5. [**Join Our Discord server**](https://thinkrail.ai/discord): Say "hi" and let us know what you think about ThinkRail.
-6. [**Take Our Survey**](https://forms.gle/es1ksqAax6hnDWCP8): Share how you use Pi, what frustrates you, and what features you would like to see in ThinkRail. Your input will directly influence our roadmap.
+4. Find us on social media platforms: [**X/Twitter**](https://x.com/UnityRailAI), [**YouTube**](https://www.youtube.com/@UnityRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
+5. [**Join Our Discord server**](https://thinkrail.ai/discord): Say "hi" and let us know what you think about UnityRail.
+6. [**Take Our Survey**](https://forms.gle/es1ksqAax6hnDWCP8): Share how you use Pi, what frustrates you, and what features you would like to see in UnityRail. Your input will directly influence our roadmap.
 
 
 Happy developing!
@@ -83,4 +83,4 @@ Happy developing!
 
 
 
-*ThinkRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*
+*UnityRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*

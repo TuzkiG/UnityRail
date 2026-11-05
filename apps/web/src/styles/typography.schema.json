@@ -1,7 +1,7 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"$id": "https://thinkrail.ai/schemas/typography.schema.json",
-	"title": "ThinkRail typography source",
+	"title": "UnityRail typography source",
 	"description": "The canonical, machine-first typography definition: primitives plus the semantic text styles generated from them. A style is either a complete definition or a `$ref` naming a canonical definition \u2014 identical styles are never duplicated, and references never chain. Contains no CSS selectors, class strings, component paths, usage inventories or rationale. This schema is the editor-facing contract; the enforced gate is `scripts/typography.ts` \u2192 `validate()`, which also checks the policies JSON Schema cannot express.",
 	"type": "object",
 	"additionalProperties": false,

@@ -9,9 +9,9 @@ tags: [pi-extension, publishing]
 
 ## Responsibility
 
-The workspace root for pi packages ThinkRail **publishes to npm** and that must work in **vanilla `pi`**
-with no ThinkRail present. Each package here is a capability (tools, skills) the agent can use anywhere;
-ThinkRail is one embedder among others. The ThinkRail-specific halves of a capability live in
+The workspace root for pi packages UnityRail **publishes to npm** and that must work in **vanilla `pi`**
+with no UnityRail present. Each package here is a capability (tools, skills) the agent can use anywhere;
+UnityRail is one embedder among others. The UnityRail-specific halves of a capability live in
 [[module-thinkrail-extensions]], never here.
 
 Until a package's wiring PR lands, its predecessor under `packages/pi-*` stays untouched and loaded by the
@@ -39,7 +39,7 @@ host — two copies coexist on purpose and the wiring PR deletes the old one. A 
   preserves every subpath an existing consumer uses (e.g. `./core`). Pi SDK packages are
   `peerDependencies: "*"`; `@earendil-works/pi-tui` is a `"*"` peer where TUI rendering exists. The tested
   pi version is the root catalog's and is never restated here (architecture Decision 10).
-- The ThinkRail host consumes these packages through `workspace:*`; the published artifact is verified by
+- The UnityRail host consumes these packages through `workspace:*`; the published artifact is verified by
   the parity gate, not by the host.
 
 ## Vanilla-parity bar
@@ -49,12 +49,12 @@ Required before a package's first publish, and the definition of "works in vanil
 - Installs from its **packed tarball** with dependencies resolved by npm, loads through pi's own
   resolver/loader with zero diagnostics, and registers its tools and skills. (A local-path `pi install`
   installs nothing — it only records the path — so the gate never uses it.)
-- **Dual runtime.** Vanilla pi is an npm CLI under Node ≥ 22.19 with jiti; ThinkRail runs the same code
+- **Dual runtime.** Vanilla pi is an npm CLI under Node ≥ 22.19 with jiti; UnityRail runs the same code
   under Bun. Shipped code uses `node:` builtins and standard ESM only — no `Bun.*`, `bun:*`, or
   Bun-specific `import.meta`.
 - TUI: `renderCall` and `renderResult` wherever the plain text fallback reads poorly; every UI call behind
   `ctx.hasUI`. A **manual check in a real terminal** (Ghostty/iTerm2, and inside tmux) is part of the bar.
-- No ThinkRail assumptions: no `~/.thinkrail` paths, no host wire, no `@thinkrail/*` imports other than
+- No UnityRail assumptions: no `~/.thinkrail` paths, no host wire, no `@thinkrail/*` imports other than
   sibling portable packages.
 - Gate: `bun run check:pi-packages` (`scripts/check-pi-packages.ts`, CI job `pi-packages`, provider-free).
   Packs the package and every pending portable workspace dependency, greps the tarball for Bun-only APIs,
@@ -114,5 +114,5 @@ todos. Not published:
 
 | package | shape | notes |
 | --- | --- | --- |
-| `visualize` | extension | `visualize` tool; `lovely-mermaid` for TUI box-drawing and the best-effort vanilla validation; exports `createVisualizeExtension({ validateMermaid })` so an embedder can inject a strict validator — ThinkRail does, from [[module-ext-visualize]]. Detail: [[module-pi-visualize]]. |
-| `ask-user-question` | extension | `ask_user_question` tool: a terminal questionnaire in pi's interactive mode, one dialog per question in RPC hosts; exports `createAskUserQuestionExtension({ ask, guidance })` so an embedder can answer through its own UI, and a runtime-import-free `./core`. ThinkRail composes it from [[module-ext-ask-user-question]] with an asker over its answer mailbox. Detail: [[module-pi-ask-user-question]]. |
+| `visualize` | extension | `visualize` tool; `lovely-mermaid` for TUI box-drawing and the best-effort vanilla validation; exports `createVisualizeExtension({ validateMermaid })` so an embedder can inject a strict validator — UnityRail does, from [[module-ext-visualize]]. Detail: [[module-pi-visualize]]. |
+| `ask-user-question` | extension | `ask_user_question` tool: a terminal questionnaire in pi's interactive mode, one dialog per question in RPC hosts; exports `createAskUserQuestionExtension({ ask, guidance })` so an embedder can answer through its own UI, and a runtime-import-free `./core`. UnityRail composes it from [[module-ext-ask-user-question]] with an asker over its answer mailbox. Detail: [[module-pi-ask-user-question]]. |

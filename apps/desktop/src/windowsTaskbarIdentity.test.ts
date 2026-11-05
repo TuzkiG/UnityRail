@@ -13,9 +13,9 @@ import {
 const POWERSHELL_TEST_TIMEOUT_MS = 30_000;
 
 test("names one AppUserModelID per channel", () => {
-	expect(desktopAppUserModelId("stable")).toBe("JetBrains.ThinkRail");
-	expect(desktopAppUserModelId("nightly")).toBe("JetBrains.ThinkRail.Nightly");
-	expect(desktopAppUserModelId("dev")).toBe("JetBrains.ThinkRail.Dev");
+	expect(desktopAppUserModelId("stable")).toBe("JetBrains.UnityRail");
+	expect(desktopAppUserModelId("nightly")).toBe("JetBrains.UnityRail.Nightly");
+	expect(desktopAppUserModelId("dev")).toBe("JetBrains.UnityRail.Dev");
 	expect(() => desktopAppUserModelId("beta")).toThrow('unknown release channel "beta"');
 });
 
@@ -45,21 +45,21 @@ test("collects Electrobun's Start-menu shortcut and every taskbar pin, but not t
 			join(channelRoot, ".electrobun-uninstall.json"),
 			JSON.stringify({
 				schema_version: 1,
-				desktop_shortcut: "C:\\Users\\me\\Desktop\\ThinkRail (Canary).lnk",
-				start_menu_shortcut: "C:\\Users\\me\\Start Menu\\Programs\\ThinkRail (Canary).lnk",
+				desktop_shortcut: "C:\\Users\\me\\Desktop\\UnityRail (Canary).lnk",
+				start_menu_shortcut: "C:\\Users\\me\\Start Menu\\Programs\\UnityRail (Canary).lnk",
 			}),
 		);
 		const appData = join(root, "roaming");
 		const { taskbar, implicit } = pinnedFolders(appData);
-		writeFileSync(join(taskbar, "ThinkRail (Canary).lnk"), "");
+		writeFileSync(join(taskbar, "UnityRail (Canary).lnk"), "");
 		writeFileSync(join(taskbar, "desktop.ini"), "");
-		writeFileSync(join(implicit, "ThinkRail (Canary).lnk"), "");
+		writeFileSync(join(implicit, "UnityRail (Canary).lnk"), "");
 
 		expect(taskbarShortcutCandidates(join(channelRoot, "app"), appData)).toEqual({
 			paths: [
-				"C:\\Users\\me\\Start Menu\\Programs\\ThinkRail (Canary).lnk",
-				join(taskbar, "ThinkRail (Canary).lnk"),
-				join(implicit, "ThinkRail (Canary).lnk"),
+				"C:\\Users\\me\\Start Menu\\Programs\\UnityRail (Canary).lnk",
+				join(taskbar, "UnityRail (Canary).lnk"),
+				join(implicit, "UnityRail (Canary).lnk"),
 			],
 			failures: [],
 		});
@@ -68,7 +68,7 @@ test("collects Electrobun's Start-menu shortcut and every taskbar pin, but not t
 
 test("finds nothing for an unmanaged build or an unknown manifest schema", () => {
 	withTemp((root) => {
-		const appDir = join(root, "build", "ThinkRail-dev");
+		const appDir = join(root, "build", "UnityRail-dev");
 		mkdirSync(appDir, { recursive: true });
 		expect(taskbarShortcutCandidates(appDir, undefined)).toEqual({ paths: [], failures: [] });
 		writeFileSync(
@@ -89,11 +89,11 @@ test("a corrupt manifest is reported without hiding the taskbar pins", () => {
 		writeFileSync(join(root, "channel", ".electrobun-uninstall.json"), "");
 		const appData = join(root, "roaming");
 		const { taskbar } = pinnedFolders(appData);
-		writeFileSync(join(taskbar, "ThinkRail.lnk"), "");
+		writeFileSync(join(taskbar, "UnityRail.lnk"), "");
 
 		const { paths, failures } = taskbarShortcutCandidates(appDir, appData);
 
-		expect(paths).toEqual([join(taskbar, "ThinkRail.lnk")]);
+		expect(paths).toEqual([join(taskbar, "UnityRail.lnk")]);
 		expect(failures).toHaveLength(1);
 		expect(failures[0]).toBeInstanceOf(SyntaxError);
 	});
@@ -114,7 +114,7 @@ test("stamps only existing shortcuts to this launcher that carry another ID", ()
 			"C:\\Users\\me\\AppData\\Local\\ai.thinkrail.app\\stable\\app\\bin\\launcher.exe";
 		const ids = new Map<string, string | null>([
 			[ours, null],
-			[current, "JetBrains.ThinkRail"],
+			[current, "JetBrains.UnityRail"],
 			[other, null],
 		]);
 		const closed: string[] = [];
@@ -135,13 +135,13 @@ test("stamps only existing shortcuts to this launcher that carry another ID", ()
 			const result = stampTaskbarShortcuts(
 				[ours, current, other, broken, join(root, "missing.lnk")],
 				launcher,
-				"JetBrains.ThinkRail",
+				"JetBrains.UnityRail",
 				open,
 			);
 
 			expect(result.stamped).toEqual([ours]);
 			expect(result.failures).toEqual([new Error("not a shortcut")]);
-			expect(ids.get(ours)).toBe("JetBrains.ThinkRail");
+			expect(ids.get(ours)).toBe("JetBrains.UnityRail");
 			expect(ids.get(other)).toBeNull();
 			expect(writableOpens).toEqual([ours]);
 			expect(closed).toEqual([ours, ours, current, other]);
@@ -173,8 +173,8 @@ function powershell(script: string): string {
 test.skipIf(process.platform !== "win32")("sets the process AppUserModelID", () => {
 	const shell = loadWindowsShellApi();
 	expect(loadWindowsShellApi()).toBe(shell);
-	shell.setProcessAppUserModelId("JetBrains.ThinkRail.Test");
-	expect(shell.processAppUserModelId()).toBe("JetBrains.ThinkRail.Test");
+	shell.setProcessAppUserModelId("JetBrains.UnityRail.Test");
+	expect(shell.processAppUserModelId()).toBe("JetBrains.UnityRail.Test");
 });
 
 test.skipIf(process.platform !== "win32")(
@@ -186,7 +186,7 @@ test.skipIf(process.platform !== "win32")(
 			mkdirSync(join(root, "app", "bin"), { recursive: true });
 			writeFileSync(launcher, "");
 			writeFileSync(other, "");
-			const ours = join(root, "ThinkRail.lnk");
+			const ours = join(root, "UnityRail.lnk");
 			const foreign = join(root, "Other.lnk");
 			for (const [path, target] of [
 				[ours, launcher],
@@ -197,7 +197,7 @@ test.skipIf(process.platform !== "win32")(
 				);
 			}
 			const shell = loadWindowsShellApi();
-			const id = "JetBrains.ThinkRail.Test";
+			const id = "JetBrains.UnityRail.Test";
 			shell.withComApartment(() => {
 				const opened = shell.openShortcut(ours);
 				try {

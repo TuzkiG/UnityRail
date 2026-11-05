@@ -1,7 +1,7 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"$id": "https://thinkrail.dev/schemas/spacing.json",
-	"title": "ThinkRail spacing scale",
+	"title": "UnityRail spacing scale",
 	"description": "The canonical numeric layout-spacing scale. The single source for padding, margin and gap lengths; a step name IS its pixel value. Independent of typography, colour and radius. See SPACING.md.",
 	"type": "object",
 	"additionalProperties": false,

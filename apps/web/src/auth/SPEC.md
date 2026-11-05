@@ -50,7 +50,7 @@ not here — `auth` stays presentational + types, so nothing here imports `store
     `loginOptionParts` takes the caller's translator for the notes it rewrites, while pi's own labels and messages pass
     through in pi's language.
   - `uiOrigin` — `isLoopbackHost` / `uiServedFromLoopback`: whether the UI was opened via a loopback host,
-    the dialog's proxy for "the browser runs on the ThinkRail host machine"; `redirectsToLoopback`:
+    the dialog's proxy for "the browser runs on the UnityRail host machine"; `redirectsToLoopback`:
     whether an authorize URL's `redirect_uri` / `callback_url` is an `http:` loopback address.
 - **Public surface (barrel `index.ts`):** `LoginDialog`; `LoginState`/`LoginInput*` (types).
 - **Allowed deps:** `@thinkrail/ui/dialog`, `@thinkrail/ui/button` and `@thinkrail/ui/utils` (`cn`); `lib` (`copyText`);

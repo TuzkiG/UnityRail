@@ -14,8 +14,8 @@ const DEFAULT_INSTALL_SCRIPT_URL =
 const GITHUB_RELEASES_URL = "https://api.github.com/repos/JetBrains/thinkrail/releases";
 const RELEASE_CHECK_TIMEOUT_MS = 5_000;
 const RELEASE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
-const RELEASE_CHECK_ERROR = "Unable to check for ThinkRail updates.";
-const UPDATE_RUN_ERROR = "Unable to update ThinkRail.";
+const RELEASE_CHECK_ERROR = "Unable to check for UnityRail updates.";
+const UPDATE_RUN_ERROR = "Unable to update UnityRail.";
 const STABLE_RELEASE_TAG_RE = /^v(\d+\.\d+\.\d+)$/;
 const NIGHTLY_RELEASE_TAG_RE = /^v(\d+\.\d+\.\d+-nightly\.\d+)$/;
 const SEMVER_RE =
@@ -39,7 +39,7 @@ function hasForbiddenUnixInstallPrefixCharacter(value: string): boolean {
 }
 
 export const MANUAL_LAYOUT_UPDATE_ERROR =
-	"This ThinkRail executable is outside the supported <prefix>/bin layout and cannot self-update safely. Reinstall it with the published installer, or replace it manually from https://github.com/JetBrains/thinkrail/releases";
+	"This UnityRail executable is outside the supported <prefix>/bin layout and cannot self-update safely. Reinstall it with the published installer, or replace it manually from https://github.com/JetBrains/thinkrail/releases";
 
 export type ReleaseChannel = "stable" | "nightly";
 
@@ -155,7 +155,7 @@ export function createCliHostUpdate(
 
 export const UPDATE_USAGE = `Usage: thinkrail update [options]
 
-Re-download and install the latest ThinkRail for the current channel.
+Re-download and install the latest UnityRail for the current channel.
 
 Options:
   --channel stable|nightly   Override the channel (default: the installed channel).
@@ -370,7 +370,7 @@ export function windowsManualUpdateMessage(
 	const psPrefix = vars.map(([k, v]) => `$env:${k}=${psQuote(v)}; `).join("");
 	const cmdPrefix = vars.map(([k, v]) => `set "${k}=${v}" && `).join("");
 	const what =
-		version === "latest" ? `the latest ${channel} build` : `ThinkRail ${version} (${channel})`;
+		version === "latest" ? `the latest ${channel} build` : `UnityRail ${version} (${channel})`;
 	return [
 		`Re-run the installer by hand to get ${what}. Pick the line for your shell:`,
 		`  PowerShell:  ${psPrefix}irm ${DEFAULT_INSTALL_PS1_URL} | iex`,
@@ -449,7 +449,7 @@ export async function runUpdate(
 		return 1;
 	}
 
-	console.log(`Updating ThinkRail (current: ${version}, channel: ${plan.channel}) …`);
+	console.log(`Updating UnityRail (current: ${version}, channel: ${plan.channel}) …`);
 
 	if ("psArgs" in plan) return await runWindowsUpdate(plan, env);
 

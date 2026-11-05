@@ -10,7 +10,7 @@ references: [submodule-server-extensions, submodule-server-agent, submodule-web-
 
 ## Responsibility
 
-The ThinkRail wrapping of the third-party pi package **`pi-web-access`** (`web_search`, `fetch_content`,
+The UnityRail wrapping of the third-party pi package **`pi-web-access`** (`web_search`, `fetch_content`,
 `get_search_content`, and its `librarian` skill). The package is composed unchanged and everything it
 declares loads, as `pi install` would. Being a registry extension
 is what lets Settings → Extensions switch it off as a unit: tools for parents and subagent children, and

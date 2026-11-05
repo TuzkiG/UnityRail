@@ -1,4 +1,4 @@
-# ThinkRail binary installer for Windows -- downloads the single-file thinkrail.exe from the GitHub
+# UnityRail binary installer for Windows -- downloads the single-file thinkrail.exe from the GitHub
 # releases, verifies its checksum, and puts it on your PATH. The native counterpart of install.sh
 # (macOS/Linux/Git Bash); one script serves both cmd and PowerShell (Windows PowerShell 5.1+).
 #
@@ -31,7 +31,7 @@ param(
     [switch]$NoModifyPath = ($env:THINKRAIL_NO_MODIFY_PATH -eq '1')
 )
 
-function Resolve-ThinkRailTag {
+function Resolve-UnityRailTag {
     param([string]$Repo, [string]$Channel, [string]$Version)
     if ($Version -cne 'latest') { return 'v' + $Version }
     $headers = @{ Accept = 'application/vnd.github+json' }
@@ -53,7 +53,7 @@ function Resolve-ThinkRailTag {
     return $null
 }
 
-function Get-ThinkRailPersistentPath {
+function Get-UnityRailPersistentPath {
     # Raw (unexpanded) entries of the *persistent* PATH: the per-user value in HKCU\Environment plus the
     # machine value (readable without admin). Deliberately NOT $env:Path -- the live process PATH also
     # carries session-only edits (`$env:Path += ...`, a parent script, an earlier -NoModifyPath run whose
@@ -84,7 +84,7 @@ function Get-ThinkRailPersistentPath {
     return , $entries
 }
 
-function Test-ThinkRailOnPath {
+function Test-UnityRailOnPath {
     # Is $Dir among these PATH entries (compared unexpanded and %VAR%-expanded, separator- and case-insensitively)?
     param([string]$Dir, [string[]]$PathEntries)
     $norm = $Dir.Replace('/', '\').TrimEnd('\')
@@ -98,7 +98,7 @@ function Test-ThinkRailOnPath {
     return $false
 }
 
-function Add-ThinkRailToUserPath {
+function Add-UnityRailToUserPath {
     # Append $Dir to the per-user PATH in HKCU\Environment. Deliberately NOT
     # [Environment]::SetEnvironmentVariable('Path', ..., 'User'): that expands %VARS% and rewrites
     # REG_EXPAND_SZ as REG_SZ, clobbering other tools' entries. Returns 'already', 'added', or 'failed'.
@@ -113,7 +113,7 @@ function Add-ThinkRailToUserPath {
             $kind = $key.GetValueKind('Path')
             $raw = [string]$key.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
         }
-        if (Test-ThinkRailOnPath -Dir $Dir -PathEntries (Get-ThinkRailPersistentPath)) { return 'already' }
+        if (Test-UnityRailOnPath -Dir $Dir -PathEntries (Get-UnityRailPersistentPath)) { return 'already' }
         $newRaw = if ($raw -and -not $raw.EndsWith(';')) { "$raw;$Dir" } elseif ($raw) { "$raw$Dir" } else { $Dir }
         $key.SetValue('Path', $newRaw, $kind)
         return 'added'
@@ -124,25 +124,25 @@ function Add-ThinkRailToUserPath {
     }
 }
 
-function Send-ThinkRailSettingChange {
+function Send-UnityRailSettingChange {
     # Broadcast WM_SETTINGCHANGE "Environment" so Explorer re-reads the registry PATH -- terminals
     # opened after this pick it up without a sign-out. Best-effort.
     try {
-        if (-not ('ThinkRail.NativeMethods' -as [type])) {
-            Add-Type -Namespace ThinkRail -Name NativeMethods -MemberDefinition @'
+        if (-not ('UnityRail.NativeMethods' -as [type])) {
+            Add-Type -Namespace UnityRail -Name NativeMethods -MemberDefinition @'
 [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
 public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
 '@
         }
         $result = [UIntPtr]::Zero
         # HWND_BROADCAST (0xffff), WM_SETTINGCHANGE (0x1a), SMTO_ABORTIFHUNG (0x2), 5s timeout.
-        [void][ThinkRail.NativeMethods]::SendMessageTimeout([IntPtr]0xffff, 0x1a, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result)
+        [void][UnityRail.NativeMethods]::SendMessageTimeout([IntPtr]0xffff, 0x1a, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result)
     } catch {
         # Non-fatal: new terminals see the PATH after the next sign-in regardless.
     }
 }
 
-function Install-ThinkRailBinary {
+function Install-UnityRailBinary {
     # Put the verified download at $Dest so that no failure can leave the user without a working exe:
     #   1. Stage the asset *inside* $Dest's own directory first. Crossing volumes (a custom prefix on
     #      another drive) and running out of space happen here -- before anything installed is touched.
@@ -175,7 +175,7 @@ function Install-ThinkRailBinary {
     }
 }
 
-function Install-ThinkRail {
+function Install-UnityRail {
     param([string]$Channel, [string]$Version, [string]$Prefix, [switch]$NoModifyPath)
 
     # Function-scoped preferences: `irm | iex` runs in the caller's session, so top-level assignments
@@ -224,7 +224,7 @@ function Install-ThinkRail {
     $assetName = 'thinkrail-windows-x64.exe'
 
     Write-Host "Resolving latest $channel release for windows/x64 ..."
-    $tag = Resolve-ThinkRailTag -Repo $repo -Channel $channel -Version $version
+    $tag = Resolve-UnityRailTag -Repo $repo -Channel $channel -Version $version
     if (-not $tag) {
         throw "Failed to resolve a $channel release. Has one been published yet?"
     }
@@ -272,7 +272,7 @@ function Install-ThinkRail {
         Get-ChildItem -Path $binDir -Filter 'thinkrail.exe.*' -File -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -like '*.old' -or $_.Name -like '*.new' } |
             Remove-Item -Force -ErrorAction SilentlyContinue
-        Install-ThinkRailBinary -Source $assetPath -Dest $dest
+        Install-UnityRailBinary -Source $assetPath -Dest $dest
         Write-Host "Installed -> $dest"
     } finally {
         Remove-Item -Recurse -Force -Path $tmp -ErrorAction SilentlyContinue
@@ -292,22 +292,22 @@ function Install-ThinkRail {
     }
 
     Write-Host ''
-    Write-Host "ThinkRail $($tag -replace '^v', '') ($channel) installed."
+    Write-Host "UnityRail $($tag -replace '^v', '') ($channel) installed."
 
     $pathAdvice = $null
     $pathStatus = $null
     if ($NoModifyPath) {
-        if (Test-ThinkRailOnPath -Dir $binDir -PathEntries (Get-ThinkRailPersistentPath)) {
+        if (Test-UnityRailOnPath -Dir $binDir -PathEntries (Get-UnityRailPersistentPath)) {
             Write-Host 'PATH:           already configured'
         } else {
             $pathAdvice = "$binDir (skipped: -NoModifyPath)"
         }
     } else {
-        $pathStatus = Add-ThinkRailToUserPath -Dir $binDir
+        $pathStatus = Add-UnityRailToUserPath -Dir $binDir
         switch ($pathStatus) {
             'already' { Write-Host 'PATH:           already configured' }
             'added' {
-                Send-ThinkRailSettingChange
+                Send-UnityRailSettingChange
                 Write-Host "PATH:           added $binDir to your user PATH"
                 Write-Host '                open a new terminal to pick it up'
             }
@@ -315,7 +315,7 @@ function Install-ThinkRail {
         }
         # Persisted -- also make `thinkrail` runnable in *this* session (a saved-copy run in an
         # interactive shell), without duplicating an entry the process PATH already carries.
-        if ($pathStatus -ne 'failed' -and -not (Test-ThinkRailOnPath -Dir $binDir -PathEntries ($env:Path -split ';'))) {
+        if ($pathStatus -ne 'failed' -and -not (Test-UnityRailOnPath -Dir $binDir -PathEntries ($env:Path -split ';'))) {
             $env:Path = "$env:Path;$binDir"
         }
     }
@@ -358,4 +358,4 @@ function Install-ThinkRail {
     Write-Host 'Uninstall:      thinkrail uninstall'
 }
 
-Install-ThinkRail -Channel $Channel -Version $Version -Prefix $Prefix -NoModifyPath:$NoModifyPath
+Install-UnityRail -Channel $Channel -Version $Version -Prefix $Prefix -NoModifyPath:$NoModifyPath

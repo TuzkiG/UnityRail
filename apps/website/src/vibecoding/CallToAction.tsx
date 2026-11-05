@@ -17,7 +17,7 @@ const COPY: Record<Positioning, { heading: string; subtitle: string }> = {
 	compounding: {
 		heading: "Stop starting from zero.",
 		subtitle:
-			"Every session leaves your project smarter — decisions in specs, workflows in skills. Download ThinkRail and let it learn.",
+			"Every session leaves your project smarter — decisions in specs, workflows in skills. Download UnityRail and let it learn.",
 	},
 };
 

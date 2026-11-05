@@ -1,9 +1,10 @@
 import askUserQuestion from "@thinkrail/ext-ask-user-question/web";
+import unity from "@thinkrail/ext-unity/web";
 import visualize from "@thinkrail/ext-visualize/web";
 import type { WebExtension } from "@thinkrail/extension-api/web";
 import { registerToolRenderer } from "../chat/toolRegistry";
 
-export const webExtensions: readonly WebExtension[] = [visualize, askUserQuestion];
+export const webExtensions: readonly WebExtension[] = [visualize, askUserQuestion, unity];
 
 export function registerWebExtensions(): void {
 	for (const extension of webExtensions) {

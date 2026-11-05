@@ -10,9 +10,9 @@ references: [module-pi-ask-user-question, submodule-web-chat, submodule-server-a
 
 ## Responsibility
 
-The ThinkRail halves of the `ask_user_question` capability.
+The UnityRail halves of the `ask_user_question` capability.
 - `./server` composes the portable tool ([[module-pi-ask-user-question]]) for every parent session, with
-  ThinkRail's own wording and an asker that waits on the host's interactive-tool mailbox.
+  UnityRail's own wording and an asker that waits on the host's interactive-tool mailbox.
 - `./web` is the inline questionnaire card.
 
 The host keeps the interactive-tool lifecycle — mailbox phases, restart repair, late responses, composer
@@ -34,7 +34,7 @@ client of that contract ([[module-extension-api]]) and is deletable without a co
   question lifecycle starts only for calls this extension runs. The asker awaits `session.awaitToolResponse(toolCallId, signal)`. A `response` must be a questionnaire
   result (checked with the package's `isAskUserQuestionResult`, else the call fails); `deferred` and
   `abandoned` pass through as outcomes, so the package returns the canonical ack or the stop and ends the
-  turn. `guidance` is ThinkRail's description and prompt guidelines: the inline card, and a composer reply
+  turn. `guidance` is UnityRail's description and prompt guidelines: the inline card, and a composer reply
   that supersedes it. The server half has no named exports; it imports only `extension-api/server` and its
   pi package. The package's deferral ack `{ kind: "ack" }` is the host's pending marker — a test pins it.
 - `@thinkrail/ext-ask-user-question/web` default-exports a `defineWebExtension` descriptor that registers

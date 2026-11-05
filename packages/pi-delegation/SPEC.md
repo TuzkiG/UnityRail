@@ -143,20 +143,20 @@ shutdown release barriers; and finalized outcomes after a shrinking compaction.
   decision #32). `isProjectTrusted` is the pi-level
   project trust a child's settings manager receives (asked at creation and again at the revalidation
   below): trust is part of the context a child derives from its parent, so a child never loads more of
-  the project than its parent — pure pi's `ctx` carries the session's own trust, ThinkRail answers its
+  the project than its parent — pure pi's `ctx` carries the session's own trust, UnityRail answers its
   parent's loaded trust AND the current `Project.piResourceTrust`; absent → trusted, pi's own
   `SettingsManager` default. A resource context (`ResourceContextInput`) takes the same optional field. The parent's own retained `modelRuntime` is preferred
   over every fallback: an embedder whose sessions each retain their creation-time runtime generation
-  (ThinkRail) must give a child its *parent's* generation, or a parent kept alive on a Central-only
+  (UnityRail) must give a child its *parent's* generation, or a parent kept alive on a Central-only
   model after a disconnect would delegate into a runtime lacking its provider (PR #303 review
   follow-up). `modelRegistry` is the public pure-pi compatibility path: when neither a parent nor
   service runtime is bound, the core mirrors its opaque extension-provider registrations into the
   self-created runtime before each child is resolved, including removing registrations that have
-  disappeared. ThinkRail projects the manager's live session incl. the entry's generation runtime;
+  disappeared. UnityRail projects the manager's live session incl. the entry's generation runtime;
   pure pi passes the extension's own `ctx`, including its registry), `delegationRoot`, `scope`,
   `modelRuntime` (a `ModelRuntime` value **or a live provider** `() => ModelRuntime |
   Promise<ModelRuntime>`, resolved **per `createChild`**: an embedder's runtime can be generational
-  — ThinkRail swaps runtime generations on Central connect/disconnect — and a value captured at
+  — UnityRail swaps runtime generations on Central connect/disconnect — and a value captured at
   service creation would pin every later child to the first generation while new parent chats move
   on (PR #303 review finding); absent → the service self-creates one runtime **per parent lineage**
   and caches it until `disposeChildrenOf(parent)` — a service may resolve parents backed by different
@@ -239,13 +239,13 @@ stateDiagram-v2
 |---|---|
 | Foreground | `await child.runQueued(task)`. pi executes a batch's tool calls concurrently (verified: `pi-agent-core` `executeToolCallsParallel`), so N `Agent` calls = N children in flight — no `tasks[]`/chain DSL needed. |
 | Per-run outcome | A `RunOutcome`'s `finalText`, `stopReason` and `details.usage` belong to **that run alone**: the run captures a session-stat baseline before `prompt()`, observes finalized assistant `message_end` events for text/stop evidence (never a shrinking message-array index), and reports usage/cost/token **deltas** against the baseline — never the child session's cumulative totals. A reusable child running sequential tasks would otherwise return the previous run's text after a preflight failure and double-count usage (PR #302 review finding). `contextTokens` stays a point-in-time snapshot by design. |
-| Concurrency | Semaphore **per parent session**, default 4; FIFO. Why: the model decides how many spawns to emit — each child is a full LLM session, so unbounded spawn multiplies token spend, provider 429 pressure, and load on the one shared event loop (no crash isolation). Resource governance, not correctness. The limit is **live**: `setMaxConcurrentPerParent(n)` resizes every existing parent semaphore and the default for later ones — growth admits queued runs at once (FIFO), shrinking never stops running children and only admits below the new limit. Resource semaphores keep their registration-time slots. The embedder owns the policy (ThinkRail: global setting + workspace override). Host-wide ceiling across parents: follow-up. |
+| Concurrency | Semaphore **per parent session**, default 4; FIFO. Why: the model decides how many spawns to emit — each child is a full LLM session, so unbounded spawn multiplies token spend, provider 429 pressure, and load on the one shared event loop (no crash isolation). Resource governance, not correctness. The limit is **live**: `setMaxConcurrentPerParent(n)` resizes every existing parent semaphore and the default for later ones — growth admits queued runs at once (FIFO), shrinking never stops running children and only admits below the new limit. Resource semaphores keep their registration-time slots. The embedder owns the policy (UnityRail: global setting + workspace override). Host-wide ceiling across parents: follow-up. |
 | Background | Don't await the promise. Completion → `run-terminal` event; the subagent tool layer additionally injects a `subagent-completion` custom message into the parent. |
 | Result collection | Registry snapshot via `findChild(id)`: terminal → final output + details, marks `collected`; running → status snapshot (not an error); unknown id → error naming the restart-loss case + the derived transcript path. The subagent layer treats `collected` as "the parent already has it" and drops the pending completion message. |
 | Join / wait-all | **Not core.** Engine control flow over `run-terminal` events / run promises: join = `Promise.all` over run outcomes; fan-out = spawns sharing a dependency (the semaphore paces them); fail-fast = one shared `AbortController` across sibling `RunOptions.signal`s. |
 | Turn cap | `RunOptions.maxTurns`: on cap, `steer()` a wrap-up instruction, then `abort()`. No wall-clock timeout (provider retries are pi's job). |
 | Abort / dispose | `signal` in `RunOptions` (tool abort, engine fail-fast) and `ChildHandle.abort()` both cancel the active run through one run-scoped signal. The handle path must cancel a run that is still **queued**, not merely call `abort()` on its idle pi session: queued cancellation resolves immediately while the eventual slot grant is handed straight back, and no provider work starts (PR #302 review finding, regression-pinned). A running cancellation aborts the pi session. `ChildHandle.dispose()` first marks the child disposed, cancels through that same signal, and awaits the run's terminal settlement before disposing the pi session and removing the child; a queued run therefore cannot hang behind a sibling or emit terminal lifecycle work after `child-disposed` (follow-up PR #302 review finding, regression-pinned). Every child owns one shared teardown promise: concurrent handle disposal and parent disposal both await it, so `disposed` means admission is closed rather than teardown is already complete. Parent dispose → `disposeChildrenOf` cascade, which includes already-disposing children still registered to that parent, then **marks every captured child disposed and signals every active run synchronously before awaiting any shared teardown**; it cannot return while child work is still settling (second follow-up PR #302 review finding, regression-pinned). Aborting a running child frees its semaphore slot, and an unmarked or uncancelled queued sibling could otherwise issue provider work or remain pending during the cascade. A mid-turn parent abort kills only awaited (foreground) runs via their signals; detached runs survive turn aborts. |
-| Restart | Foreground dangling toolCalls → healed by the embedder's generic transcript repair (ThinkRail: `repairDanglingToolCalls`). Registry is in-memory: detached runs are lost (accepted); transcripts remain on disk and stay openable. |
+| Restart | Foreground dangling toolCalls → healed by the embedder's generic transcript repair (UnityRail: `repairDanglingToolCalls`). Registry is in-memory: detached runs are lost (accepted); transcripts remain on disk and stay openable. |
 
 A parent id has a replaceable in-memory lifetime. `disposeChildrenOf(parent)` rotates that lifetime
 synchronously, detaches its child set, semaphore and fallback runtime, signals every admitted child,
@@ -264,7 +264,7 @@ to treat lifecycle snapshots as terminal authority.
 - **Hidden children persist under the embedder-bound delegation root, never pi's default sessions
   root:** `<delegationRoot>/<scope>/<parentSessionId>/<child>.jsonl` via
   `SessionManager.create(cwd, sessionDir)` — verified: pi accepts a custom `sessionDir` on
-  `create`/`open`/`list`/`forkFrom` (the last covers the future `fork` axis). ThinkRail binds
+  `create`/`open`/`list`/`forkFrom` (the last covers the future `fork` axis). UnityRail binds
   `~/.thinkrail/delegation` with `scope = workspaceId`; pure pi defaults to
   `<piAgentDir>/delegation` with `scope = "default"`. Hidden by construction: session listings
   scan only the default root.
@@ -276,7 +276,7 @@ to treat lifecycle snapshots as terminal authority.
   spawned with `parent = the run's root session` (siblings); the DAG's data-flow edges are the
   engine's own record. Consequences: whole-run cancel = the existing cascade on the root's
   children (no graph traversal); a join is engine control flow, not a session.
-- **Retention is the embedder's:** ThinkRail ties child lifetime to the **workspace** (archival
+- **Retention is the embedder's:** UnityRail ties child lifetime to the **workspace** (archival
   deletes; closing a tab deletes nothing — mechanics: [[submodule-server-agent]]). Pure pi: no GC.
   No per-parent GC anywhere.
 - `listed` children (future) ride everything that exists — manager registration → tabs, WS
@@ -313,14 +313,14 @@ lineage section above.
    a DAG.
 
 Plus the **workspace seam** (`WorkspaceProvider`): child isolation (git worktree, tmpdir,
-container) as a pluggable strategy. ThinkRail's natural provider already exists — the
+container) as a pluggable strategy. UnityRail's natural provider already exists — the
 projects/workspaces feature owns `git worktree` creation; merge-back semantics live in the
 provider's `dispose` (`resultAddendum` tells the parent where work landed), never in the core.
 (Pattern validated by gotgenes' ADR-0002 seam + companion worktrees package.)
 
 ## Portability & embedding (user-settled, 2026-08)
 
-The layer must **work under vanilla pi** — no ThinkRail. `pi-delegation` itself is a library; the
+The layer must **work under vanilla pi** — no UnityRail. `pi-delegation` itself is a library; the
 extension vanilla pi actually loads is its first consumer, [[module-pi-subagents]]. The SDK is a
 `peerDependency` (field-verified as the community's in-process pattern — decision #17); peer deps are
 exempt from the repo's exact-pin rule, and value-importing the SDK is safe here because the package
@@ -328,12 +328,12 @@ lives server-side by construction and never reaches `contracts`/`web` (the wire 
 decision #20).
 
 An embedder constructs the service via `createDelegationService(bindings)` and hands it to
-consumers — ThinkRail keeps the handle for the manager's dispose cascade and the future wire
+consumers — UnityRail keeps the handle for the manager's dispose cascade and the future wire
 handlers, and passes it to the `pi-subagents` factory; under vanilla pi the `pi-subagents`
 extension constructs it with defaults. Everything host-specific enters through the one
 `DelegationBindings` bag (typed + documented in `src/types.ts`); **every field has a pure-pi
 default except the live-parent lookup when session-parent creation is used** — `resolveParent` is
-optional for resource-only services; the embedder owns the session-parent lookup (ThinkRail: the manager; pure pi: the consuming extension's own `ctx`).
+optional for resource-only services; the embedder owns the session-parent lookup (UnityRail: the manager; pure pi: the consuming extension's own `ctx`).
 
 **Pure-pi bar (user-settled):** the consuming extension loads and runs correctly under vanilla
 pi with pi's **default tool rendering** — no pi-tui widget (the rich live card is the web
@@ -357,7 +357,7 @@ interactive}` with no `session` options is expressible; pi's `forkFrom` accepts 
 `sessionDir` (verified). *Workflows* — all three styles map onto the three extension points with
 only `runQueued` + `signal` + the dispose cascade. One caveat stands: `WorkspaceProvider`'s call
 sequencing (`prepare` names the child id, which exists only after creation) is pinned by its first
-consumer, the ThinkRail worktree provider. Report-back from a subsession to its parent (when
+consumer, the UnityRail worktree provider. Report-back from a subsession to its parent (when
 subsessions land) is pi-native (`sendMessage`/`followUp`) — no core provision needed beyond
 lineage.
 
@@ -430,12 +430,12 @@ run-scoped signal. Non-user paths retain their behavior.
     prompting of a queued child is structurally impossible. (The `resolveParent` binding hands the
     *embedder's* live parent to the core — embedder-side plumbing, not a consumer surface.)
 17. **Portable core — the package is the deliverable** (2026-08, PR #261 review round): the user
-    settled the requirement that the layer works **without ThinkRail, in pure pi**. Field research
+    settled the requirement that the layer works **without UnityRail, in pure pi**. Field research
     (source-verified): the pi example spawns `pi --mode json -p --no-session` subprocesses;
     nicobailon spawns subprocesses (foreground + detached runner); **gotgenes and tintinweb run
     children in-process via `createAgentSession` with the pi SDK as a peerDependency** — proving
     in-process pure-pi children are a solved pattern. The core therefore moved from a
-    `packages/server` sub-module to `packages/pi-delegation`; ThinkRail is one embedder.
+    `packages/server` sub-module to `packages/pi-delegation`; UnityRail is one embedder.
 18. **Host-injected spawn seam rejected** (resolves the PR #261 boundary proposal — adopted in
     strengthened form): a `SpawnBackend` the host injects would require a second, in-package
     pure-pi run loop to satisfy #17, duplicating the loop decision #1 deliberately owns once. No
@@ -472,7 +472,7 @@ run-scoped signal. Non-user paths retain their behavior.
     a child loading any factory is bound `mode: "print"` (headless — `ctx.hasUI` false, dialogs
     skipped). The one unconditional set is `DelegationBindings.childBaseExtensionFactories`: every
     child — ordinary or resource, opted in or not — loads it ahead of the curated set. It carries
-    tool-less infrastructure hooks an embedder needs on every child request (ThinkRail: the
+    tool-less infrastructure hooks an embedder needs on every child request (UnityRail: the
     oversized-image guard and the post-compaction skill carry-over; the guard was made necessary by decision #31's raw-image settings — PR #657 review:
     custom agents default to no extensions, so an opt-in guard left them unguarded). A tool
     registered there would reach children that never opted in, so keeping the set tool-free is the
@@ -484,7 +484,7 @@ run-scoped signal. Non-user paths retain their behavior.
     origin: fresh | fork})`, with the core owning creation, lineage, the registry, and lifecycle
     events exactly as for any child; what the curated-set mechanism does NOT cover is a listed
     child's *resource assembly*: when the listed axis lands, the core acquires an embedder seam so
-    a listed child's loader is built by the host's normal session path (ThinkRail:
+    a listed child's loader is built by the host's normal session path (UnityRail:
     `createSession`'s own loader — full bundled set incl. visualize + ask_user_question, skills,
     admission) and the child registers in the host's manager (tab, WS streaming, hydration).
 26. **Public provider replay for the pure-pi fallback; exact runtime reuse for embedders.** Pi's
@@ -517,7 +517,7 @@ run-scoped signal. Non-user paths retain their behavior.
     (issue #604). Each child's settings manager is `buildChildSettings(cwd, projectTrusted)` when
     bound, else `SettingsManager.create(cwd, undefined, { projectTrusted })`, with `projectTrusted`
     the parent (or resource) context's `isProjectTrusted`, so an embedder's children run on the
-    settings and trust its own sessions do. ThinkRail binds `buildSessionSettings`, whose raw-image override is what lets a
+    settings and trust its own sessions do. UnityRail binds `buildSessionSettings`, whose raw-image override is what lets a
     child's `read` deliver images in the compiled binary (rationale: [[submodule-server-agent]]);
     unbound, every child `read` of an image there returned pi's `[Image omitted…]` note. The hook
     sits on `DelegationBindings` beside the factory sets, keeping decision #3's firewall: the

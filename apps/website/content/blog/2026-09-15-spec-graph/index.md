@@ -1,5 +1,5 @@
 ---
-title: ThinkRail Spec-Driven Development
+title: UnityRail Spec-Driven Development
 slug: thinkrail-sdd
 date: 2026-09-15
 author: maciej-gorywoda
@@ -48,7 +48,7 @@ the generated source code becomes just an implementation detail, even if you are
 it manually.
 
 
-## Spec-Driven Development in ThinkRail
+## Spec-Driven Development in UnityRail
 
 You may start simply with adding a new section to `AGENTS.md` in the main folder of your project. This way you tell 
 AI agents that the project uses SDD and where they can find relevant specifications for their work. It might be 
@@ -93,20 +93,20 @@ only if needed. The context does not grow too big. Important information does no
 the specs work as guardrails for your AI agent: always present so that the agent will not go off-course but 
 not getting in the way if everything works well.
 
-To read those documents, look to the right panel in ThinkRail. There you will find the Specs tab. When you open it, 
+To read those documents, look to the right panel in UnityRail. There you will find the Specs tab. When you open it, 
 you will see the titles of all specs in the project, already organized in a foldable tree. By unfolding it, you gain 
 access to specs from submodules, and by clicking on them, you open them in read-only mode in the central panel. 
-In the following video you can see how the spec graph looks like in [the ThinkRail project itself](https://github.com/JetBrains/thinkrail):
+In the following video you can see how the spec graph looks like in [the UnityRail project itself](https://github.com/JetBrains/thinkrail):
 
 <iframe src="https://youtube.com/embed/603EdnbbDYo" width="640" height="360" allow="autoplay" allowfullscreen></iframe>
 
 And that is it for today. To learn more about Spec-Driven Development used for working with AI coding agents, 
 I invite you to read ["Spec-Driven Development: From Code to Contract in the Age of AI Coding Assistants"](https://arxiv.org/html/2602.00180v1) by Deepak Babu Piskala, 
-a comprehensive introduction to the modern version of SDD. And of course, please try it out in ThinkRail, working on 
+a comprehensive introduction to the modern version of SDD. And of course, please try it out in UnityRail, working on 
 your project, and let us know: what do you work on? Has SDD helped you? Or have you decided it is not a good approach?
 
-To try out ThinkRail, visit [**our main webpage**](https://jb.gg/osk2n7) and follow the installation
-instructions. Find us on social media platforms: [**X/Twitter**](https://x.com/ThinkRailAI), [**YouTube**](https://www.youtube.com/@ThinkRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
+To try out UnityRail, visit [**our main webpage**](https://jb.gg/osk2n7) and follow the installation
+instructions. Find us on social media platforms: [**X/Twitter**](https://x.com/UnityRailAI), [**YouTube**](https://www.youtube.com/@UnityRailAI), and [**TikTok**](https://www.tiktok.com/@thinkrail).
 You can also browse [**our GitHub repository**](https://github.com/JetBrains/thinkrail),
 take [**our survey**](https://forms.gle/es1ksqAax6hnDWCP8), and join [**our Discord server**](https://thinkrail.ai/discord)
 to say "hi!" and let us know what you think. Your feedback is greatly appreciated.
@@ -117,4 +117,4 @@ Happy developing!
 
 
 
-*ThinkRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*
+*UnityRail is backed by JetBrains, leveraging their expertise in building developer tools that are both powerful and intuitive.*

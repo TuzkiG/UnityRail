@@ -11,9 +11,9 @@ tags: [dag, pi-extension, backend]
 ## Responsibility
 
 A portable backend DAG service and pi extension over [[module-pi-delegation]], independent of
-`pi-subagents` and ThinkRail. Pi owns every model invocation, session, compaction and usage record;
+`pi-subagents` and UnityRail. Pi owns every model invocation, session, compaction and usage record;
 this package owns graph scheduling, durable evidence, gates, commands and recovery. It is not
-bundled into ThinkRail and exposes no UI or wire implementation.
+bundled into UnityRail and exposes no UI or wire implementation.
 
 ## Boundary
 
@@ -23,7 +23,7 @@ and the typed command/read/binding contracts. Four reads (`listDags`, `getDag`, 
 checkpoint CRUD, generic query language, alternate spawner or public effect engine.
 
 Allowed dependencies: `pi-delegation` through its barrel, public pi/typebox peer APIs and `node:*`.
-Forbidden: ThinkRail workspace packages, `pi-subagents` policy, pi private fields and sibling internals.
+Forbidden: UnityRail workspace packages, `pi-subagents` policy, pi private fields and sibling internals.
 Internal dependency edges are `extension → runtime + domain + pi-delegation`,
 `runtime → domain + persistence + pi-delegation`, and `persistence → domain`.
 The extension uses domain schemas/contracts directly; its standalone composition creates the delegation
@@ -34,7 +34,7 @@ are runtime-local and receive narrow callbacks, never a controller client. Each 
 
 A DAG is a resource, never a fabricated parent session. A scoped service owns live execution;
 conversation bindings own only control/notice attachment. An injected service remains host-owned.
-ThinkRail's selected integration policy is workspace ownership; other hosts may apply conversation
+UnityRail's selected integration policy is workspace ownership; other hosts may apply conversation
 or service lifetime policies by invoking the same controls. No ownership-mode scheduler is added.
 A trusted `owner` binding may perform lifecycle controls, but is not a human and cannot approve or
 bypass human-only release. Sessionless construction uses an explicit execution context.

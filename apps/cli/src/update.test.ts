@@ -11,7 +11,7 @@ import {
 	windowsManualUpdateMessage,
 } from "./update";
 
-const RELEASE_ERROR_RE = /^Unable to check for ThinkRail updates\.$/;
+const RELEASE_ERROR_RE = /^Unable to check for UnityRail updates\.$/;
 
 function githubJson(body: unknown): Response {
 	return new Response(JSON.stringify(body), {
@@ -188,8 +188,8 @@ describe("createCliHostUpdate", () => {
 		});
 		if (!nonzero || !launchFailure) throw new Error("expected host updates");
 
-		await expect(nonzero.run()).rejects.toThrow(/^Unable to update ThinkRail\.$/);
-		await expect(launchFailure.run()).rejects.toThrow(/^Unable to update ThinkRail\.$/);
+		await expect(nonzero.run()).rejects.toThrow(/^Unable to update UnityRail\.$/);
+		await expect(launchFailure.run()).rejects.toThrow(/^Unable to update UnityRail\.$/);
 	});
 
 	test("returns a notice only for a strictly newer same-channel version", async () => {
@@ -544,7 +544,7 @@ describe("resolveWindowsUpdatePlan", () => {
 		const plan = resolveWindowsUpdatePlan({
 			build: "binary",
 			platform: "win32",
-			execPath: "D:\\current\\bin\\ThinkRail.exe",
+			execPath: "D:\\current\\bin\\THINKRAIL.EXE",
 			args: { version: "latest" },
 			installMeta: { prefix: "C:\\other", channel: "nightly" },
 			baked: "stable",
@@ -598,7 +598,7 @@ describe("resolveWindowsUpdatePlan", () => {
 	});
 
 	test.each([
-		["D:\\manual\\ThinkRail.exe", {}],
+		["D:\\manual\\UnityRail.exe", {}],
 		[
 			"D:\\Downloads\\thinkrail-windows-x64.exe",
 			{ prefix: "C:\\Users\\u\\.local", channel: "nightly" },

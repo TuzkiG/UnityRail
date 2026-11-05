@@ -29,4 +29,4 @@ What actually happened. Include logs, stack traces, or screenshots if relevant.
 - OS:
 - Bun version (`bun --version`):
 - Node version (`node --version`):
-- ThinkRail version / commit:
+- UnityRail version / commit:

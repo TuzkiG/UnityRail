@@ -61,7 +61,7 @@ const CARDS: Record<Positioning, Card[]> = {
 		{
 			n: "07",
 			title: "Extensions",
-			body: "Next: ThinkRail builds the tools it needs from how you actually work.",
+			body: "Next: UnityRail builds the tools it needs from how you actually work.",
 			tag: "coming soon",
 		},
 	],

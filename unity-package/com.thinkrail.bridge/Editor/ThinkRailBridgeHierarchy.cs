@@ -29,33 +29,76 @@ namespace UnityRail.Bridge
             return string.Join("/", names);
         }
 
+        /**
+         * Resolves a hierarchy path against every loaded scene, not just the active one: edit-time
+         * multi-scene setups, additive scenes and DontDestroyOnLoad roots are all legitimate targets.
+         * Same-named roots in different scenes are tried in order, and inactive objects are included.
+         */
         public static GameObject FindByPath(string path)
         {
             if (string.IsNullOrEmpty(path)) return null;
             string[] parts = path.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length == 0) return null;
-            Scene scene = SceneManager.GetActiveScene();
-            GameObject root = null;
-            if (scene.IsValid())
+            PrefabStage stage = PrefabStageUtility.GetCurrentPrefabStage();
+            if (stage != null && stage.prefabContentsRoot != null)
             {
+                GameObject inStage = ResolveBelow(stage.prefabContentsRoot, parts);
+                if (inStage != null) return inStage;
+            }
+            for (int index = 0; index < SceneManager.sceneCount; index += 1)
+            {
+                Scene scene = SceneManager.GetSceneAt(index);
+                if (!scene.IsValid() || !scene.isLoaded) continue;
                 foreach (GameObject candidate in scene.GetRootGameObjects())
                 {
-                    if (candidate.name == parts[0])
-                    {
-                        root = candidate;
-                        break;
-                    }
+                    GameObject found = ResolveBelow(candidate, parts);
+                    if (found != null) return found;
                 }
             }
-            if (root == null)
+            // The DontDestroyOnLoad scene is not always enumerated above; loaded objects cover it.
+            foreach (GameObject candidate in Resources.FindObjectsOfTypeAll<GameObject>())
             {
-                GameObject found = GameObject.Find(parts[0]);
-                if (found != null) root = found.transform.root.gameObject;
+                if (candidate == null || candidate.transform.parent != null) continue;
+                if (!candidate.scene.IsValid() || !candidate.scene.isLoaded) continue;
+                GameObject found = ResolveBelow(candidate, parts);
+                if (found != null) return found;
             }
-            if (root == null) return null;
+            return null;
+        }
+
+        private static GameObject ResolveBelow(GameObject root, string[] parts)
+        {
+            if (root == null || root.name != parts[0]) return null;
             if (parts.Length == 1) return root;
             Transform child = root.transform.Find(string.Join("/", parts.Skip(1).ToArray()));
             return child != null ? child.gameObject : null;
+        }
+
+        /** A failure the agent can act on: which scenes are loaded, and whether the root exists elsewhere. */
+        public static string ExplainMissing(string path, string where)
+        {
+            string[] parts = path.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            List<string> scenes = new List<string>();
+            bool rootElsewhere = false;
+            for (int index = 0; index < SceneManager.sceneCount; index += 1)
+            {
+                Scene scene = SceneManager.GetSceneAt(index);
+                if (!scene.IsValid() || !scene.isLoaded) continue;
+                scenes.Add(scene.name);
+                if (parts.Length == 0) continue;
+                foreach (GameObject candidate in scene.GetRootGameObjects())
+                {
+                    if (candidate.name != parts[0]) continue;
+                    rootElsewhere = true;
+                    break;
+                }
+                if (rootElsewhere) break;
+            }
+            string loaded = scenes.Count > 0 ? string.Join(", ", scenes.ToArray()) : "none";
+            string hint = rootElsewhere
+                ? " The root exists, but the child path does not match it."
+                : " No loaded scene has that root object.";
+            return "No GameObject at " + where + " '" + path + "'. Loaded scenes: " + loaded + "." + hint;
         }
 
         public static object Snapshot(string selector)
@@ -153,7 +196,7 @@ namespace UnityRail.Bridge
             GameObject gameObject = FindByPath(path);
             if (gameObject == null)
             {
-                throw new Exception("No GameObject at path '" + path + "' in the active scene.");
+                throw new Exception(ExplainMissing(path, "path"));
             }
             List<object> components = new List<object>();
             foreach (Component component in gameObject.GetComponents<Component>())

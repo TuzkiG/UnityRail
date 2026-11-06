@@ -51,8 +51,8 @@ namespace UnityRail.Bridge
                     Undo.AddComponent(created, type);
                     added.Add(type.Name);
                 }
-                MarkDirty();
-                if (save) SaveEditScene();
+                MarkDirty(created.scene);
+                if (save) SaveEditScene(created.scene);
                 return BridgeResponse.Json(new
                 {
                     ok = true,
@@ -79,9 +79,10 @@ namespace UnityRail.Bridge
                 {
                     throw new BridgeHttpException(409, "The prefab root cannot be deleted from the prefab stage.");
                 }
+                Scene targetScene = target.scene;
                 Undo.DestroyObjectImmediate(target);
-                MarkDirty();
-                if (save) SaveEditScene();
+                MarkDirty(targetScene);
+                if (save) SaveEditScene(targetScene);
                 return BridgeResponse.Json(new { ok = true, path, saved = save });
             }, 30000);
         }
@@ -101,8 +102,8 @@ namespace UnityRail.Bridge
                 Type type = ResolveComponentType(component);
                 if (type == null) throw new BridgeHttpException(400, "Unknown component type: " + component + ".");
                 Component added = Undo.AddComponent(target, type);
-                MarkDirty();
-                if (save) SaveEditScene();
+                MarkDirty(target.scene);
+                if (save) SaveEditScene(target.scene);
                 return BridgeResponse.Json(new
                 {
                     ok = true,
@@ -134,9 +135,10 @@ namespace UnityRail.Bridge
                     .FirstOrDefault();
                 if (match == null) throw new BridgeHttpException(404, "No " + component + " on " + path + ".");
                 string removed = match.GetType().Name;
+                Scene targetScene = target.scene;
                 Undo.DestroyObjectImmediate(match);
-                MarkDirty();
-                if (save) SaveEditScene();
+                MarkDirty(targetScene);
+                if (save) SaveEditScene(targetScene);
                 return BridgeResponse.Json(new { ok = true, path, component = removed, saved = save });
             }, 30000);
         }
@@ -178,8 +180,8 @@ namespace UnityRail.Bridge
                 EditorUtility.SetDirty(owner);
                 serialized.Update();
                 string after = DescribeProperty(serialized.FindProperty(propertyPath));
-                MarkDirty();
-                if (save) SaveEditScene();
+                MarkDirty(owner.gameObject.scene);
+                if (save) SaveEditScene(owner.gameObject.scene);
                 return BridgeResponse.Json(new
                 {
                     ok = true,
@@ -203,7 +205,17 @@ namespace UnityRail.Bridge
                 {
                     throw new BridgeHttpException(400, "Only project-relative Assets/ paths can be saved.");
                 }
-                string savedPath = SaveEditScene();
+                Scene scene = SceneManager.GetActiveScene();
+                if (!string.IsNullOrEmpty(path))
+                {
+                    Scene requested = SceneManager.GetSceneByPath(path);
+                    if (!requested.IsValid() || !requested.isLoaded)
+                    {
+                        throw new BridgeHttpException(404, "No loaded scene at " + path + ".");
+                    }
+                    scene = requested;
+                }
+                string savedPath = SaveEditScene(scene);
                 return BridgeResponse.Json(new { ok = true, path = savedPath });
             }, 60000);
         }
@@ -265,13 +277,13 @@ namespace UnityRail.Bridge
             return null;
         }
 
-        private static void MarkDirty()
+        private static void MarkDirty(Scene scene)
         {
-            Scene scene = SceneManager.GetActiveScene();
-            if (scene.IsValid()) EditorSceneManager.MarkSceneDirty(scene);
+            if (scene.IsValid() && scene.isLoaded) EditorSceneManager.MarkSceneDirty(scene);
         }
 
-        private static string SaveEditScene()
+        /** Saves the edited object's own scene (or prefab stage), not whichever scene is active. */
+        private static string SaveEditScene(Scene preferred)
         {
             PrefabStage stage = PrefabStageUtility.GetCurrentPrefabStage();
             if (stage != null && stage.prefabContentsRoot != null)
@@ -280,8 +292,8 @@ namespace UnityRail.Bridge
                 if (saved == null) throw new BridgeHttpException(409, "Unity refused to save " + stage.assetPath + ".");
                 return stage.assetPath;
             }
-            Scene scene = SceneManager.GetActiveScene();
-            if (!scene.IsValid()) throw new BridgeHttpException(409, "No scene is open in the Editor.");
+            Scene scene = preferred.IsValid() ? preferred : SceneManager.GetActiveScene();
+            if (!scene.IsValid() || !scene.isLoaded) throw new BridgeHttpException(409, "The edited scene is no longer loaded.");
             if (!EditorSceneManager.SaveScene(scene)) throw new BridgeHttpException(409, "Unity refused to save " + scene.path + ".");
             return scene.path;
         }

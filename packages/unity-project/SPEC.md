@@ -109,6 +109,12 @@ a keyboard state through the Input System **by reflection** (the bridge assembly
 reference, so a project without Input System gets a clear 409), and `POST /v1/editor/quit` refuses while
 Play Mode runs or a scene is dirty unless `save`/`discard` says otherwise.
 
+Hierarchy paths resolve against **every loaded scene**, not just the active one: edit-time multi-scene
+setups, additively loaded scenes, DontDestroyOnLoad roots and inactive objects are all reachable, and
+same-named roots are tried in order. A miss names the loaded scenes and whether the root itself exists,
+so an agent can correct the path instead of guessing (the running Editor assembly only picks this up after
+Unity actually reloads, which a project with compile errors prevents).
+
 `UNITY_BRIDGE_PROTOCOL_VERSION` is **2**: an older Editor package is refused rather than parsed
 optimistically. Confirmation is a product-level rule, not a bridge one: the server/tool layer requires
 `confirm: true` for destructive or global actions (delete/remove component, menu, build, package change,

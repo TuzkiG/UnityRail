@@ -5,7 +5,7 @@
  * untrusted input and normalizes it. Bump `UNITY_BRIDGE_PROTOCOL_VERSION` for any shape change that an
  * older Editor package cannot answer.
  */
-export const UNITY_BRIDGE_PROTOCOL_VERSION = 1;
+export const UNITY_BRIDGE_PROTOCOL_VERSION = 2;
 
 export const UNITY_BRIDGE_DISCOVERY_FILE = "ThinkRailBridge.json";
 export const UNITY_BRIDGE_REGISTRY_FILE = "bridges.json";
@@ -180,4 +180,120 @@ export interface UnityDoctorReport {
 	bridgeConnected: boolean;
 	bridgeMatchesWorkspace: boolean;
 	findings: UnityDoctorFinding[];
+}
+
+export type UnityBuildTarget =
+	| "windows"
+	| "windows32"
+	| "macos"
+	| "linux"
+	| "android"
+	| "ios"
+	| "webgl";
+
+export type UnityBuildState = "running" | "succeeded" | "failed";
+
+export interface UnityBuildRecord {
+	buildId: string;
+	state: UnityBuildState;
+	target: string;
+	outputPath: string;
+	startedAt: string;
+	finishedAt?: string;
+	durationMs?: number;
+	totalSize?: number;
+	result?: string;
+	errors: string[];
+	error?: string;
+}
+
+export interface UnitySceneObjectResult {
+	ok: boolean;
+	path: string;
+	instanceId?: number;
+	components?: string[];
+	saved?: boolean;
+}
+
+export interface UnityPropertyChange {
+	ok: boolean;
+	path: string;
+	component: string;
+	property: string;
+	before: string;
+	after: string;
+	saved?: boolean;
+}
+
+export interface UnityPackageInfo {
+	name: string;
+	displayName?: string;
+	version: string;
+	source: string;
+	direct?: boolean;
+}
+
+export interface UnityPackageList {
+	packages: UnityPackageInfo[];
+}
+
+export interface UnityPackageChange {
+	ok: boolean;
+	accepted?: boolean;
+	id: string;
+	action: "add" | "remove";
+	package?: { name: string; version: string; source: string } | null;
+}
+
+export interface UnityPlayerSettingsValues {
+	productName: string;
+	companyName: string;
+	bundleVersion: string;
+	applicationIdentifier: string;
+	runInBackground: boolean;
+	defaultScreenWidth: number;
+	defaultScreenHeight: number;
+	fullscreenMode: string;
+	resizableWindow: boolean;
+}
+
+export interface UnityPlayerSettings {
+	platform: string;
+	values: UnityPlayerSettingsValues;
+	allowed?: string[];
+}
+
+export interface UnityProfilerMarker {
+	name: string;
+	category: string;
+	unit: string;
+	value: number;
+}
+
+export interface UnityProfilerSnapshot {
+	frame: number;
+	isPlaying: boolean;
+	markers: UnityProfilerMarker[];
+}
+
+export interface UnityInputResult {
+	ok: boolean;
+	keys: string[];
+	isPlaying: boolean;
+}
+
+export interface UnityMenuResult {
+	ok: boolean;
+	item: string;
+}
+
+export interface UnityUndoResult {
+	ok: boolean;
+	steps: number;
+}
+
+export interface UnityQuitResult {
+	ok: boolean;
+	quitting: boolean;
+	saved: boolean;
 }

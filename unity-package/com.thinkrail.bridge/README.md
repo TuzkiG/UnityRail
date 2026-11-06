@@ -38,6 +38,23 @@ interface.
 - Read the active scene hierarchy, inspect a GameObject's components/properties, search assets, open an
   asset or scene, and change the Editor selection.
 
+- Edit the open scene or prefab stage: create/delete a GameObject, add/remove a component, and set a
+  serialized property (scalars, enums, vectors, colors, object references). Every change is one Undo
+  step; saving happens only when the caller asks for it (save: true), and the caller can undo.
+- Run an Editor menu item (Assets/Refresh, a build menu, a project tool).
+- Build a player for a supported target and poll the build report (size, duration, errors).
+- List, add and remove packages through the Package Manager client.
+- Read and write an allowlisted subset of PlayerSettings (product/company name, version, application
+  identifier, default screen size, fullscreen mode, run in background, resizable window).
+- Take a profiler snapshot of the common render/memory markers.
+- Synthesize keyboard input while Play Mode runs (through the Input System package when installed).
+- Quit the Editor, refusing while Play Mode runs or a scene has unsaved changes unless the caller
+  explicitly saves or discards.
+
+Every write requires the caller to say what it wants (confirm: true for destructive or global actions:
+delete/remove component, menu, build, package change, settings write, quit). The bridge also refuses
+while Unity is compiling or importing, and a package change may reload the domain before answering —
+callers treat a dropped connection as "accepted" and re-read state.
 ## Notes
 
 - PlayMode tests can trigger a domain reload. The bridge records an interrupted run instead of claiming a

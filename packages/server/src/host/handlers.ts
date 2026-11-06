@@ -227,28 +227,45 @@ import {
 } from "../todos";
 import { forgetWorkspaceTurns, listTurns } from "../turns";
 import {
+	unityAddComponent,
 	unityAssetDiff,
 	unityAssetGuard,
+	unityBuildStatus,
+	unityChangePackage,
 	unityClearConsole,
 	unityCompile,
 	unityConsole,
+	unityCreateObject,
+	unityDeleteObject,
 	unityDoctor,
+	unityExecuteMenu,
 	unityFind,
 	unityHierarchy,
 	unityInspect,
 	unityInstallBridge,
 	unityLinkModule,
+	unityListPackages,
 	unityOpen,
 	unityOpenEditor,
 	unityPlaymode,
+	unityProfiler,
 	unityProjectConfig,
+	unityQueueInput,
+	unityQuitEditor,
+	unityReadSettings,
+	unityRemoveComponent,
+	unitySaveScene,
 	unityScreenshot,
 	unitySelect,
 	unitySetProjectConfig,
+	unitySetProperty,
 	unitySnapshot,
+	unityStartBuild,
 	unityStatus,
 	unityTests,
+	unityUndo,
 	unityUnlinkModule,
+	unityWriteSettings,
 } from "../unity";
 import { listVerificationRuns, recordUnityTestRun } from "../verification";
 import { ensureWatch, nudgeRepoMeta, stopWatch } from "../watch";
@@ -810,6 +827,81 @@ const handlers: WsHandlers = {
 		return unityAssetDiff(p.workspaceId, p.path, file.original, file.modified);
 	},
 	"unity.assetGuard": (p) => unityAssetGuard(p.workspaceId, gitUncommittedPaths(p.workspaceId)),
+	"unity.createObject": (p) =>
+		unityCreateObject(p.workspaceId, {
+			name: p.name,
+			...(p.parent === undefined ? {} : { parent: p.parent }),
+			...(p.components === undefined ? {} : { components: p.components }),
+			...(p.save === undefined ? {} : { save: p.save }),
+		}),
+	"unity.deleteObject": (p) => {
+		if (p.confirm !== true)
+			return unityCreateObject(p.workspaceId, { name: "" }).then(() => {
+				throw new Error("confirm");
+			});
+		return unityDeleteObject(p.workspaceId, {
+			path: p.path,
+			...(p.save === undefined ? {} : { save: p.save }),
+		});
+	},
+	"unity.addComponent": (p) =>
+		unityAddComponent(p.workspaceId, {
+			path: p.path,
+			component: p.component,
+			...(p.save === undefined ? {} : { save: p.save }),
+		}),
+	"unity.removeComponent": (p) => {
+		if (p.confirm !== true)
+			return unityCreateObject(p.workspaceId, { name: "" }).then(() => {
+				throw new Error("confirm");
+			});
+		return unityRemoveComponent(p.workspaceId, {
+			path: p.path,
+			component: p.component,
+			...(p.index === undefined ? {} : { index: p.index }),
+			...(p.save === undefined ? {} : { save: p.save }),
+		});
+	},
+	"unity.setProperty": (p) =>
+		unitySetProperty(p.workspaceId, {
+			path: p.path,
+			component: p.component,
+			property: p.property,
+			value: p.value,
+			...(p.index === undefined ? {} : { index: p.index }),
+			...(p.save === undefined ? {} : { save: p.save }),
+		}),
+	"unity.saveScene": (p) => unitySaveScene(p.workspaceId, p.path),
+	"unity.undo": (p) => unityUndo(p.workspaceId, p.steps),
+	"unity.menu": (p) => unityExecuteMenu(p.workspaceId, p.item, p.confirm === true),
+	"unity.quitEditor": (p) =>
+		unityQuitEditor(
+			p.workspaceId,
+			{
+				...(p.save === undefined ? {} : { save: p.save }),
+				...(p.discard === undefined ? {} : { discard: p.discard }),
+			},
+			p.confirm === true,
+		),
+	"unity.buildStart": (p) =>
+		unityStartBuild(
+			p.workspaceId,
+			{
+				...(p.target === undefined ? {} : { target: p.target }),
+				...(p.outputPath === undefined ? {} : { outputPath: p.outputPath }),
+				...(p.scenes === undefined ? {} : { scenes: p.scenes }),
+				...(p.development === undefined ? {} : { development: p.development }),
+			},
+			p.confirm === true,
+		),
+	"unity.buildStatus": (p) => unityBuildStatus(p.workspaceId, p.buildId),
+	"unity.packages": (p) => unityListPackages(p.workspaceId),
+	"unity.changePackage": (p) =>
+		unityChangePackage(p.workspaceId, p.action, p.id, p.confirm === true),
+	"unity.settings": (p) => unityReadSettings(p.workspaceId),
+	"unity.writeSettings": (p) => unityWriteSettings(p.workspaceId, p.settings, p.confirm === true),
+	"unity.profiler": (p) => unityProfiler(p.workspaceId),
+	"unity.input": (p) => unityQueueInput(p.workspaceId, p.keys, p.releaseAll === true),
 	"unity.hierarchy": (p) => unityHierarchy(p.workspaceId, p.scene),
 	"unity.inspect": (p) => unityInspect(p.workspaceId, p.path),
 	"unity.find": (p) => unityFind(p.workspaceId, p.query, p.type, p.limit),

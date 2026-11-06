@@ -86,7 +86,7 @@ namespace UnityRail.Bridge
 
     public static class BridgeState
     {
-        public const int ProtocolVersion = 1;
+        public const int ProtocolVersion = 2;
         public const int DefaultPort = 39217;
         public const int MaxPort = 39250;
         public const int ConsoleCapacity = 1000;

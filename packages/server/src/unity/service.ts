@@ -4,6 +4,8 @@ import type {
 	UnityAssetResult,
 	UnityBridgeInstallResult,
 	UnityBridgeStatus,
+	UnityBuildRecord,
+	UnityBuildTarget,
 	UnityCompileStatus,
 	UnityConsolePage,
 	UnityDoctorReport,
@@ -11,15 +13,26 @@ import type {
 	UnityFolderEntry,
 	UnityGameObjectInspection,
 	UnityHierarchySnapshot,
+	UnityInputResult,
 	UnityLogLevel,
+	UnityMenuResult,
 	UnityOpenEditorResult,
+	UnityPackageChange,
+	UnityPackageList,
+	UnityPlayerSettings,
+	UnityPlayerSettingsValues,
 	UnityPlayModeAction,
+	UnityProfilerSnapshot,
 	UnityProjectConfig,
 	UnityProjectModule,
 	UnityProjectSummary,
+	UnityPropertyChange,
+	UnityQuitResult,
+	UnitySceneObjectResult,
 	UnityScreenshotPayload,
 	UnityStatusSnapshot,
 	UnityTestRunStatus,
+	UnityUndoResult,
 	UnityWorkspaceSnapshot,
 } from "@thinkrail/contracts";
 import { CodedError } from "@thinkrail/shared/codedError";
@@ -39,6 +52,7 @@ import {
 	readUnityBridgeDiscovery,
 	readUnityProject,
 	removeDirectoryLink,
+	type UnityBridgeClient,
 	UnityBridgeError,
 	UnityProjectError,
 	type UnityProjectInfo,
@@ -724,4 +738,163 @@ export function unityUnlinkModule(workspaceId: string, path: string): UnityProje
 	const modules = current.modules.filter((entry) => entry.path !== path);
 	writeConfiguredProject(workspaceId, { ...current, modules: modules.map(normalizeModule) });
 	return unityProjectConfig(workspaceId);
+}
+
+function requireConfirm(confirm: boolean | undefined): void {
+	if (confirm === true) return;
+	throw new CodedError(
+		"UNITY_CONFIRM_REQUIRED",
+		"This action changes the Editor or the project; ask the user and pass confirm: true to proceed.",
+	);
+}
+
+function unityWrite<T>(
+	workspaceId: string,
+	run: (client: UnityBridgeClient) => Promise<T>,
+): Promise<T> {
+	const root = requireUnityProjectRoot(workspaceId);
+	return withUnityBridge(root, run).catch((error: unknown) => {
+		throw asCodedError(error);
+	});
+}
+
+export function unityCreateObject(
+	workspaceId: string,
+	input: { name: string; parent?: string; components?: string[]; save?: boolean },
+): Promise<UnitySceneObjectResult> {
+	return unityWrite(workspaceId, (client) => client.createObject(input));
+}
+
+export async function unityDeleteObject(
+	workspaceId: string,
+	input: { path: string; save?: boolean; confirm?: boolean },
+): Promise<UnitySceneObjectResult> {
+	requireConfirm(input.confirm);
+	return unityWrite(workspaceId, (client) =>
+		client.deleteObject(input.path, { ...(input.save === undefined ? {} : { save: input.save }) }),
+	);
+}
+
+export function unityAddComponent(
+	workspaceId: string,
+	input: { path: string; component: string; save?: boolean },
+): Promise<UnitySceneObjectResult> {
+	return unityWrite(workspaceId, (client) =>
+		client.addComponent(input.path, input.component, {
+			...(input.save === undefined ? {} : { save: input.save }),
+		}),
+	);
+}
+
+export async function unityRemoveComponent(
+	workspaceId: string,
+	input: { path: string; component: string; index?: number; save?: boolean; confirm?: boolean },
+): Promise<UnitySceneObjectResult> {
+	requireConfirm(input.confirm);
+	return unityWrite(workspaceId, (client) =>
+		client.removeComponent(input.path, input.component, {
+			...(input.index === undefined ? {} : { index: input.index }),
+			...(input.save === undefined ? {} : { save: input.save }),
+		}),
+	);
+}
+
+export function unitySetProperty(
+	workspaceId: string,
+	input: {
+		path: string;
+		component: string;
+		property: string;
+		value: unknown;
+		index?: number;
+		save?: boolean;
+	},
+): Promise<UnityPropertyChange> {
+	return unityWrite(workspaceId, (client) => client.setProperty(input));
+}
+
+export function unitySaveScene(
+	workspaceId: string,
+	path?: string,
+): Promise<{ ok: boolean; path: string }> {
+	return unityWrite(workspaceId, (client) => client.saveScene({ ...(path ? { path } : {}) }));
+}
+
+export function unityUndo(workspaceId: string, steps = 1): Promise<UnityUndoResult> {
+	return unityWrite(workspaceId, (client) => client.undo(steps));
+}
+
+export async function unityExecuteMenu(
+	workspaceId: string,
+	item: string,
+	confirm: boolean,
+): Promise<UnityMenuResult> {
+	requireConfirm(confirm);
+	return unityWrite(workspaceId, (client) => client.executeMenu(item));
+}
+
+export function unityProfiler(workspaceId: string): Promise<UnityProfilerSnapshot> {
+	return unityWrite(workspaceId, (client) => client.profilerSnapshot());
+}
+
+export function unityQueueInput(
+	workspaceId: string,
+	keys: readonly string[],
+	releaseAll = false,
+): Promise<UnityInputResult> {
+	return unityWrite(workspaceId, (client) => client.queueInput(keys, { releaseAll }));
+}
+
+export async function unityQuitEditor(
+	workspaceId: string,
+	options: { save?: boolean; discard?: boolean },
+	confirm: boolean,
+): Promise<UnityQuitResult> {
+	requireConfirm(confirm);
+	return unityWrite(workspaceId, (client) => client.quitEditor(options));
+}
+
+export async function unityStartBuild(
+	workspaceId: string,
+	options: {
+		target?: UnityBuildTarget;
+		outputPath?: string;
+		scenes?: string[];
+		development?: boolean;
+	},
+	confirm: boolean,
+): Promise<UnityBuildRecord> {
+	requireConfirm(confirm);
+	return unityWrite(workspaceId, (client) => client.startBuild(options));
+}
+
+export function unityBuildStatus(workspaceId: string, buildId: string): Promise<UnityBuildRecord> {
+	return unityWrite(workspaceId, (client) => client.waitForBuild(buildId, { timeoutMs: 5_000 }));
+}
+
+export function unityListPackages(workspaceId: string): Promise<UnityPackageList> {
+	return unityWrite(workspaceId, (client) => client.listPackages());
+}
+
+export async function unityChangePackage(
+	workspaceId: string,
+	action: "add" | "remove",
+	id: string,
+	confirm: boolean,
+): Promise<UnityPackageChange> {
+	requireConfirm(confirm);
+	return unityWrite(workspaceId, (client) => client.changePackage(action, id));
+}
+
+export function unityReadSettings(workspaceId: string): Promise<UnityPlayerSettings> {
+	return unityWrite(workspaceId, (client) => client.readSettings());
+}
+
+export async function unityWriteSettings(
+	workspaceId: string,
+	settings: Partial<UnityPlayerSettingsValues> & { platform?: string },
+	confirm: boolean,
+): Promise<UnityPlayerSettings> {
+	requireConfirm(confirm);
+	return unityWrite(workspaceId, (client) => client.writeSettings(settings));
 }

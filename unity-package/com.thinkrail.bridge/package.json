@@ -1,8 +1,8 @@
 {
 	"name": "com.thinkrail.bridge",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"displayName": "UnityRail Unity Bridge",
-	"description": "Gives the UnityRail AI IDE eyes and hands inside the Unity Editor: compile diagnostics, Console, Play Mode, Game/Scene screenshots, tests, hierarchy, inspection and asset search.",
+	"description": "Gives the UnityRail AI IDE eyes and hands inside the Unity Editor: compile diagnostics, Console, Play Mode, Game/Scene screenshots, tests, hierarchy, inspection and asset search — and hands that edit the scene, build, manage packages/settings, profile, synthesize input and quit the Editor.",
 	"unity": "2022.3",
 	"documentationUrl": "https://github.com/thinkrail/thinkrail",
 	"licensesUrl": "https://github.com/thinkrail/thinkrail/blob/main/LICENSE",

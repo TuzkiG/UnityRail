@@ -2,10 +2,17 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
 	sleep,
 	type UnityBridgeStatus,
+	type UnityBuildRecord,
+	type UnityBuildTarget,
 	type UnityCompileStatus,
 	type UnityConsolePage,
 	type UnityLogLevel,
+	type UnityPackageChange,
+	type UnityPackageList,
+	type UnityPlayerSettings,
+	type UnityPlayerSettingsValues,
 	type UnityPlayModeAction,
+	type UnityProfilerSnapshot,
 	type UnityScreenshot,
 	type UnityTestRunStatus,
 	withUnityBridge,
@@ -59,6 +66,133 @@ const screenshotParams = Type.Object({
 	),
 	width: Type.Optional(
 		Type.Number({ description: "Target width in pixels (default 1280, max 1600)." }),
+	),
+});
+
+const SCENE_ACTIONS = [
+	"create",
+	"delete",
+	"addComponent",
+	"removeComponent",
+	"setProperty",
+	"save",
+	"undo",
+] as const;
+
+const PROJECT_ACTIONS = [
+	"menu",
+	"build",
+	"buildStatus",
+	"packages",
+	"addPackage",
+	"removePackage",
+	"settings",
+	"writeSettings",
+	"profiler",
+	"input",
+	"quit",
+] as const;
+
+const editSceneParams = Type.Object({
+	action: Type.Unsafe<(typeof SCENE_ACTIONS)[number]>({
+		type: "string",
+		enum: [...SCENE_ACTIONS],
+		description:
+			"create | delete | addComponent | removeComponent | setProperty | save | undo. delete and removeComponent require confirm:true.",
+	}),
+	name: Type.Optional(Type.String({ description: "create: the new GameObject's name." })),
+	parent: Type.Optional(
+		Type.String({ description: "create: hierarchy path of the parent, e.g. `Canvas/Panel`." }),
+	),
+	components: Type.Optional(
+		Type.Array(Type.String(), {
+			description: 'create: component type names to add, e.g. ["SpriteRenderer","BoxCollider2D"].',
+		}),
+	),
+	path: Type.Optional(
+		Type.String({ description: "Hierarchy path of the target object, e.g. `Player/Weapon`." }),
+	),
+	component: Type.Optional(Type.String({ description: "Component type name, e.g. `Transform`." })),
+	property: Type.Optional(
+		Type.String({ description: "Serialized property path, e.g. `m_LocalPosition.x`." }),
+	),
+	value: Type.Optional(
+		Type.Unsafe<unknown>({
+			description:
+				"setProperty: scalar, enum name/index, {x,y,z(,w)} for vectors, {r,g,b,a} for colors, or an Assets/ path / hierarchy path for an object reference.",
+		}),
+	),
+	index: Type.Optional(
+		Type.Number({ description: "Index when the object has several components of that type." }),
+	),
+	save: Type.Optional(
+		Type.Boolean({
+			description: "Save the scene (or prefab stage) after the change. Default false.",
+		}),
+	),
+	steps: Type.Optional(
+		Type.Number({ description: "undo: how many undo steps (1-10, default 1)." }),
+	),
+	confirm: Type.Optional(
+		Type.Boolean({
+			description: "Required for delete/removeComponent: set true only after the user approved.",
+		}),
+	),
+});
+
+const projectActionParams = Type.Object({
+	action: Type.Unsafe<(typeof PROJECT_ACTIONS)[number]>({
+		type: "string",
+		enum: [...PROJECT_ACTIONS],
+		description:
+			"menu | build | buildStatus | packages | addPackage | removePackage | settings | writeSettings | profiler | input | quit. menu/build/addPackage/removePackage/writeSettings/quit require confirm:true.",
+	}),
+	item: Type.Optional(
+		Type.String({ description: "menu: the exact menu item path, e.g. `Assets/Refresh`." }),
+	),
+	target: Type.Optional(
+		Type.Unsafe<UnityBuildTarget>({
+			type: "string",
+			enum: ["windows", "windows32", "macos", "linux", "android", "ios", "webgl"],
+			description: "build: target platform (default windows).",
+		}),
+	),
+	outputPath: Type.Optional(
+		Type.String({
+			description: "build: output path inside the project folder (default Builds/<target>).",
+		}),
+	),
+	scenes: Type.Optional(
+		Type.Array(Type.String(), {
+			description: "build: explicit project-relative scene list; omitted uses Build Settings.",
+		}),
+	),
+	development: Type.Optional(Type.Boolean({ description: "build: produce a development build." })),
+	id: Type.Optional(
+		Type.String({ description: "packages/buildStatus: the package id or build id to act on." }),
+	),
+	settings: Type.Optional(
+		Type.Unsafe<Record<string, unknown>>({
+			type: "object",
+			additionalProperties: true,
+			description:
+				"writeSettings: allowlisted PlayerSettings keys (productName, companyName, bundleVersion, applicationIdentifier, runInBackground, defaultScreenWidth, defaultScreenHeight, fullscreenMode, resizableWindow) and an optional platform.",
+		}),
+	),
+	keys: Type.Optional(
+		Type.Array(Type.String(), {
+			description: 'input: keys to hold, e.g. ["Space","W"]; send [] to release.',
+		}),
+	),
+	releaseAll: Type.Optional(Type.Boolean({ description: "input: release every held key." })),
+	save: Type.Optional(Type.Boolean({ description: "quit: save open scenes before exiting." })),
+	discard: Type.Optional(
+		Type.Boolean({ description: "quit: discard unsaved scenes (requires save to be false)." }),
+	),
+	confirm: Type.Optional(
+		Type.Boolean({
+			description: "Required for menu/build/addPackage/removePackage/writeSettings/quit.",
+		}),
 	),
 });
 
@@ -175,6 +309,57 @@ function formatTests(run: UnityTestRunStatus): string {
 		lines.push("All executed tests passed.");
 	}
 	return lines.join("\n");
+}
+
+function formatProjectAction(action: string, result: unknown): string {
+	if (action === "menu") {
+		const menu = result as { item: string };
+		return `Executed menu item ${menu.item}.`;
+	}
+	if (action === "build" || action === "buildStatus") {
+		const build = result as UnityBuildRecord;
+		const size = build.totalSize ? `, ${formatBytes(build.totalSize)}` : "";
+		const duration = build.durationMs ? `, ${Math.round(build.durationMs / 1000)}s` : "";
+		const errors = build.errors.length > 0 ? `\n${build.errors.slice(0, 5).join("\n")}` : "";
+		const failure = build.error ? `\n${build.error}` : "";
+		return `Build ${build.state}: ${build.target} → ${build.outputPath}${size}${duration}${failure}${errors}`;
+	}
+	if (action === "packages") {
+		const list = result as UnityPackageList;
+		const direct = list.packages.filter((entry) => entry.direct !== false);
+		const names = direct
+			.slice(0, 30)
+			.map((entry) => `${entry.name}@${entry.version}`)
+			.join(", ");
+		return `${list.packages.length} packages (${direct.length} direct): ${names}`;
+	}
+	if (action === "addPackage" || action === "removePackage") {
+		const change = result as UnityPackageChange;
+		const outcome = change.package
+			? `${change.package.name}@${change.package.version}`
+			: "accepted; re-read packages after Unity reloads";
+		return `${change.action} ${change.id}: ${outcome}`;
+	}
+	if (action === "settings" || action === "writeSettings") {
+		const settings = result as UnityPlayerSettings;
+		return Object.entries(settings.values)
+			.map(([key, value]) => `${key}: ${String(value)}`)
+			.join("\n");
+	}
+	if (action === "profiler") {
+		const profiler = result as UnityProfilerSnapshot;
+		if (profiler.markers.length === 0)
+			return "No profiler markers are available in this Unity version.";
+		return profiler.markers
+			.map((marker) => `${marker.name} (${marker.category}): ${marker.value} ${marker.unit}`)
+			.join("\n");
+	}
+	if (action === "input") {
+		const input = result as { keys: string[] };
+		return input.keys.length === 0 ? "Released all keys." : `Holding: ${input.keys.join(", ")}.`;
+	}
+	if (action === "quit") return "The Editor is quitting.";
+	return "Done.";
 }
 
 export function registerUnityBridgeTools(pi: ExtensionAPI): void {
@@ -468,6 +653,196 @@ export function registerUnityBridgeTools(pi: ExtensionAPI): void {
 			if (shot) content.push({ type: "image", data: shot.base64, mimeType: shot.mimeType });
 			if (playError) return { content, details, isError: true };
 			return { content, details };
+		},
+	});
+
+	pi.registerTool<typeof editSceneParams, Record<string, unknown>>({
+		name: "unity_edit_scene",
+		label: "Unity Edit Scene",
+		description:
+			"Edit the open Unity scene or prefab stage through the Editor's own APIs: create/delete a GameObject, add/remove a component, set a serialized property, save, or undo. Every change goes through Undo; saving is explicit (save:true). delete and removeComponent require confirm:true — ask the user first. After a change run unity_compile / unity_verify to prove it works.",
+		promptSnippet:
+			"unity_edit_scene — create/delete objects, add/remove components, set serialized properties, save or undo in the open Unity scene or prefab stage.",
+		parameters: editSceneParams,
+		async execute(_callId, params, signal, _onUpdate, ctx) {
+			const action = params.action;
+			if ((action === "delete" || action === "removeComponent") && params.confirm !== true) {
+				return errorResult(
+					`${action} changes the scene destructively. Ask the user first, then call again with confirm:true.`,
+				);
+			}
+			try {
+				const root = unityProjectRoot(ctx.cwd);
+				const bridgeOptions = signal ? { signal } : {};
+				const result = await withUnityBridge(
+					root,
+					async (client) => {
+						switch (action) {
+							case "create":
+								return client.createObject(
+									{
+										name: params.name ?? "",
+										...(params.parent ? { parent: params.parent } : {}),
+										...(params.components ? { components: params.components } : {}),
+										...(params.save === true ? { save: true } : {}),
+									},
+									signal,
+								);
+							case "delete":
+								return client.deleteObject(params.path ?? "", {
+									...(params.save === true ? { save: true } : {}),
+									...(signal ? { signal } : {}),
+								});
+							case "addComponent":
+								return client.addComponent(params.path ?? "", params.component ?? "", {
+									...(params.save === true ? { save: true } : {}),
+									...(signal ? { signal } : {}),
+								});
+							case "removeComponent":
+								return client.removeComponent(params.path ?? "", params.component ?? "", {
+									...(params.index === undefined ? {} : { index: params.index }),
+									...(params.save === true ? { save: true } : {}),
+									...(signal ? { signal } : {}),
+								});
+							case "setProperty":
+								return client.setProperty(
+									{
+										path: params.path ?? "",
+										component: params.component ?? "",
+										property: params.property ?? "",
+										value: params.value,
+										...(params.index === undefined ? {} : { index: params.index }),
+										...(params.save === true ? { save: true } : {}),
+									},
+									signal,
+								);
+							case "save":
+								return client.saveScene({
+									...(params.path ? { path: params.path } : {}),
+									...(signal ? { signal } : {}),
+								});
+							case "undo":
+								return client.undo(params.steps ?? 1, signal);
+						}
+					},
+					bridgeOptions,
+				);
+				const text = (() => {
+					if (action === "setProperty") {
+						const change = result as unknown as {
+							path: string;
+							component: string;
+							property: string;
+							before: string;
+							after: string;
+						};
+						return `${change.path} ${change.component}.${change.property}: ${change.before} → ${change.after}`;
+					}
+					if (action === "undo") {
+						const undo = result as { steps: number };
+						return `Undid ${undo.steps} step${undo.steps === 1 ? "" : "s"}.`;
+					}
+					if (action === "save") {
+						const saved = result as { path: string };
+						return `Saved ${saved.path}.`;
+					}
+					const scene = result as { path: string; components?: string[] };
+					return `${action} ${scene.path}${scene.components && scene.components.length > 0 ? ` (+${scene.components.join(", ")})` : ""}${params.save === true ? " — saved" : ""}`;
+				})();
+				return textResult(text, result as unknown as Record<string, unknown>);
+			} catch (error) {
+				return errorResult(errorMessage(error));
+			}
+		},
+	});
+
+	pi.registerTool<typeof projectActionParams, Record<string, unknown>>({
+		name: "unity_project_action",
+		label: "Unity Project Action",
+		description:
+			"Drive the Unity project outside the scene: run an Editor menu item, start a build and poll it, list/add/remove packages, read or write allowlisted PlayerSettings, take a profiler snapshot, synthesize keyboard input while in Play Mode, or quit the Editor. menu, build, package changes, settings writes and quit require confirm:true — ask the user first. Package changes and builds can reload the domain; the bridge may disconnect and reconnect.",
+		promptSnippet:
+			"unity_project_action — menu/build/packages/PlayerSettings/profiler/input/quit for the open Unity project.",
+		parameters: projectActionParams,
+		async execute(_callId, params, signal, _onUpdate, ctx) {
+			const guarded = new Set([
+				"menu",
+				"build",
+				"addPackage",
+				"removePackage",
+				"writeSettings",
+				"quit",
+			]);
+			if (guarded.has(params.action) && params.confirm !== true) {
+				return errorResult(
+					`${params.action} changes the project or the Editor globally. Ask the user first, then call again with confirm:true.`,
+				);
+			}
+			try {
+				const root = unityProjectRoot(ctx.cwd);
+				const bridgeOptions = signal ? { signal } : {};
+				const result = await withUnityBridge(
+					root,
+					async (client) => {
+						switch (params.action) {
+							case "menu":
+								return client.executeMenu(params.item ?? "", signal);
+							case "build": {
+								const started = await client.startBuild({
+									...(params.target ? { target: params.target } : {}),
+									...(params.outputPath ? { outputPath: params.outputPath } : {}),
+									...(params.scenes ? { scenes: params.scenes } : {}),
+									...(params.development === true ? { development: true } : {}),
+									...(signal ? { signal } : {}),
+								});
+								return client.waitForBuild(started.buildId, {
+									...(signal ? { signal } : {}),
+								});
+							}
+							case "buildStatus":
+								return client.waitForBuild(params.id ?? "", {
+									timeoutMs: 5_000,
+									...(signal ? { signal } : {}),
+								});
+							case "packages":
+								return client.listPackages(signal);
+							case "addPackage":
+								return client.changePackage("add", params.id ?? "", signal);
+							case "removePackage":
+								return client.changePackage("remove", params.id ?? "", signal);
+							case "settings":
+								return client.readSettings(signal);
+							case "writeSettings":
+								return client.writeSettings(
+									(params.settings ?? {}) as Partial<UnityPlayerSettingsValues> & {
+										platform?: string;
+									},
+									signal,
+								);
+							case "profiler":
+								return client.profilerSnapshot(signal);
+							case "input":
+								return client.queueInput(params.keys ?? [], {
+									...(params.releaseAll === true ? { releaseAll: true } : {}),
+									...(signal ? { signal } : {}),
+								});
+							case "quit":
+								return client.quitEditor({
+									...(params.save === true ? { save: true } : {}),
+									...(params.discard === true ? { discard: true } : {}),
+									...(signal ? { signal } : {}),
+								});
+						}
+					},
+					bridgeOptions,
+				);
+				return textResult(
+					formatProjectAction(params.action, result),
+					result as unknown as Record<string, unknown>,
+				);
+			} catch (error) {
+				return errorResult(errorMessage(error));
+			}
 		},
 	});
 }

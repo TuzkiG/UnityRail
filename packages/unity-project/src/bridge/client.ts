@@ -8,6 +8,8 @@ import {
 	type UnityAssetResult,
 	type UnityBridgeDiscovery,
 	type UnityBridgeStatus,
+	type UnityBuildRecord,
+	type UnityBuildTarget,
 	type UnityCompileState,
 	type UnityCompileStatus,
 	type UnityConsoleEntry,
@@ -16,17 +18,31 @@ import {
 	type UnityGameObjectInspection,
 	type UnityHierarchyNode,
 	type UnityHierarchySnapshot,
+	type UnityInputResult,
 	type UnityLogLevel,
+	type UnityMenuResult,
+	type UnityPackageChange,
+	type UnityPackageInfo,
+	type UnityPackageList,
+	type UnityPlayerSettings,
+	type UnityPlayerSettingsValues,
 	type UnityPlayModeAction,
+	type UnityProfilerMarker,
+	type UnityProfilerSnapshot,
+	type UnityPropertyChange,
+	type UnityQuitResult,
+	type UnitySceneObjectResult,
 	type UnitySelectionEntry,
 	type UnityTestResult,
 	type UnityTestRunState,
 	type UnityTestRunStatus,
+	type UnityUndoResult,
 } from "./protocol.ts";
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 const DEFAULT_COMPILE_TIMEOUT_MS = 240_000;
 const DEFAULT_TEST_TIMEOUT_MS = 600_000;
+const DEFAULT_BUILD_TIMEOUT_MS = 1_800_000;
 const POLL_INTERVAL_MS = 400;
 
 export type UnityBridgeErrorCode =
@@ -154,6 +170,130 @@ export async function withUnityBridge<T>(
 		const refreshed = await connectUnityBridge(projectRoot, options);
 		return operation(refreshed.client);
 	}
+}
+
+const BUILD_STATES: readonly UnityBuildRecord["state"][] = ["running", "succeeded", "failed"];
+
+function normalizeBuildRecord(value: unknown): UnityBuildRecord {
+	const raw = objectValue(value);
+	const state = BUILD_STATES.includes(raw.state as UnityBuildRecord["state"])
+		? (raw.state as UnityBuildRecord["state"])
+		: "failed";
+	const errors = Array.isArray(raw.errors)
+		? raw.errors.filter((entry): entry is string => typeof entry === "string")
+		: [];
+	return {
+		buildId: stringValue(raw.buildId),
+		state,
+		target: stringValue(raw.target),
+		outputPath: stringValue(raw.outputPath),
+		startedAt: stringValue(raw.startedAt),
+		...(optionalString(raw.finishedAt) === undefined
+			? {}
+			: { finishedAt: stringValue(raw.finishedAt) }),
+		...(optionalNumber(raw.durationMs) === undefined
+			? {}
+			: { durationMs: numberValue(raw.durationMs) }),
+		...(optionalNumber(raw.totalSize) === undefined
+			? {}
+			: { totalSize: numberValue(raw.totalSize) }),
+		...(optionalString(raw.result) === undefined ? {} : { result: stringValue(raw.result) }),
+		errors,
+		...(optionalString(raw.error) === undefined ? {} : { error: stringValue(raw.error) }),
+	};
+}
+
+function normalizePackageList(value: unknown): UnityPackageList {
+	const raw = objectValue(value);
+	const packages = Array.isArray(raw.packages)
+		? raw.packages.map((entry): UnityPackageInfo => {
+				const item = objectValue(entry);
+				return {
+					name: stringValue(item.name),
+					...(optionalString(item.displayName) === undefined
+						? {}
+						: { displayName: stringValue(item.displayName) }),
+					version: stringValue(item.version),
+					source: stringValue(item.source, "unknown"),
+					...(typeof item.direct === "boolean" ? { direct: item.direct } : {}),
+				};
+			})
+		: [];
+	return { packages };
+}
+
+function normalizePlayerSettings(value: unknown): UnityPlayerSettings {
+	const raw = objectValue(value);
+	const values = objectValue(raw.values);
+	return {
+		platform: stringValue(raw.platform),
+		values: {
+			productName: stringValue(values.productName),
+			companyName: stringValue(values.companyName),
+			bundleVersion: stringValue(values.bundleVersion),
+			applicationIdentifier: stringValue(values.applicationIdentifier),
+			runInBackground: values.runInBackground === true,
+			defaultScreenWidth: numberValue(values.defaultScreenWidth),
+			defaultScreenHeight: numberValue(values.defaultScreenHeight),
+			fullscreenMode: stringValue(values.fullscreenMode),
+			resizableWindow: values.resizableWindow === true,
+		},
+		...(Array.isArray(raw.allowed)
+			? {
+					allowed: raw.allowed.filter((entry): entry is string => typeof entry === "string"),
+				}
+			: {}),
+	};
+}
+
+function normalizeProfilerSnapshot(value: unknown): UnityProfilerSnapshot {
+	const raw = objectValue(value);
+	const markers = Array.isArray(raw.markers)
+		? raw.markers.map((entry): UnityProfilerMarker => {
+				const item = objectValue(entry);
+				return {
+					name: stringValue(item.name),
+					category: stringValue(item.category),
+					unit: stringValue(item.unit),
+					value: numberValue(item.value),
+				};
+			})
+		: [];
+	return {
+		frame: numberValue(raw.frame),
+		isPlaying: raw.isPlaying === true,
+		markers,
+	};
+}
+
+function normalizeSceneObject(value: unknown): UnitySceneObjectResult {
+	const raw = objectValue(value);
+	return {
+		ok: raw.ok === true,
+		path: stringValue(raw.path),
+		...(optionalNumber(raw.instanceId) === undefined
+			? {}
+			: { instanceId: numberValue(raw.instanceId) }),
+		...(Array.isArray(raw.components)
+			? {
+					components: raw.components.filter((entry): entry is string => typeof entry === "string"),
+				}
+			: {}),
+		...(typeof raw.saved === "boolean" ? { saved: raw.saved } : {}),
+	};
+}
+
+function normalizePropertyChange(value: unknown): UnityPropertyChange {
+	const raw = objectValue(value);
+	return {
+		ok: raw.ok === true,
+		path: stringValue(raw.path),
+		component: stringValue(raw.component),
+		property: stringValue(raw.property),
+		before: stringValue(raw.before),
+		after: stringValue(raw.after),
+		...(typeof raw.saved === "boolean" ? { saved: raw.saved } : {}),
+	};
 }
 
 export class UnityBridgeClient {
@@ -331,6 +471,236 @@ export class UnityBridgeClient {
 		});
 	}
 
+	async createObject(
+		input: { name: string; parent?: string; components?: string[]; save?: boolean },
+		signal?: AbortSignal,
+	): Promise<UnitySceneObjectResult> {
+		const body = {
+			name: input.name,
+			...(input.parent ? { parent: input.parent } : {}),
+			...(input.components ? { components: input.components } : {}),
+			...(input.save === true ? { save: true } : {}),
+		};
+		return normalizeSceneObject(
+			await this.requestJson<unknown>("/v1/scene/object", {
+				method: "POST",
+				body,
+				...(signal ? { signal } : {}),
+			}),
+		);
+	}
+
+	async deleteObject(
+		path: string,
+		options: { save?: boolean; signal?: AbortSignal | undefined } = {},
+	): Promise<UnitySceneObjectResult> {
+		return normalizeSceneObject(
+			await this.requestJson<unknown>("/v1/scene/object", {
+				method: "DELETE",
+				body: { path, ...(options.save === true ? { save: true } : {}) },
+				...(options.signal ? { signal: options.signal } : {}),
+			}),
+		);
+	}
+
+	async addComponent(
+		path: string,
+		component: string,
+		options: { save?: boolean; signal?: AbortSignal | undefined } = {},
+	): Promise<UnitySceneObjectResult> {
+		return normalizeSceneObject(
+			await this.requestJson<unknown>("/v1/component", {
+				method: "POST",
+				body: { path, component, ...(options.save === true ? { save: true } : {}) },
+				...(options.signal ? { signal: options.signal } : {}),
+			}),
+		);
+	}
+
+	async removeComponent(
+		path: string,
+		component: string,
+		options: { index?: number; save?: boolean; signal?: AbortSignal | undefined } = {},
+	): Promise<UnitySceneObjectResult> {
+		return normalizeSceneObject(
+			await this.requestJson<unknown>("/v1/component", {
+				method: "DELETE",
+				body: {
+					path,
+					component,
+					...(options.index !== undefined ? { index: options.index } : {}),
+					...(options.save === true ? { save: true } : {}),
+				},
+				...(options.signal ? { signal: options.signal } : {}),
+			}),
+		);
+	}
+
+	async setProperty(
+		input: {
+			path: string;
+			component: string;
+			property: string;
+			value: unknown;
+			index?: number;
+			save?: boolean;
+		},
+		signal?: AbortSignal,
+	): Promise<UnityPropertyChange> {
+		return normalizePropertyChange(
+			await this.requestJson<unknown>("/v1/property", {
+				method: "PATCH",
+				body: {
+					path: input.path,
+					component: input.component,
+					property: input.property,
+					value: input.value,
+					...(input.index !== undefined ? { index: input.index } : {}),
+					...(input.save === true ? { save: true } : {}),
+				},
+				...(signal ? { signal } : {}),
+			}),
+		);
+	}
+
+	async saveScene(
+		options: { path?: string; signal?: AbortSignal | undefined } = {},
+	): Promise<{ ok: boolean; path: string }> {
+		return this.requestJson("/v1/scene/save", {
+			method: "POST",
+			body: options.path ? { path: options.path } : {},
+			...(options.signal ? { signal: options.signal } : {}),
+		});
+	}
+
+	async undo(steps = 1, signal?: AbortSignal): Promise<UnityUndoResult> {
+		return this.requestJson("/v1/undo", {
+			method: "POST",
+			body: { steps },
+			...(signal ? { signal } : {}),
+		});
+	}
+
+	async executeMenu(item: string, signal?: AbortSignal): Promise<UnityMenuResult> {
+		return this.requestJson("/v1/menu", {
+			method: "POST",
+			body: { item },
+			...(signal ? { signal } : {}),
+		});
+	}
+
+	async profilerSnapshot(signal?: AbortSignal): Promise<UnityProfilerSnapshot> {
+		return normalizeProfilerSnapshot(
+			await this.requestJson<unknown>("/v1/profiler", { ...(signal ? { signal } : {}) }),
+		);
+	}
+
+	async queueInput(
+		keys: readonly string[],
+		options: { releaseAll?: boolean; signal?: AbortSignal | undefined } = {},
+	): Promise<UnityInputResult> {
+		return this.requestJson("/v1/input", {
+			method: "POST",
+			body: {
+				keys,
+				...(options.releaseAll === true ? { releaseAll: true } : {}),
+			},
+			...(options.signal ? { signal: options.signal } : {}),
+		});
+	}
+
+	async quitEditor(
+		options: { save?: boolean; discard?: boolean; signal?: AbortSignal | undefined } = {},
+	): Promise<UnityQuitResult> {
+		return this.requestJson("/v1/editor/quit", {
+			method: "POST",
+			body: {
+				...(options.save === true ? { save: true } : {}),
+				...(options.discard === true ? { discard: true } : {}),
+			},
+			...(options.signal ? { signal: options.signal } : {}),
+		});
+	}
+
+	async startBuild(
+		options: {
+			target?: UnityBuildTarget;
+			outputPath?: string;
+			scenes?: string[];
+			development?: boolean;
+			signal?: AbortSignal | undefined;
+		} = {},
+	): Promise<UnityBuildRecord> {
+		return normalizeBuildRecord(
+			await this.requestJson<unknown>("/v1/build", {
+				method: "POST",
+				body: {
+					...(options.target ? { target: options.target } : {}),
+					...(options.outputPath ? { outputPath: options.outputPath } : {}),
+					...(options.scenes ? { scenes: options.scenes } : {}),
+					...(options.development === true ? { development: true } : {}),
+				},
+				...(options.signal ? { signal: options.signal } : {}),
+			}),
+		);
+	}
+
+	async waitForBuild(
+		buildId: string,
+		options: { timeoutMs?: number; signal?: AbortSignal | undefined } = {},
+	): Promise<UnityBuildRecord> {
+		const timeoutMs = options.timeoutMs ?? DEFAULT_BUILD_TIMEOUT_MS;
+		return this.poll(
+			async () =>
+				normalizeBuildRecord(
+					await this.requestJson<unknown>(`/v1/build/status?id=${encodeURIComponent(buildId)}`, {
+						...(options.signal ? { signal: options.signal } : {}),
+					}),
+				),
+			(build) => build.state !== "running",
+			Date.now() + timeoutMs,
+			`Unity did not finish building within ${Math.round(timeoutMs / 1000)}s.`,
+			options.signal,
+		);
+	}
+
+	async listPackages(signal?: AbortSignal): Promise<UnityPackageList> {
+		return normalizePackageList(
+			await this.requestJson<unknown>("/v1/packages", { ...(signal ? { signal } : {}) }),
+		);
+	}
+
+	async changePackage(
+		action: "add" | "remove",
+		id: string,
+		signal?: AbortSignal,
+	): Promise<UnityPackageChange> {
+		return this.requestJson("/v1/packages", {
+			method: "POST",
+			body: { action, id },
+			...(signal ? { signal } : {}),
+		});
+	}
+
+	async readSettings(signal?: AbortSignal): Promise<UnityPlayerSettings> {
+		return normalizePlayerSettings(
+			await this.requestJson<unknown>("/v1/settings", { ...(signal ? { signal } : {}) }),
+		);
+	}
+
+	async writeSettings(
+		settings: Partial<UnityPlayerSettingsValues> & { platform?: string },
+		signal?: AbortSignal,
+	): Promise<UnityPlayerSettings> {
+		return normalizePlayerSettings(
+			await this.requestJson<unknown>("/v1/settings", {
+				method: "POST",
+				body: { settings },
+				...(signal ? { signal } : {}),
+			}),
+		);
+	}
+
 	private async poll<T>(
 		read: () => Promise<T | undefined>,
 		done: (value: T) => boolean,
@@ -393,7 +763,7 @@ export class UnityBridgeClient {
 	private async requestJson<T>(
 		path: string,
 		options: {
-			method?: "GET" | "POST" | "DELETE";
+			method?: "GET" | "POST" | "PATCH" | "DELETE";
 			body?: unknown;
 			signal?: AbortSignal | undefined;
 		} = {},
@@ -413,7 +783,7 @@ export class UnityBridgeClient {
 	private async fetch(
 		path: string,
 		options: {
-			method?: "GET" | "POST" | "DELETE";
+			method?: "GET" | "POST" | "PATCH" | "DELETE";
 			body?: unknown;
 			signal?: AbortSignal | undefined;
 		} = {},

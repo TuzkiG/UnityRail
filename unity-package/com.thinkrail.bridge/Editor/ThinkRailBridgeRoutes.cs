@@ -22,7 +22,7 @@ namespace UnityRail.Bridge
         }
     }
 
-    public static class BridgeRoutes
+    public static partial class BridgeRoutes
     {
         public static BridgeResponse Handle(BridgeRequest request)
         {
@@ -60,6 +60,40 @@ namespace UnityRail.Bridge
                         return Open(request);
                     case "POST /v1/select":
                         return Select(request);
+                    case "POST /v1/scene/object":
+                        return CreateObject(request);
+                    case "DELETE /v1/scene/object":
+                        return DeleteObject(request);
+                    case "POST /v1/component":
+                        return AddComponent(request);
+                    case "DELETE /v1/component":
+                        return RemoveComponent(request);
+                    case "PATCH /v1/property":
+                        return SetProperty(request);
+                    case "POST /v1/scene/save":
+                        return SaveScene(request);
+                    case "POST /v1/undo":
+                        return PerformUndo(request);
+                    case "POST /v1/menu":
+                        return ExecuteMenu(request);
+                    case "POST /v1/editor/quit":
+                        return QuitEditor(request);
+                    case "GET /v1/profiler":
+                        return ProfilerSnapshot(request);
+                    case "POST /v1/input":
+                        return QueueInput(request);
+                    case "POST /v1/build":
+                        return StartBuild(request);
+                    case "GET /v1/build/status":
+                        return BuildStatus(request);
+                    case "GET /v1/packages":
+                        return ListPackages(request);
+                    case "POST /v1/packages":
+                        return ChangePackage(request);
+                    case "GET /v1/settings":
+                        return ReadSettings(request);
+                    case "POST /v1/settings":
+                        return WriteSettings(request);
                     default:
                         return BridgeResponse.Error(404, "NOT_FOUND", "Unknown bridge route: " + key);
                 }

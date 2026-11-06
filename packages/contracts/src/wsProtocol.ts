@@ -106,20 +106,33 @@ import type {
 	UnityAssetResult,
 	UnityBridgeInstallResult,
 	UnityBridgeStatus,
+	UnityBuildRecord,
+	UnityBuildTarget,
 	UnityCompileStatus,
 	UnityConsolePage,
 	UnityDoctorReport,
 	UnityGameObjectInspection,
 	UnityGuardReport,
 	UnityHierarchySnapshot,
+	UnityInputResult,
 	UnityLogLevel,
+	UnityMenuResult,
 	UnityOpenEditorResult,
+	UnityPackageChange,
+	UnityPackageList,
+	UnityPlayerSettings,
+	UnityPlayerSettingsValues,
 	UnityPlayModeAction,
+	UnityProfilerSnapshot,
 	UnityProjectConfig,
 	UnityProjectModule,
+	UnityPropertyChange,
+	UnityQuitResult,
+	UnitySceneObjectResult,
 	UnityScreenshotPayload,
 	UnityStatusSnapshot,
 	UnityTestRunStatus,
+	UnityUndoResult,
 	UnityWorkspaceSnapshot,
 } from "./unity";
 
@@ -442,6 +455,23 @@ export const WS_METHODS = {
 	unityTests: "unity.tests",
 	unityAssetDiff: "unity.assetDiff",
 	unityAssetGuard: "unity.assetGuard",
+	unityCreateObject: "unity.createObject",
+	unityDeleteObject: "unity.deleteObject",
+	unityAddComponent: "unity.addComponent",
+	unityRemoveComponent: "unity.removeComponent",
+	unitySetProperty: "unity.setProperty",
+	unitySaveScene: "unity.saveScene",
+	unityUndo: "unity.undo",
+	unityMenu: "unity.menu",
+	unityQuitEditor: "unity.quitEditor",
+	unityBuildStart: "unity.buildStart",
+	unityBuildStatus: "unity.buildStatus",
+	unityPackages: "unity.packages",
+	unityChangePackage: "unity.changePackage",
+	unitySettings: "unity.settings",
+	unityWriteSettings: "unity.writeSettings",
+	unityProfiler: "unity.profiler",
+	unityInput: "unity.input",
 	verificationList: "verification.list",
 	unityHierarchy: "unity.hierarchy",
 	unityInspect: "unity.inspect",
@@ -1308,6 +1338,94 @@ export interface WsMethodMap {
 		params: { workspaceId: string };
 		result: UnityGuardReport;
 	};
+	"unity.createObject": {
+		params: {
+			workspaceId: string;
+			name: string;
+			parent?: string;
+			components?: string[];
+			save?: boolean;
+		};
+		result: UnitySceneObjectResult;
+	};
+	"unity.deleteObject": {
+		params: { workspaceId: string; path: string; save?: boolean; confirm?: boolean };
+		result: UnitySceneObjectResult;
+	};
+	"unity.addComponent": {
+		params: { workspaceId: string; path: string; component: string; save?: boolean };
+		result: UnitySceneObjectResult;
+	};
+	"unity.removeComponent": {
+		params: {
+			workspaceId: string;
+			path: string;
+			component: string;
+			index?: number;
+			save?: boolean;
+			confirm?: boolean;
+		};
+		result: UnitySceneObjectResult;
+	};
+	"unity.setProperty": {
+		params: {
+			workspaceId: string;
+			path: string;
+			component: string;
+			property: string;
+			value: unknown;
+			index?: number;
+			save?: boolean;
+		};
+		result: UnityPropertyChange;
+	};
+	"unity.saveScene": {
+		params: { workspaceId: string; path?: string };
+		result: { ok: boolean; path: string };
+	};
+	"unity.undo": { params: { workspaceId: string; steps?: number }; result: UnityUndoResult };
+	"unity.menu": {
+		params: { workspaceId: string; item: string; confirm?: boolean };
+		result: UnityMenuResult;
+	};
+	"unity.quitEditor": {
+		params: { workspaceId: string; save?: boolean; discard?: boolean; confirm?: boolean };
+		result: UnityQuitResult;
+	};
+	"unity.buildStart": {
+		params: {
+			workspaceId: string;
+			target?: UnityBuildTarget;
+			outputPath?: string;
+			scenes?: string[];
+			development?: boolean;
+			confirm?: boolean;
+		};
+		result: UnityBuildRecord;
+	};
+	"unity.buildStatus": {
+		params: { workspaceId: string; buildId: string };
+		result: UnityBuildRecord;
+	};
+	"unity.packages": { params: { workspaceId: string }; result: UnityPackageList };
+	"unity.changePackage": {
+		params: { workspaceId: string; action: "add" | "remove"; id: string; confirm?: boolean };
+		result: UnityPackageChange;
+	};
+	"unity.settings": { params: { workspaceId: string }; result: UnityPlayerSettings };
+	"unity.writeSettings": {
+		params: {
+			workspaceId: string;
+			settings: Partial<UnityPlayerSettingsValues> & { platform?: string };
+			confirm?: boolean;
+		};
+		result: UnityPlayerSettings;
+	};
+	"unity.profiler": { params: { workspaceId: string }; result: UnityProfilerSnapshot };
+	"unity.input": {
+		params: { workspaceId: string; keys: string[]; releaseAll?: boolean };
+		result: UnityInputResult;
+	};
 	"verification.list": {
 		params: { workspaceId: string };
 		result: VerificationHistory;
@@ -1420,7 +1538,8 @@ export type WsErrorCode =
 	| "UNITY_PROJECT_MISMATCH"
 	| "UNITY_LINK_EXISTS"
 	| "UNITY_LINK_FAILED"
-	| "UNITY_UNLINK_FAILED";
+	| "UNITY_UNLINK_FAILED"
+	| "UNITY_CONFIRM_REQUIRED";
 
 export interface WsResponse {
 	id: string;

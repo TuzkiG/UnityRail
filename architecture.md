@@ -468,7 +468,7 @@ dependency. This keeps test process drivers outside both launchers and the serve
     registry, both gated on PID liveness). Structural scene/Prefab edits stay in the Editor's own APIs;
     the host and agent never reconstruct or hand-edit `.unity`/`.prefab` YAML, and `.meta` files/GUIDs are
     read-only to every component because moving an asset without its `.meta` breaks every reference. The
-    bridge protocol is versioned (`UNITY_BRIDGE_PROTOCOL_VERSION`, today 1); a mismatched Editor package is
+    bridge protocol is versioned (`UNITY_BRIDGE_PROTOCOL_VERSION`, today 2); a mismatched Editor package is
     refused rather than parsed optimistically. The bridge listens on `127.0.0.1` only and requires a
     per-session bearer token. Why not cache: Unity is a live application whose state changes on compile,
     play, import and script execution, and a stale mirror would make the agent confidently wrong — the
@@ -506,6 +506,20 @@ dependency. This keeps test process drivers outside both launchers and the serve
     script at the failing line. Accepted cost: an asset changed outside the semantic reader's view
     (an unknown class) still yields its fields but no friendly type name, and object-level review
     anchors point at the object's document line rather than an individual YAML key.
+27. **Direct Editor control uses the Editor's own writing APIs, one Undo step at a time.** The
+    bridge (protocol v2) can edit the open scene or prefab stage (create/delete a GameObject, add/remove a
+    component, set a serialized property, save, undo) and drive global actions (menu, build, packages,
+    PlayerSettings, profiler, synthesized input, quit). Every structural change goes through `Undo` and is
+    saved only when the caller asks; objects are addressed by hierarchy path and component types by name,
+    so the agent never hand-edits `.unity`/`.prefab` YAML (Decision 24 still forbids that). Confirmation is a
+    **product rule at the tool layer, not a protocol limitation**: destructive or global actions
+    (delete/remove, menu, build, package change, settings write, quit) require `confirm: true`, which the
+    agent sets only after asking the user; local reversible edits stay direct. Builds and package changes
+    can outlive a domain reload, so callers treat a dropped connection as "accepted" and re-read state.
+    Accepted cost: the bridge executes whatever an authenticated loopback caller asks (a hand-written client
+    keeps full control), and a write that fails after Unity accepted it is not rolled back automatically —
+    Undo is the recovery path.
+
 ## Invariants
 
 - Never **value**-import `pi` in browser-bundled code; import types only, from the `pi-ai` /

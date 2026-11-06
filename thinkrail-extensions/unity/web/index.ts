@@ -16,6 +16,8 @@ const LABEL_KEYS: Record<string, MessageKey> = {
 	unity_status: "unity.tool.status.label",
 	unity_project: "unity.tool.project.label",
 	unity_doctor: "unity.tool.doctor.label",
+	unity_edit_scene: "unity.tool.editScene.label",
+	unity_project_action: "unity.tool.projectAction.label",
 };
 
 const PLAY_ACTION_KEYS: Record<string, MessageKey> = {
@@ -105,6 +107,26 @@ function summaryFor(toolName: string, t: Translator, result: unknown): string {
 				width: numberValue(details?.width),
 				height: numberValue(details?.height),
 			});
+		}
+		case "unity_edit_scene": {
+			if (typeof details?.property === "string") {
+				return t("unity.tool.editScene.changed", {
+					component: String(details.component ?? ""),
+					property: String(details.property),
+					after: String(details.after ?? ""),
+				});
+			}
+			return typeof details?.path === "string" ? details.path : label(toolName, t);
+		}
+		case "unity_project_action": {
+			if (typeof details?.state === "string" && typeof details?.target === "string") {
+				return t("unity.tool.projectAction.build", {
+					state: String(details.state),
+					target: String(details.target),
+				});
+			}
+			if (typeof details?.buildId === "string") return label(toolName, t);
+			return label(toolName, t);
 		}
 		case "unity_playmode": {
 			const action =

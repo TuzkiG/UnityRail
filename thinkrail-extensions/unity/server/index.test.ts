@@ -51,13 +51,14 @@ afterEach(() => {
 });
 
 describe("the unity server half", () => {
-	test("registers the sixteen Unity tools once, with the skills package", () => {
+	test("registers the eighteen Unity tools once, with the skills package", () => {
 		const names = [...tools().keys()].sort();
 		expect(names).toEqual(
 			[
 				"unity_compile",
 				"unity_console",
 				"unity_doctor",
+				"unity_edit_scene",
 				"unity_find",
 				"unity_hierarchy",
 				"unity_inspect",
@@ -66,6 +67,7 @@ describe("the unity server half", () => {
 				"unity_open_editor",
 				"unity_playmode",
 				"unity_project",
+				"unity_project_action",
 				"unity_screenshot",
 				"unity_select",
 				"unity_status",

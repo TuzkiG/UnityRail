@@ -31,7 +31,7 @@ the matching installed Editor (`findUnityInstall`, `openUnityProject`).
   `findUnityInstall`, `openUnityProject`, `diagnoseUnityWorkspace`; the bridge discovery types and client
   (`UnityBridgeClient`, `connectUnityBridge`, `withUnityBridge`); the bridge protocol shape.
 - **Protocol:** `src/bridge/protocol.ts` is the contract with `unity-package/com.thinkrail.bridge` — one
-  versioned shape (`UNITY_BRIDGE_PROTOCOL_VERSION = 1`), default port `39217`, discovery file
+  versioned shape (`UNITY_BRIDGE_PROTOCOL_VERSION = 2`), default port `39217`, discovery file
   `Library/ThinkRailBridge.json`, registry `~/.thinkrail/unity/bridges.json`. The Unity side implements
   it with Newtonsoft.Json; this side treats every field as untrusted and normalizes it (discovery is
   parsed strictly; status, Console pages, hierarchy snapshots and test-run records go through
@@ -83,6 +83,34 @@ read from the live Editor, never from a host-side mirror.
 references and cycles, scenes/prefabs, counts, bridge discovery and human-readable warnings. `refresh`
 clears the GUID/asset caches (`clearUnityProjectCaches`). `findUnityInstall` checks
 `THINKRAIL_UNITY_EDITOR` / `UNITY_EDITOR_PATH`, then the Unity Hub install roots per platform.
+
+## Writing to the Editor (protocol v2)
+
+The bridge is not read-only. `POST /v1/scene/object`, `DELETE /v1/scene/object`, `POST`/`DELETE
+/v1/component`, `PATCH /v1/property`, `POST /v1/scene/save` and `POST /v1/undo` are the structural write
+path: they run on the Editor's main thread, resolve objects by hierarchy path (the open prefab stage
+root counts as `""` or its name), resolve component types by name across loaded assemblies, and set
+serialized properties for int/bool/float/string/enum/color/vector2-4/object-reference/array-size/
+layer-mask. **Every change is one Undo step** (`Undo.RegisterCreatedObjectUndo`, `Undo.AddComponent`,
+`Undo.DestroyObjectImmediate`, `Undo.RecordObject`); a scene or prefab stage is saved only when the
+caller passes `save: true`, and `save`/`undo` have their own endpoints. A real project directory is never
+touched by the write path — only the open scene/prefab stage.
+
+Global control is separate and explicit: `POST /v1/menu` runs an Editor menu item (refused while
+compiling/importing), `POST /v1/build` + `GET /v1/build/status?id=` drive `BuildPipeline.BuildPlayer`
+into a project-contained output and report size/duration/errors, `GET`/`POST /v1/packages` use the
+Package Manager client (an add/remove may reload the domain before answering; callers treat a dropped
+connection as accepted), `GET`/`POST /v1/settings` read/write an allowlisted PlayerSettings subset,
+`GET /v1/profiler` reports the render/memory markers this Unity version exposes, `POST /v1/input` queues
+a keyboard state through the Input System **by reflection** (the bridge assembly has no package
+reference, so a project without Input System gets a clear 409), and `POST /v1/editor/quit` refuses while
+Play Mode runs or a scene is dirty unless `save`/`discard` says otherwise.
+
+`UNITY_BRIDGE_PROTOCOL_VERSION` is **2**: an older Editor package is refused rather than parsed
+optimistically. Confirmation is a product-level rule, not a bridge one: the server/tool layer requires
+`confirm: true` for destructive or global actions (delete/remove component, menu, build, package change,
+settings write, quit); the bridge itself executes what an authenticated caller asks for, so a hand-written
+HTTP client keeps full control.
 
 ## Asset semantics (`src/semantics/`)
 

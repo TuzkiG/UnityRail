@@ -53,9 +53,9 @@ test("destructive scene edits refuse to run without an explicit confirmation", a
 test("global actions refuse to run without an explicit confirmation", async () => {
 	await expect(unityExecuteMenu(WS, "Assets/Refresh", false)).rejects.toMatchObject(CONFIRM);
 	await expect(unityStartBuild(WS, { target: "windows" }, false)).rejects.toMatchObject(CONFIRM);
-	await expect(
-		unityChangePackage(WS, "add", "com.unity.inputsystem", false),
-	).rejects.toMatchObject(CONFIRM);
+	await expect(unityChangePackage(WS, "add", "com.unity.inputsystem", false)).rejects.toMatchObject(
+		CONFIRM,
+	);
 	await expect(unityWriteSettings(WS, { productName: "Game" }, false)).rejects.toMatchObject(
 		CONFIRM,
 	);

@@ -62,6 +62,28 @@ kept while it still contains that target and replaced otherwise, so a re-pointed
 folder list pointing at the old worktree. A submodule that is itself a directory link is reported once,
 as the link, because that entry carries the folder actually mounted.
 
+## Full control (protocol v2)
+
+The service exposes the bridge's write and global-control endpoints as one call each, all through
+`unityWrite` (no `retryUnavailable`: replaying a scene edit or a build after an ambiguous failure can
+double it) and `asCodedError`:
+
+- **Scene** — `unityCreateObject`, `unityDeleteObject`, `unityAddComponent`, `unityRemoveComponent`,
+  `unitySetProperty`, `unitySaveScene`, `unityUndo`. Objects are addressed by hierarchy path; component
+  types by name; a property value is the serialized shape (scalar, enum name/index, `{x,y,z(,w)}`,
+  `{r,g,b,a}`, an `Assets/` path or a hierarchy path for an object reference). Saving is opt-in per call.
+- **Global** — `unityExecuteMenu`, `unityStartBuild`/`unityBuildStatus`, `unityListPackages`,
+  `unityChangePackage`, `unityReadSettings`/`unityWriteSettings`, `unityProfiler`, `unityQueueInput`,
+  `unityQuitEditor`.
+
+**Confirmation** is enforced here, not in the bridge: `unityDeleteObject`, `unityRemoveComponent`,
+`unityExecuteMenu`, `unityStartBuild`, `unityChangePackage`, `unityWriteSettings` and `unityQuitEditor`
+throw `CodedError("UNITY_CONFIRM_REQUIRED")` unless the caller passes `confirm: true`. Local, reversible
+edits (create, add component, set property, save, undo) stay direct — they are one Undo step away — while
+anything that destroys an object, changes the project globally, or ends the Editor session needs an
+explicit confirmation the agent asks the user for. A missing Unity project is `UNITY_NOT_PROJECT`; a
+bridge failure maps through `asCodedError` exactly like the read path.
+
 ## Asset diff and guard
 
 `unityAssetDiff(workspaceId, path, original, modified)` (`assetDiff.ts`) answers the object model of a

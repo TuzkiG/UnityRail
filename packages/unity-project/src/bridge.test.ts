@@ -63,7 +63,7 @@ function mockBridge(projectPath: string, overrides: Partial<MockState> = {}) {
 			if (request.headers.get("authorization") !== `Bearer ${state.token}`) {
 				return new Response("unauthorized", { status: 401 });
 			}
-			if (url.pathname === "/v1/health") return Response.json({ ok: true, protocolVersion: 1 });
+			if (url.pathname === "/v1/health") return Response.json({ ok: true, protocolVersion: 2 });
 			if (url.pathname === "/v1/status") {
 				state.onStatus?.(state);
 				if (state.statusPayload !== undefined) return Response.json(state.statusPayload);
@@ -73,7 +73,7 @@ function mockBridge(projectPath: string, overrides: Partial<MockState> = {}) {
 						state.compileState = state.failCompile ? "failed" : "succeeded";
 				}
 				const status: UnityBridgeStatus = {
-					protocolVersion: 1,
+					protocolVersion: 2,
 					port: server.port ?? 0,
 					projectPath,
 					unityVersion: "6000.0.23f1",
@@ -212,7 +212,7 @@ function mockBridge(projectPath: string, overrides: Partial<MockState> = {}) {
 
 function writeDiscovery(root: string, port: number, projectPath = root, token = TOKEN) {
 	writeBridgeFile(join(root, "Library", "ThinkRailBridge.json"), {
-		protocolVersion: 1,
+		protocolVersion: 2,
 		port,
 		token,
 		pid: process.pid,

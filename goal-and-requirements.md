@@ -134,10 +134,13 @@ What UnityRail does, at product level; the linked spec owns the detail.
   Tests) over the same host methods; the Editor's selected object is mirrored beside the chat input and
   enters the agent's context on the next turn; bundled Unity skills cover project orientation, verification,
   gameplay code, testing and asset safety, and `unity_doctor` diagnoses a missing project, install or
-  bridge; asset changes are reviewed as an **object graph** (GameObject/component identity, transform path,
-  resolved scripts and asset references, field-level edits) with an advisory **asset guard** for missing
-  `.meta`, duplicate GUIDs, large non-LFS binaries and an unconfigured scene merge driver, and test runs
-  leave a **verification history** whose failing stack frames open the script at the line
+  bridge; the agent **writes through the Editor** — create/delete objects, add/remove components, set
+  serialized properties, save and undo, plus menu/build/package/PlayerSettings/profiler/input/quit — with
+  Undo, opt-in saves and an explicit confirmation for destructive or global actions; asset changes are
+  reviewed as an **object graph** (GameObject/component identity, transform path, resolved scripts and asset
+  references, field-level edits) with an advisory **asset guard** for missing `.meta`, duplicate GUIDs, large
+  non-LFS binaries and an unconfigured scene merge driver, and test runs leave a **verification history**
+  whose failing stack frames open the script at the line
   ([[module-unity-project]], [[module-ext-unity]], [[module-pi-unity-skills]],
   [[submodule-server-unity]]).
 - **Around the workspace** — open a worktree in an installed editor or IDE, and keep the app itself up

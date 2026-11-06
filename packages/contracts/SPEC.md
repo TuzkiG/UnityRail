@@ -768,6 +768,13 @@ the palette ranks with — kept here so host-side search can rank with the same 
   evictable pool and any real preflight/read promotes them out of it, see the server `watch` SPEC) / **`git.status`** +
   **`git.diffFile`** (whose two sides ride with `ResourceMeta` and whose `originalOid` freezes the range's
   original side for `/blob`), both
+  **Unity write methods** — `unity.createObject`/`unity.deleteObject`, `unity.addComponent`/
+  `unity.removeComponent`, `unity.setProperty`, `unity.saveScene`, `unity.undo`, `unity.menu`,
+  `unity.quitEditor`, `unity.buildStart`/`unity.buildStatus`, `unity.packages`/`unity.changePackage`,
+  `unity.settings`/`unity.writeSettings`, `unity.profiler` and `unity.input` expose the bridge protocol v2
+  (the Editor's own Undo-based writes, builds, package/settings control, profiler and input). Destructive
+  or global methods carry an optional `confirm`; the host refuses them without it as
+  `UNITY_CONFIRM_REQUIRED` (a coded, retryable refusal — never a silent no-op) / 
   taking an optional **`scope: GitDiffScope`** (an unresolvable scope — a commit a rebase removed — is
   *rejected*, which the panel reads as "reset the scope" instead of staying wedged on a dead sha) /
   **`unity.assetDiff`** (`{ workspaceId, path, scope? }` → `UnityAssetDiff | null`: object-level diff of a

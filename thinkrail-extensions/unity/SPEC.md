@@ -10,7 +10,7 @@ references: [submodule-server-unity, submodule-server-extensions, submodule-web-
 
 ## Responsibility
 
-The UnityRail halves of the Unity capability. `./server` gives the agent 15 `unity_*` tools over
+The UnityRail halves of the Unity capability. `./server` gives the agent 18 `unity_*` tools over
 [[module-unity-project]]; `./web` renders each tool call as a card. The tool name joins the halves with no
 wire change. The extension is a normal [[module-thinkrail-extensions]] entry named `unity`, switchable in
 Settings → Extensions; it has no child extensions.
@@ -24,7 +24,7 @@ Settings → Extensions; it has no child extensions.
   model, bridge client and doctor), `typebox` for the parameter schemas, and
   `@earendil-works/pi-coding-agent` — types only in production code, the package's `ExtensionAPI` type.
 - **Web:** `@thinkrail/ext-unity/web` default-exports a `defineWebExtension` whose `toolRenderers` map all
-  15 names to `UnityToolCard`, with per-tool summaries. It may import `@thinkrail/contracts` (the wire
+  18 names to `UnityToolCard`, with per-tool summaries. It may import `@thinkrail/contracts` (the wire
   detail types), `@thinkrail/locales` + `@thinkrail/locales/react` (`unity.*` keys), `@thinkrail/ui/utils`
   (`cn`), `@thinkrail/extension-api/web` (`ToolRenderProps`, `resultText`, `strArg`), and
   `@remixicon/react`; it does not import the server half, the host, or any pi package at runtime.
@@ -48,6 +48,17 @@ Game or Scene View.
 open scene (or a named scene or the open prefab stage) with paths and component types;
 `unity_inspect` reads one GameObject's components and serialized properties by hierarchy path;
 `unity_find` searches assets; `unity_open` and `unity_select` hand a project path to the Editor.
+
+**Scene writes** (`bridge.ts`, protocol v2): `unity_edit_scene` edits the open scene or prefab stage —
+action `create` (name/parent/components), `delete`, `addComponent`, `removeComponent`, `setProperty`
+(hierarchy path + component + serialized property + value), `save` and `undo`. `delete` and
+`removeComponent` require `confirm: true`; the tool refuses otherwise and tells the agent to ask the user.
+Updates are Undo-backed and saved only when the call says `save: true`.
+
+**Project control** (`bridge.ts`, protocol v2): `unity_project_action` runs `menu`, starts and polls a
+`build`, lists/adds/removes `packages`, reads/writes allowlisted PlayerSettings, takes a `profiler`
+snapshot, queues keyboard `input` during Play Mode, and `quit`s the Editor. `menu`, `build`, package
+changes, settings writes and `quit` require `confirm: true`.
 
 Every tool resolves the project root from `ctx.cwd` (walking up to `ProjectSettings/ProjectVersion.txt`),
 connects through `withUnityBridge` — reads pass `retryUnavailable` for the one rediscovery retry after a

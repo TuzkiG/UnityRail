@@ -22,8 +22,11 @@ description: "Use when moving, renaming, creating or deleting Unity assets, when
   Editor UI. The Editor updates GUIDs and references atomically.
 - When a move is unavoidable outside Unity, move the asset and its `.meta` together, and let Unity
   reimport. Then run `unity_verify`; a missing script on a prefab is visible in the Console.
-- Prefer a new asset + explicit reference swap over editing serialized YAML. If you must edit YAML,
-  make one focused change and inspect the result in the Editor.
+- Edit the open scene or prefab stage with `unity_edit_scene` (create/delete an object, add/remove a
+  component, set a serialized property, save, undo) — never by rewriting `.unity`/`.prefab` YAML. Every
+  change is Undo-backed; pass `save: true` only when the user wants the file written, and run
+  `unity_compile` + `unity_verify` afterwards. Deleting an object or component needs `confirm: true`
+  after the user agrees.
 - After adding or deleting a scene, check `unity_project` (refresh) and the build settings if the
   project builds scenes by index or name.
 

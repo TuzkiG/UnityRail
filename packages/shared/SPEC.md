@@ -132,13 +132,11 @@ bundled into `apps/web`. Exposed through explicit subpath exports, not a barrel.
   macOS iconset, the Linux 512 px PNG, and the Windows ICO, whose path `windowsIconPath` exports.
   - **Artwork.** The mark keeps its rounded-square silhouette and the original ThinkRail construction: one
     flat brand green (`#8dff4f`) on a solid black tile — no second tint, no gradient, no translucent glass or
-    outer glow. It is an isometric cube whose lower body carries a rail track cut clean through it: the rails
-    leave the cube's two lower edges and converge on a horizon twelve units below its front vertex, while the
-    ties narrow, thin and close in with them. The track never leaves the cube's silhouette — only its two
-    open ends, where the rails meet the lower edges, touch it — so the perspective reads as a line running
-    into the cube. One even-odd path carries the hexagon, the cube's two top-face edge cuts, and the track,
-    so the colour icon and the monochrome favicon glyph stay one geometry. Flat fills keep small taskbar
-    frames crisp.
+    outer glow. It is a hollow isometric cube whose **border is a rail track**: two concentric hexagonal rails
+    98.56 units apart on their centrelines, joined by twelve ties, with the cube's three inner edges as spokes
+    from the centre to the inner rail. Every part is a stroked path (rail 56, tie 26), so the app icon, the
+    monochrome favicon, the shell logo and the working badge carry one geometry, and the outline keeps the
+    mark readable at small taskbar sizes.
   - **ICO frames.** PNG-compressed at 256/128/80/72/64/56/48/40/36/32/28/24/20/16: Microsoft's
     documented minimum (16/24/32/48/256), plus 64/128 and every small and big icon size Windows asks for
     between 125% and 250% scaling. `LoadImage` picks the closest frame that does not exceed the requested

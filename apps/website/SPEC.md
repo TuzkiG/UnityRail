@@ -418,9 +418,9 @@ Discord link the site, blog posts, README, and app use — a rotated invite is a
 an app release. `validateBuild` fails a build that drops it. Discord clicks emit no analytics event yet.
 
 `public/favicon.svg` is the IDE-shell landing/blog tab icon: the same monochrome UnityRail symbol the app
-serves — the cube-and-rail mark as one even-odd path in `currentColor`, near-black in light browser chrome
-and near-white in dark — with no tile behind it, so a tab shows the symbol rather than a filled square. It
-is wired via `<link rel="icon" type="image/svg+xml">` in `index.html`; there is no `.ico` fallback.
+serves — the rail-border cube as stroked paths in `currentColor`, near-black in light browser chrome and
+near-white in dark — with no tile behind it, so a tab shows the outline rather than a filled square. It is
+wired via `<link rel="icon" type="image/svg+xml">` in `index.html`; there is no `.ico` fallback.
 
 `public/og.png` is a capture of the site's own hero inside the IDE shell (dark theme, Landing
 selected, terminal install transcript finished, worktree note visible). The transcript in the

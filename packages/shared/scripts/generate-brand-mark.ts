@@ -1,100 +1,76 @@
-// One-off generator for the UnityRail brand mark: an isometric cube with a rail track cut into it. The track
-// lives inside the cube — its rails converge on a horizon just below the cube's front vertex and its near end
-// opens through the cube's two lower edges — drawn flat in one brand green on the black tile, the same
-// construction as the original ThinkRail icon.
+// One-off generator for the UnityRail brand mark: a hollow isometric cube whose border is a rail track —
+// two concentric hexagonal rails joined by ties, with the cube's three inner edges as spokes. Flat in one
+// brand green on the black tile, like the original ThinkRail icon.
 //
 // Run with `bun packages/shared/scripts/generate-brand-mark.ts`, then
 // `bun run --cwd packages/shared generate-icons` for the rasters.
 import { writeFileSync } from "node:fs";
 
-const CENTER_X = 512;
+const CENTER = 512;
 const HALF_WIDTH = 300;
-const TOP = 116;
-const TOP_RISE = 154;
-const SIDE = 308;
-const SEAM = 20;
+const HALF_HEIGHT = 308;
 
-const APEX = [CENTER_X, TOP] as const;
-const UPPER_RIGHT = [CENTER_X + HALF_WIDTH, TOP + TOP_RISE] as const;
-const UPPER_LEFT = [CENTER_X - HALF_WIDTH, TOP + TOP_RISE] as const;
-const MID = [CENTER_X, TOP + 2 * TOP_RISE] as const;
-const LOWER_RIGHT = [CENTER_X + HALF_WIDTH, TOP + TOP_RISE + SIDE] as const;
-const LOWER_LEFT = [CENTER_X - HALF_WIDTH, TOP + TOP_RISE + SIDE] as const;
-const BOTTOM = [CENTER_X, TOP + 2 * TOP_RISE + SIDE] as const;
+const APEX = [CENTER, CENTER - HALF_HEIGHT] as const;
+const UPPER_RIGHT = [CENTER + HALF_WIDTH, CENTER - 154] as const;
+const LOWER_RIGHT = [CENTER + HALF_WIDTH, CENTER + 154] as const;
+const BOTTOM = [CENTER, CENTER + HALF_HEIGHT] as const;
+const LOWER_LEFT = [CENTER - HALF_WIDTH, CENTER + 154] as const;
+const UPPER_LEFT = [CENTER - HALF_WIDTH, CENTER - 154] as const;
 const HEXAGON = [APEX, UPPER_RIGHT, LOWER_RIGHT, BOTTOM, LOWER_LEFT, UPPER_LEFT];
 
-/** The track's horizon sits just below the cube's front vertex; both rails run up to that one point. */
-const VANISH = [CENTER_X, MID[1] + 12] as const;
-const NEAR_Y = 668;
-const NEAR_HALF_SPREAD = 154;
-const RAIL_WIDTH = 48;
-const TIE_FRACTIONS = [0.2, 0.4, 0.56, 0.69, 0.8, 0.88] as const;
-const NEAR_TIE_HEIGHT = 17;
-const NEAR_OVERHANG = 20;
+/** Centrelines: the outer rail rides `OUTER_SCALE`, the inner one `INNER_SCALE`, both about the centre. */
+const OUTER_SCALE = 0.9;
+const INNER_SCALE = 0.6;
+const RAIL = 56;
+const TIE = 26;
+/** Two ties per hexagon edge, a third and two thirds along it. */
+const TIE_STOPS = [1 / 3, 2 / 3] as const;
 
-const poly = (points: readonly (readonly [number, number])[]): string =>
-	`${points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x} ${y}`).join(" ")} Z`;
+type Point = readonly [number, number];
+const round = (n: number) => Math.round(n * 100) / 100;
+const at = (scale: number, [x, y]: Point): Point => [
+	round(CENTER + (x - CENTER) * scale),
+	round(CENTER + (y - CENTER) * scale),
+];
+const xy = ([x, y]: Point) => `${x} ${y}`;
+const ring = (scale: number) =>
+	`${HEXAGON.map((v) => at(scale, v))
+		.map((v, i) => `${i === 0 ? "M" : "L"}${xy(v)}`)
+		.join(" ")} Z`;
+const between = (a: Point, b: Point, t: number): Point => [
+	round(a[0] + (b[0] - a[0]) * t),
+	round(a[1] + (b[1] - a[1]) * t),
+];
 
-/** One rail: a triangle whose near edge is a full rail width and whose far end is the horizon. */
-const rail = (side: 1 | -1): string =>
-	poly([
-		[CENTER_X + side * (NEAR_HALF_SPREAD + RAIL_WIDTH / 2), NEAR_Y],
-		[CENTER_X + side * (NEAR_HALF_SPREAD - RAIL_WIDTH / 2), NEAR_Y],
-		VANISH,
-	]);
-
-/** The sleeper at `f` along the track: it narrows, thins and closes in on the horizon as `f` grows. */
-const sleeper = (f: number): string => {
-	const near = 1 - f;
-	const y = NEAR_Y + (VANISH[1] - NEAR_Y) * f;
-	const half = NEAR_HALF_SPREAD * near + RAIL_WIDTH * near;
-	const h = NEAR_TIE_HEIGHT * near + 6 * f;
-	const x0 = CENTER_X - half - NEAR_OVERHANG * near;
-	const x1 = CENTER_X + half + NEAR_OVERHANG * near;
-	return poly([
-		[x0, y - h / 2],
-		[x1, y - h / 2],
-		[x1, y + h / 2],
-		[x0, y + h / 2],
-	]);
-};
-
-/** A thin quad along A→B. It stops `inset` short of the junction so the two cuts never double-cover it. */
-function seam(a: readonly [number, number], b: readonly [number, number]): string {
-	const inset = SEAM / 2 + 2;
-	const dx = b[0] - a[0];
-	const dy = b[1] - a[1];
-	const length = Math.hypot(dx, dy);
-	const ux = dx / length;
-	const uy = dy / length;
-	const nx = -uy * (SEAM / 2);
-	const ny = ux * (SEAM / 2);
-	const start = [a[0] + ux * inset, a[1] + uy * inset] as const;
-	const end = [b[0] - ux * inset, b[1] - uy * inset] as const;
-	return poly([
-		[start[0] + nx, start[1] + ny],
-		[end[0] + nx, end[1] + ny],
-		[end[0] - nx, end[1] - ny],
-		[start[0] - nx, start[1] - ny],
-	]);
-}
-
-const MARK = [
-	poly(HEXAGON),
-	seam(UPPER_LEFT, MID),
-	seam(UPPER_RIGHT, MID),
-	rail(1),
-	rail(-1),
-	...TIE_FRACTIONS.map((f) => sleeper(f)),
-].join(" ");
+const OUTER_RAIL = ring(OUTER_SCALE);
+const INNER_RAIL = ring(INNER_SCALE);
+const SPOKES = `${at(INNER_SCALE, UPPER_LEFT).map ? "" : ""}M${xy(at(INNER_SCALE, UPPER_LEFT))} L${xy([CENTER, CENTER])} L${xy(at(INNER_SCALE, UPPER_RIGHT))} M${xy([CENTER, CENTER])} L${xy(at(INNER_SCALE, BOTTOM))}`;
+const TIES = HEXAGON.flatMap((corner, index) => {
+	const next = HEXAGON[(index + 1) % HEXAGON.length] ?? corner;
+	return TIE_STOPS.map((stop) => {
+		const point = between(corner, next, stop);
+		const outer = at(OUTER_SCALE, point);
+		const inner = at(INNER_SCALE, point);
+		return `M${xy(outer)} L${xy(inner)}`;
+	});
+});
 
 const TILE = "#000000";
 const ACCENT = "#8dff4f";
 
+const mark = (
+	color: string,
+) => `	<g fill="none" stroke="${color}" stroke-linejoin="round" stroke-linecap="round">
+		<path d="${OUTER_RAIL}" stroke-width="${RAIL}" />
+		<path d="${INNER_RAIL}" stroke-width="${RAIL}" />
+		<path d="${SPOKES}" stroke-width="${RAIL}" />
+		${TIES.map((d) => `<path d="${d}" stroke-width="${TIE}" />`).join("\n\t\t")}
+	</g>`;
+
 const colorIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
 	<title>UnityRail</title>
 	<rect width="1024" height="1024" rx="224" fill="${TILE}" />
-	<path fill="${ACCENT}" fill-rule="evenodd" d="${MARK}" />
+${mark(ACCENT)}
 </svg>
 `;
 
@@ -104,7 +80,7 @@ const monochrome = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 10
 		:root { color: ${TILE}; }
 		@media (prefers-color-scheme: dark) { :root { color: #f4f7f2; } }
 	</style>
-	<path fill="currentColor" fill-rule="evenodd" d="${MARK}" />
+${mark("currentColor")}
 </svg>
 `;
 
@@ -113,20 +89,17 @@ writeFileSync("apps/web/public/favicon.svg", monochrome);
 writeFileSync("apps/website/public/favicon.svg", monochrome);
 writeFileSync("apps/website/public/vibecoding/favicon.svg", monochrome);
 
-const railCentre = (side: 1 | -1): string =>
-	`M${CENTER_X + side * NEAR_HALF_SPREAD} ${NEAR_Y} L${VANISH[0]} ${VANISH[1]}`;
-
 console.log(
 	[
-		"export const BRAND_GLYPH_PATH =",
-		`\t${JSON.stringify(MARK)};`,
+		`export const BRAND_RAIL_WIDTH = ${RAIL};`,
+		`export const BRAND_TIE_WIDTH = ${TIE};`,
 		"",
 		"export const BRAND_MARK_SEGMENTS = {",
-		`\ttopFace: ${JSON.stringify(poly([APEX, UPPER_RIGHT, MID, UPPER_LEFT]))},`,
-		`\tleftFace: ${JSON.stringify(poly([UPPER_LEFT, MID, BOTTOM, LOWER_LEFT]))},`,
-		`\trightFace: ${JSON.stringify(poly([UPPER_RIGHT, MID, BOTTOM, LOWER_RIGHT]))},`,
-		`\tleftRail: ${JSON.stringify(railCentre(-1))},`,
-		`\trightRail: ${JSON.stringify(railCentre(1))},`,
+		`\touterRail: ${JSON.stringify(OUTER_RAIL)},`,
+		`\tinnerRail: ${JSON.stringify(INNER_RAIL)},`,
+		`\tspokes: ${JSON.stringify(SPOKES)},`,
 		"} as const;",
+		"",
+		`export const BRAND_RAIL_TIES = ${JSON.stringify(TIES)} as const;`,
 	].join("\n"),
 );

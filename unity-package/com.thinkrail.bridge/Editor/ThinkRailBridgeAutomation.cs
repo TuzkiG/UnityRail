@@ -189,14 +189,20 @@ namespace UnityRail.Bridge
             ConstructorInfo constructor = stateType.GetConstructor(new[] { keyType.MakeArrayType() });
             if (constructor == null) throw new BridgeHttpException(409, "KeyboardState cannot be constructed.");
             object state = constructor.Invoke(new object[] { values });
-            MethodInfo queue = inputSystem
-                .GetMethods(BindingFlags.Public | BindingFlags.Static)
-                .FirstOrDefault((method) =>
+            MethodInfo[] methods = inputSystem.GetMethods(BindingFlags.Public | BindingFlags.Static);
+            MethodInfo queue = methods.FirstOrDefault((method) =>
                     method.Name == "QueueStateEvent" &&
                     method.IsGenericMethodDefinition &&
-                    method.GetParameters().Length == 3);
+                    method.GetParameters().Length == 3) ??
+                methods.FirstOrDefault((method) =>
+                    method.Name == "QueueStateEvent" &&
+                    method.IsGenericMethodDefinition &&
+                    method.GetParameters().Length == 2);
             if (queue == null) throw new BridgeHttpException(409, "InputSystem.QueueStateEvent was not found.");
-            queue.MakeGenericMethod(stateType).Invoke(null, new object[] { keyboard, state, -1.0 });
+            object[] arguments = queue.GetParameters().Length == 3
+                ? new object[] { keyboard, state, -1.0 }
+                : new object[] { keyboard, state };
+            queue.MakeGenericMethod(stateType).Invoke(null, arguments);
         }
 
         private static Type FindType(string fullName)

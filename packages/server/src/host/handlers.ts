@@ -75,8 +75,6 @@ import {
 	saveCustomEndpoint,
 	sendReviewFixToSession,
 	setModelContextWindow,
-	setSessionApproval,
-	setSessionCollaboration,
 	setSessionModel,
 	setSessionThinkingLevel,
 	steerSession,
@@ -597,6 +595,25 @@ function resourceHistoryParams(params: unknown): WsParams<"session.resourceHisto
 	)
 		throw new Error("Invalid resource history cursor");
 	return { ...request, before: { at, id } };
+}
+
+/**
+ * A chat tab restored after a host restart has no live session yet. Settings that only touch an attached
+ * session (model, thinking level) re-open it from disk instead of failing with "Unknown session", scanning
+ * the registered workspaces because the request carries no workspace id.
+ */
+async function attachKnownSession(sessionId: string): Promise<boolean> {
+	if (hasSession(sessionId)) return true;
+	for (const workspace of listAllWorkspaceRecords()) {
+		try {
+			if (await ensureSessionAttached(sessionId, workspace.id, workspace.worktreePath)) {
+				return true;
+			}
+		} catch {
+			// A workspace that refuses the attach (closing, removed) is not this session's home.
+		}
+	}
+	return false;
 }
 
 async function deliverToolResponse(
@@ -1337,19 +1354,17 @@ const handlers: WsHandlers = {
 		return { ok: true } as const;
 	},
 	"session.setModel": async (p) => {
+		if (!(await attachKnownSession(p.sessionId))) {
+			throw new Error(`Unknown session: ${p.sessionId}`);
+		}
 		noteRecentModel(await setSessionModel(p.sessionId, p.model));
 		return { ok: true } as const;
 	},
-	"session.setThinkingLevel": (p) => {
+	"session.setThinkingLevel": async (p) => {
+		if (!(await attachKnownSession(p.sessionId))) {
+			throw new Error(`Unknown session: ${p.sessionId}`);
+		}
 		setSessionThinkingLevel(p.sessionId, p.level);
-		return { ok: true } as const;
-	},
-	"session.setCollaboration": (p) => {
-		setSessionCollaboration(p.sessionId, p.collaboration);
-		return { ok: true } as const;
-	},
-	"session.setApproval": (p) => {
-		setSessionApproval(p.sessionId, p.approval);
 		return { ok: true } as const;
 	},
 	"session.compact": async (p) => {

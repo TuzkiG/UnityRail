@@ -24,6 +24,7 @@ import {
 	type CreateSessionResult,
 	configurePiRuntime,
 	disposeAllSessions,
+	hasSession,
 	setSessionManagerFactory,
 } from "../agent";
 import { initializeAnalytics, resetAnalyticsForTests, shutdownAnalytics } from "../analytics";
@@ -203,6 +204,35 @@ test("a client older than the settled protocol never hears about a merged or clo
 	expect(openReviewForClient(merged, WORKSPACE_SETTLE_PROTOCOL_VERSION)).toBe(merged);
 	expect(openReviewForClient(merged, undefined)).toBe(merged);
 	expect(openReviewForClient(null, WORKSPACE_SETTLE_PROTOCOL_VERSION - 1)).toBeNull();
+});
+
+test("a restored chat re-attaches from disk before its model or effort changes", async () => {
+	const workspace = (await handleRequest(
+		"workspace.create",
+		{ projectId: "p1", name: "Restored chat" },
+		CTX,
+	)) as Workspace;
+	const dir = defaultSessionDirFor(process.env.PI_CODING_AGENT_DIR ?? "", workspace.worktreePath);
+	const fixture = writeFixtureSession(dir, {
+		cwd: workspace.worktreePath,
+		messages: [
+			{ role: "user", text: "hello", timestamp: 1 },
+			{ role: "assistant", text: "hi", stopReason: "stop", timestamp: 2 },
+		],
+	});
+	expect(hasSession(fixture.id)).toBe(false);
+
+	await handleRequest("session.setThinkingLevel", { sessionId: fixture.id, level: "high" }, CTX);
+	expect(hasSession(fixture.id)).toBe(true);
+	const rows = (await handleRequest("session.list", { workspaceId: workspace.id }, CTX)) as Array<{
+		sessionId: string;
+		thinkingLevel: string;
+	}>;
+	expect(rows.find((row) => row.sessionId === fixture.id)?.thinkingLevel).toBe("high");
+
+	await expect(
+		handleRequest("session.setThinkingLevel", { sessionId: "missing-session", level: "low" }, CTX),
+	).rejects.toThrow("Unknown session");
 });
 
 test("starting a PR mutation reactivates a parked workspace before any network await", async () => {

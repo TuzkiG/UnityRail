@@ -154,6 +154,11 @@ re-opened transcripts provider-valid.
     the model already in its transcript as the planner (no extra cache miss), and the router never routes
     to itself. Registered on every runtime generation, so tests and embedders see the same catalog; the
     model is served under a provider id with no physical models, which pi treats as always available.
+    The host may **pin** what Auto connects to: `setAutoModelPreferencesSource` supplies the plan model,
+    the execution model and the effort, read on every route so a Settings change applies to the next turn.
+    A pin is a *preference*, not a demand — a model that left the catalog falls back to the automatic pick
+    for that phase, and an unset effort keeps the chat's own level. The source is injected because `agent`
+    may not import `settings`; `host` owns that read.
     Accepted: an easy turn's cheap model owns that turn's exploration too — a misread question costs
     quality, not correctness, and the next message is re-assessed.
   - `modelsFile` — the one owner of pi's shared `getAgentDir()/models.json` IO for the settings adapters

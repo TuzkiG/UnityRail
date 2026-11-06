@@ -1099,6 +1099,9 @@ interface AppState {
 	defaultEffort: ThinkingLevel | undefined;
 	reviewModel: WireModel | undefined;
 	reviewEffort: ThinkingLevel | undefined;
+	autoPlanModel: WireModel | undefined;
+	autoExecuteModel: WireModel | undefined;
+	autoEffort: ThinkingLevel | undefined;
 	favoriteModels: WireModel[];
 	recentModels: WireModel[];
 	reviewAutoFix: boolean;
@@ -1505,6 +1508,9 @@ function configPatch(config: AppConfig) {
 		defaultEffort: config.defaultEffort,
 		reviewModel: config.reviewModel,
 		reviewEffort: config.reviewEffort,
+		autoPlanModel: config.autoPlanModel,
+		autoExecuteModel: config.autoExecuteModel,
+		autoEffort: config.autoEffort,
 		favoriteModels: config.favoriteModels ?? DEFAULT_CONFIG.favoriteModels,
 		recentModels: config.recentModels ?? DEFAULT_CONFIG.recentModels,
 		reviewAutoFix: config.reviewAutoFix ?? DEFAULT_CONFIG.reviewAutoFix,
@@ -2396,6 +2402,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 	defaultEffort: DEFAULT_CONFIG.defaultEffort,
 	reviewModel: DEFAULT_CONFIG.reviewModel,
 	reviewEffort: DEFAULT_CONFIG.reviewEffort,
+	autoPlanModel: DEFAULT_CONFIG.autoPlanModel,
+	autoExecuteModel: DEFAULT_CONFIG.autoExecuteModel,
+	autoEffort: DEFAULT_CONFIG.autoEffort,
 	favoriteModels: DEFAULT_CONFIG.favoriteModels,
 	recentModels: DEFAULT_CONFIG.recentModels,
 	reviewAutoFix: DEFAULT_CONFIG.reviewAutoFix,

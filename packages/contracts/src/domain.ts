@@ -1498,6 +1498,12 @@ export interface AppConfig extends ThemePreference {
 	reviewModel?: WireModel;
 	/** Reviewer thinking level; unset uses the host's new-chat effort default, never the worker's inherited effort. */
 	reviewEffort?: ThinkingLevel;
+	/** The model an Auto chat's plan phase connects to; unset keeps the automatic flagship pick. */
+	autoPlanModel?: WireModel;
+	/** The model an Auto chat's execution phase connects to; unset keeps the automatic cheap pick. */
+	autoExecuteModel?: WireModel;
+	/** Auto chat effort; unset follows the chat's own thinking level. */
+	autoEffort?: ThinkingLevel;
 	/** Models the user starred in the picker, in display order; identity is `{provider, id}`. */
 	favoriteModels: WireModel[];
 	/** Models most recently chosen for a chat, newest first; host-maintained, never client-written. */
@@ -1550,13 +1556,23 @@ export const RECENT_MODELS_LIMIT = 5;
 export type AppConfigUpdate = Partial<
 	Omit<
 		AppConfig,
-		"defaultModel" | "defaultEffort" | "reviewModel" | "reviewEffort" | "recentModels"
+		| "defaultModel"
+		| "defaultEffort"
+		| "reviewModel"
+		| "reviewEffort"
+		| "autoPlanModel"
+		| "autoExecuteModel"
+		| "autoEffort"
+		| "recentModels"
 	>
 > & {
 	defaultModel?: WireModel | null;
 	defaultEffort?: ThinkingLevel | null;
 	reviewModel?: WireModel | null;
 	reviewEffort?: ThinkingLevel | null;
+	autoPlanModel?: WireModel | null;
+	autoExecuteModel?: WireModel | null;
+	autoEffort?: ThinkingLevel | null;
 };
 
 export type SurveyInvitationResponse = "postpone" | "never";

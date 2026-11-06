@@ -83,6 +83,25 @@ export interface AutoRouteInput {
 	previous?: Model<Api>;
 	state?: AutoModelState;
 	messages: readonly Message[];
+	/** The user's Auto settings; every field unset keeps the automatic pick. */
+	preferences?: AutoModelPreferences;
+}
+
+/** What Settings pins for an Auto chat, read per route so a change applies to the next turn. */
+export interface AutoModelPreferences {
+	/** The plan phase's model; unset keeps the flagship pick. */
+	plan?: ModelRef;
+	/** The execution phase's model; unset keeps the cheap pick. */
+	execute?: ModelRef;
+	/** Overrides the chat's own thinking level for both phases. */
+	effort?: ModelThinkingLevel;
+}
+
+let preferencesSource: () => AutoModelPreferences = () => ({});
+
+/** The host owns the settings read; Auto stays a pure router and never imports settings itself. */
+export function setAutoModelPreferencesSource(source: () => AutoModelPreferences): void {
+	preferencesSource = source;
 }
 
 export type AutoRoute = ModelRoute<AutoModelState>;
@@ -122,15 +141,20 @@ export function assessDifficulty(messages: readonly Message[]): AutoDifficulty {
 
 export function routeAutoModel(input: AutoRouteInput): AutoRoute {
 	const available = input.available.filter((model) => !isVirtualModel(model));
+	const preferred = input.preferences ?? {};
 	const plan = firstAvailable(
 		available,
-		refs(input.state?.plan, input.previous, preferredDefaultModel(available)),
+		refs(preferred.plan, input.state?.plan, input.previous, preferredDefaultModel(available)),
 	);
 	if (!plan) throw new Error("Auto model: no available model to route to");
 	const execute =
-		firstAvailable(available, refs(input.state?.execute, cheapModel(available), plan)) ?? plan;
+		firstAvailable(
+			available,
+			refs(preferred.execute, input.state?.execute, cheapModel(available), plan),
+		) ?? plan;
+	const thinkingLevel = preferred.effort ?? input.thinkingLevel;
 
-	if (input.reason === "direct") return { model: execute, thinkingLevel: input.thinkingLevel };
+	if (input.reason === "direct") return { model: execute, thinkingLevel };
 
 	const state = input.state;
 	const phase: AutoPhase =
@@ -145,7 +169,7 @@ export function routeAutoModel(input: AutoRouteInput): AutoRoute {
 	const sameSelection = state && state.phase === phase;
 	return {
 		model,
-		thinkingLevel: input.thinkingLevel,
+		thinkingLevel,
 		...(sameSelection
 			? {}
 			: { state: { phase, plan: modelRef(plan), execute: modelRef(execute) } }),
@@ -172,6 +196,7 @@ export function registerAutoModel(
 				thinkingLevel: request.thinkingLevel,
 				available: available(),
 				messages: request.messages,
+				preferences: preferencesSource(),
 				...(request.previous ? { previous: request.previous.model } : {}),
 				...(request.state ? { state: request.state } : {}),
 			}),

@@ -463,6 +463,10 @@ the palette ranks with — kept here so host-side search can rank with the same 
   v72's AppConfig `defaultModel`/`defaultEffort` and host-side default resolution; the Settings controls are
   hidden against older hosts. `defaultModel` is a full allowlisted `WireModel`, `defaultEffort` is an optional
   `ThinkingLevel`, and `settings.update` accepts `null` to clear either optional value.
+  **`AUTO_MODEL_SETTING_PROTOCOL_VERSION`** (v107) pins the three `Auto` router preferences — `autoPlanModel`
+  and `autoExecuteModel` (full allowlisted `WireModel`s, one per routed phase) and `autoEffort` (optional
+  `ThinkingLevel`) — all three optional, all three cleared by `null`, and all three absent from an older
+  host's `AppConfig`, so the Settings controls gate on the version exactly like the default-model row.
   **`MODEL_PICKER_PROTOCOL_VERSION`** (v77) pins the picker's host-kept lists: **`favoriteModels`** (full
   `WireModel`s in the user's display order — the client writes the whole list through `settings.update`,
   identity by `sameModel`) and **`recentModels`** (newest-first, at most **`RECENT_MODELS_LIMIT`** = 5,

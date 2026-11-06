@@ -51,6 +51,9 @@ const ACCEPTED_UPDATE_KEYS = {
 	defaultEffort: true,
 	reviewModel: true,
 	reviewEffort: true,
+	autoPlanModel: true,
+	autoExecuteModel: true,
+	autoEffort: true,
 	reviewAutoFix: true,
 	agentReviewEnabled: true,
 	subagentsEnabled: true,
@@ -191,6 +194,9 @@ export function updateConfig(partial: AppConfigUpdate): AppConfig {
 		defaultEffort,
 		reviewModel,
 		reviewEffort,
+		autoPlanModel,
+		autoExecuteModel,
+		autoEffort,
 		favoriteModels,
 		recentModels: _hostOwnedRecentModels,
 		customLayoutPresets,
@@ -215,6 +221,8 @@ export function updateConfig(partial: AppConfigUpdate): AppConfig {
 	for (const [name, value] of [
 		["defaultModel", defaultModel],
 		["reviewModel", reviewModel],
+		["autoPlanModel", autoPlanModel],
+		["autoExecuteModel", autoExecuteModel],
 	] as const) {
 		if (value !== undefined && value !== null && !isWireModelRef(value)) {
 			throw new Error(`${name} must be a model or null`);
@@ -321,6 +329,18 @@ export function updateConfig(partial: AppConfigUpdate): AppConfig {
 	if (reviewEffort !== undefined) {
 		if (reviewEffort === null) delete next.reviewEffort;
 		else next.reviewEffort = reviewEffort;
+	}
+	if (autoPlanModel !== undefined) {
+		if (autoPlanModel === null) delete next.autoPlanModel;
+		else next.autoPlanModel = autoPlanModel;
+	}
+	if (autoExecuteModel !== undefined) {
+		if (autoExecuteModel === null) delete next.autoExecuteModel;
+		else next.autoExecuteModel = autoExecuteModel;
+	}
+	if (autoEffort !== undefined) {
+		if (autoEffort === null) delete next.autoEffort;
+		else next.autoEffort = autoEffort;
 	}
 	saveConfig(next);
 	cached = next;

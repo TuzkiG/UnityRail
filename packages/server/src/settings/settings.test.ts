@@ -730,6 +730,36 @@ test("a null reviewModel/reviewEffort clears the override back to unset, and it 
 	expect(getConfig().reviewEffort).toBeUndefined();
 });
 
+test("autoPlanModel/autoExecuteModel/autoEffort persist and clear back to unset", () => {
+	const model = {
+		id: "m",
+		name: "M",
+		provider: "p",
+		contextWindow: 1,
+		reasoning: false,
+		thinkingLevels: [],
+	};
+	const other = { ...model, id: "m2" };
+	updateConfig({ autoPlanModel: model, autoExecuteModel: other, autoEffort: "high" });
+	resetConfigCache();
+	expect(getConfig().autoPlanModel).toEqual(model);
+	expect(getConfig().autoExecuteModel).toEqual(other);
+	expect(getConfig().autoEffort).toBe("high");
+
+	const next = updateConfig({ autoPlanModel: null, autoExecuteModel: null, autoEffort: null });
+	expect("autoPlanModel" in next).toBe(false);
+	expect("autoExecuteModel" in next).toBe(false);
+	expect("autoEffort" in next).toBe(false);
+	resetConfigCache();
+	expect(getConfig().autoPlanModel).toBeUndefined();
+	expect(getConfig().autoExecuteModel).toBeUndefined();
+	expect(getConfig().autoEffort).toBeUndefined();
+	const onDisk = JSON.parse(readFileSync(join(dataDir, "config.json"), "utf8"));
+	expect(onDisk).not.toHaveProperty("autoPlanModel");
+	expect(onDisk).not.toHaveProperty("autoExecuteModel");
+	expect(onDisk).not.toHaveProperty("autoEffort");
+});
+
 test("a malformed defaultModel or reviewModel rejects the whole update before persistence or broadcast", () => {
 	const published: AppConfig[] = [];
 	setSettingsPublisher((config) => published.push(config));

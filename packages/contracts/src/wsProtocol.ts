@@ -171,7 +171,8 @@ export type TemplateReadLocation =
 	| { projectId: string; workspaceId?: never }
 	| { workspaceId?: never; projectId?: never };
 
-export const PROTOCOL_VERSION = 106;
+export const PROTOCOL_VERSION = 107;
+export const AUTO_MODEL_SETTING_PROTOCOL_VERSION = 107;
 export const UNITY_PROTOCOL_VERSION = 105;
 export const GITHUB_STAR_PROTOCOL_VERSION = 103;
 export const FONTS_PROTOCOL_VERSION = 102;

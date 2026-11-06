@@ -9,6 +9,7 @@ export {
 	assessDifficulty,
 	registerAutoModel,
 	routeAutoModel,
+	setAutoModelPreferencesSource,
 } from "./autoModel";
 export {
 	getResourceHistoryPage,

@@ -144,6 +144,42 @@ test("a planner that leaves the catalog re-derives instead of failing", () => {
 	expect(decision.model.id).toBe("claude-opus-4-8");
 });
 
+test("the configured Auto models and effort win over the automatic picks", () => {
+	const flash = model("deepseek-flash", "deepseek", { input: 0.3, output: 1.2 });
+	const pro = model("deepseek-v4-pro", "deepseek", { input: 1.3, output: 4 });
+	const available = [opus, haiku, flash, pro];
+	const preferences = {
+		plan: { provider: "deepseek", id: "deepseek-v4-pro" },
+		execute: { provider: "deepseek", id: "deepseek-flash" },
+		effort: "high" as const,
+	};
+
+	const planned = route({ available, preferences });
+	expect(planned.model.id).toBe("deepseek-v4-pro");
+	expect(planned.thinkingLevel).toBe("high");
+	expect(planned.state?.execute).toEqual({ provider: "deepseek", id: "deepseek-flash" });
+
+	const executing = route({
+		reason: "continuation",
+		available,
+		preferences,
+		state: planned.state,
+		messages: [userMessage, toolResult("edit")],
+	});
+	expect(executing.model.id).toBe("deepseek-flash");
+	expect(executing.thinkingLevel).toBe("high");
+});
+
+test("an Auto preference that left the catalog falls back to the automatic pick", () => {
+	const stale = {
+		plan: { provider: "deepseek", id: "deepseek-v3" },
+		execute: { provider: "deepseek", id: "deepseek-v3" },
+	};
+	const decision = route({ preferences: stale });
+	expect(decision.model.id).toBe("claude-opus-4-8");
+	expect(decision.state?.execute.id).toBe("claude-haiku-4-5");
+});
+
 test("the router never routes to itself", () => {
 	expect(isVirtualModel(auto)).toBe(true);
 	expect(isVirtualModel(opus)).toBe(false);

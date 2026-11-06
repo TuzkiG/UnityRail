@@ -47,6 +47,7 @@ import {
 	refreshSubagentConcurrency,
 	refreshSubagentTools,
 	setAgentReviewEnabledResolver,
+	setAutoModelPreferencesSource,
 	setDisabledExtensionsResolver,
 	setDisabledPackagesResolver,
 	setExtUiPublisher,
@@ -825,6 +826,19 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 	installRequestReviewSeam();
 	setTitleToolHost(titleToolHost);
 	reconcilePendingReviewsOnBoot();
+
+	setAutoModelPreferencesSource(() => {
+		const { autoPlanModel, autoExecuteModel, autoEffort } = getConfig();
+		return {
+			...(autoPlanModel
+				? { plan: { provider: autoPlanModel.provider, id: autoPlanModel.id } }
+				: {}),
+			...(autoExecuteModel
+				? { execute: { provider: autoExecuteModel.provider, id: autoExecuteModel.id } }
+				: {}),
+			...(autoEffort ? { effort: autoEffort } : {}),
+		};
+	});
 
 	setSettingsPublisher((config, appliedUpdate) => {
 		server.publish(

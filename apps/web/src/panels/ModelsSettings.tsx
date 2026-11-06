@@ -1,5 +1,6 @@
 import {
 	AGENT_REVIEW_SETTING_PROTOCOL_VERSION,
+	AUTO_MODEL_SETTING_PROTOCOL_VERSION,
 	type ModelDefault,
 	type ThinkingLevel,
 	type WireModel,
@@ -25,6 +26,9 @@ export function ModelsSettings() {
 	const defaultEffort = useAppStore((s) => s.defaultEffort);
 	const reviewModel = useAppStore((s) => s.reviewModel);
 	const reviewEffort = useAppStore((s) => s.reviewEffort);
+	const autoPlanModel = useAppStore((s) => s.autoPlanModel);
+	const autoExecuteModel = useAppStore((s) => s.autoExecuteModel);
+	const autoEffort = useAppStore((s) => s.autoEffort);
 	const autoFix = useAppStore((s) => s.reviewAutoFix);
 	const agentReviewEnabled = useAppStore((s) => s.agentReviewEnabled);
 	const protocolVersion = useAppStore((s) => s.protocolVersion);
@@ -83,6 +87,11 @@ export function ModelsSettings() {
 	const level = resolvedDefault?.thinkingLevel ?? defaultEffort ?? "medium";
 	const chatPickerModels = selectPickerModels(allModels, hiddenModels, [model]);
 	const reviewPickerModels = selectPickerModels(allModels, hiddenModels, [reviewModel]);
+	const autoPickerModels = selectPickerModels(allModels, hiddenModels, [
+		autoPlanModel,
+		autoExecuteModel,
+	]);
+	const autoCatalogModel = allModels.find((candidate) => candidate.virtual === true) ?? null;
 
 	const reviewerEffortModel = reviewModel ?? resolvedDefault?.model ?? null;
 	const reviewerEffortLevel =
@@ -98,6 +107,16 @@ export function ModelsSettings() {
 		getTransport()
 			.request("settings.update", { config })
 			.catch(() => toast.error(t("settings.models.reviewModelFailed")));
+	};
+
+	const updateAuto = (config: {
+		autoPlanModel?: WireModel | null;
+		autoExecuteModel?: WireModel | null;
+		autoEffort?: ThinkingLevel | null;
+	}) => {
+		getTransport()
+			.request("settings.update", { config })
+			.catch(() => toast.error(t("settings.models.autoUpdateFailed")));
 	};
 
 	const setAutoFix = (reviewAutoFix: boolean) => {
@@ -154,6 +173,71 @@ export function ModelsSettings() {
 				) : null}
 				<VisibleModelsSettings models={allModels} />
 			</SettingsGroup>
+
+			{protocolVersion !== null && protocolVersion >= AUTO_MODEL_SETTING_PROTOCOL_VERSION && (
+				<SettingsGroup title={t("settings.models.autoGroup")} testId="models-auto-group">
+					<div
+						data-testid="auto-plan-model-row"
+						className="flex flex-wrap items-center justify-between gap-12 border-border-muted border-b py-12"
+					>
+						<span className="flex min-w-0 flex-col">
+							<span className="tr-text-ui text-text-default">
+								{t("settings.models.autoPlanModel")}
+							</span>
+							<span className="tr-text-metadata text-text-muted">
+								{t("settings.models.autoPlanModelDescription")}
+							</span>
+						</span>
+						<ModelSelector
+							models={autoPickerModels}
+							current={autoPlanModel ?? null}
+							refreshing={refreshing}
+							onRefresh={refresh}
+							onSelect={(m) => updateAuto({ autoPlanModel: m })}
+							placeholder={t("settings.models.autoDefault")}
+							defaultOption={t("settings.models.autoDefault")}
+							onSelectDefault={() => updateAuto({ autoPlanModel: null, autoEffort: null })}
+							preferences={preferences}
+						/>
+					</div>
+					<div
+						data-testid="auto-execute-model-row"
+						className="flex flex-wrap items-center justify-between gap-12 border-border-muted border-b py-12"
+					>
+						<span className="flex min-w-0 flex-col">
+							<span className="tr-text-ui text-text-default">
+								{t("settings.models.autoExecuteModel")}
+							</span>
+							<span className="tr-text-metadata text-text-muted">
+								{t("settings.models.autoExecuteModelDescription")}
+							</span>
+						</span>
+						<ModelSelector
+							models={autoPickerModels}
+							current={autoExecuteModel ?? null}
+							refreshing={refreshing}
+							onRefresh={refresh}
+							onSelect={(m) => updateAuto({ autoExecuteModel: m })}
+							placeholder={t("settings.models.autoDefault")}
+							defaultOption={t("settings.models.autoDefault")}
+							onSelectDefault={() => updateAuto({ autoExecuteModel: null })}
+							preferences={preferences}
+						/>
+					</div>
+					<SettingsRow
+						testId="auto-effort-row"
+						label={t("settings.models.autoEffort")}
+						description={t("settings.models.autoEffortDescription")}
+						control={
+							<ThinkingSelector
+								level={autoEffort ?? resolvedDefault?.thinkingLevel ?? "medium"}
+								levels={autoCatalogModel?.thinkingLevels ?? []}
+								onSelect={(level) => updateAuto({ autoEffort: level })}
+							/>
+						}
+					/>
+				</SettingsGroup>
+			)}
 
 			<SettingsGroup title={t("settings.models.reviewGroup")} testId="models-review-group">
 				<div

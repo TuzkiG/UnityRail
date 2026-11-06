@@ -1143,13 +1143,22 @@ a project picker, the prompt hero, and the reused
   no optimistic value or AppConfig field; reads follow catalog/provider invalidation, fence stale
   replies, disable controls while pending, and replace controls with Retry on failure. The props-driven
   `ModelContextControls` owns presentation; older hosts get neither the block nor its requests.
-  `ModelsSettings` organizes its controls into three visual groups:
+  `ModelsSettings` organizes its controls into four visual groups:
 
   **DEFAULT MODEL** — a **Chat model** row (`defaultModel`, `defaultEffort`) and the **Visible models**
-  disclosure. **REVIEW** (`models-review-group`) — everything that configures review in one place, because
+  disclosure. **AUTO** (`models-auto-group`, rendered from `AUTO_MODEL_SETTING_PROTOCOL_VERSION`) — what a
+  `thinkrail/auto` chat connects to: an **Auto plan model** row (`auto-plan-model-row`; `autoPlanModel`) and
+  an **Auto execution model** row (`auto-execute-model-row`; `autoExecuteModel`), each with an explicit
+  *Automatic* default that null-clears back to the router's own pick for that phase (the plan row is the
+  group's primary row, so its *Automatic* also clears `autoEffort` — one gesture restores the whole group
+  to automatic), plus one **Auto
+  reasoning level** row (`auto-effort-row`; `autoEffort`) whose levels come from the catalog's virtual
+  `Auto` entry. That level is Auto's, not the chat's — it overrides the composer's selection for every
+  routed turn — and unset stays the default, so the difficulty router keeps escalating on its own.
+  **REVIEW** (`models-review-group`) — everything that configures review in one place, because
   users look for it by that word: the **Review model** row (`review-model-row`; `reviewModel`,
   `reviewEffort`), independent of the Chat model row's loading state, then the two automation toggles
-  below. Both model rows use `ModelSelector`/`ThinkingSelector` over `useModelCatalog`; the review selector carries an
+  below. The chat, Auto and review rows use `ModelSelector`/`ThinkingSelector` over `useModelCatalog`; the review selector carries an
   **explicit default-model row** (`model-option-default`, labelled with the host's `model.default` result)
   that writes `{ reviewModel: null, reviewEffort: null }` — the null-clears wire form, see
   `submodule-server-settings` — so a chosen reviewer model can be restored to the host's new-chat default

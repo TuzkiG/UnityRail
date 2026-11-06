@@ -77,7 +77,7 @@ export {
 	listModelContextSettings,
 	setModelContextWindow,
 } from "./modelContext";
-export { cheapModel, isVirtualModel, preferredDefaultModel } from "./modelDefaults";
+export { cheapModel, isVirtualModel, piDefaultModelRef, preferredDefaultModel } from "./modelDefaults";
 export { setModelsFilePublisher } from "./modelsFile";
 export * from "./oneshot";
 export {

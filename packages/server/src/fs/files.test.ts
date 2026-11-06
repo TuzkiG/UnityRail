@@ -68,3 +68,25 @@ test("a link outside the worktree that is not a Git repository is still rejected
 	expect(() => readDir("w1", "outside")).toThrow("Path escapes the worktree");
 	expect(() => readFile("w1", "outside/secret.txt")).toThrow("Path escapes the worktree");
 });
+
+const symlinkTest = process.platform === "win32" ? test.skip : test;
+
+symlinkTest("readDir classifies symlinks by target and refuses escaping ones", () => {
+	mkdirSync(join(root, "real"));
+	writeFileSync(join(root, "real", "a.ts"), "");
+	mkdirSync(join(dataDir, "outside"));
+	symlinkSync(join(root, "real"), join(root, "dirlink"));
+	symlinkSync(join(root, "real", "a.ts"), join(root, "filelink"));
+	symlinkSync(join(root, "missing"), join(root, "dangling"));
+	symlinkSync(join(dataDir, "outside"), join(root, "escape"));
+	const kinds = Object.fromEntries(readDir("w1", ".").map((n) => [n.name, n.kind]));
+	expect(kinds).toMatchObject({
+		real: "dir",
+		dirlink: "dir",
+		filelink: "file",
+		dangling: "file",
+		escape: "file",
+	});
+	expect(readDir("w1", "dirlink").map((n) => n.path)).toEqual(["dirlink/a.ts"]);
+	expect(() => readDir("w1", "escape")).toThrow("escapes");
+});

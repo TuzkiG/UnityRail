@@ -49,6 +49,21 @@ const render = (
 		</TooltipProvider>,
 	);
 
+test("renders the embedded pi build only when the host reports it", () => {
+	const withRuntime = render({
+		...STATUS,
+		piVersion: "1.5.0",
+		piPackageDir: "/app/node_modules/@earendil-works/pi-coding-agent",
+	});
+	expect(withRuntime).toContain('data-testid="settings-pi-runtime"');
+	expect(withRuntime).toContain('data-testid="settings-pi-version"');
+	expect(withRuntime).toContain("1.5.0");
+	expect(withRuntime).toContain("/app/node_modules/@earendil-works/pi-coding-agent");
+
+	// An older host omits both fields, so the block is absent rather than empty.
+	expect(render(STATUS)).not.toContain('data-testid="settings-pi-runtime"');
+});
+
 test("renders the stored folder, the folder in use and masked variable values", () => {
 	const markup = render(STATUS);
 	expect(markup).toContain('value="~/.pi/agent-personal"');

@@ -160,7 +160,7 @@ re-opened transcripts provider-valid.
     for that phase, and an unset effort keeps the chat's own level. `autoReasoning: "automatic"` instead
     derives the level per route — planning is `high` for a hard request and `medium` for an easy one,
     execution is `medium` hard / `low` easy (a `direct` request counts as execution) — clamped down to the
-    chosen model's own `thinkingLevels`; a pinned `autoEffort` still wins over the derivation. The source is injected because `agent`diff --git a/apps/web/src/panels/SPEC.md b/apps/web/src/panels/SPEC.md
+    chosen model's own `thinkingLevels`; a pinned `autoEffort` still wins over the derivation. The source is injected because `agent`
     may not import `settings`; `host` owns that read.
     Accepted: an easy turn's cheap model owns that turn's exploration too — a misread question costs
     quality, not correctness, and the next message is re-assessed.
@@ -1447,6 +1447,27 @@ starts handled: a late `stopped` notice once reached the next test's publisher, 
 an unhandled rejection that bun charged to every following test while that publisher stayed installed.
 Its only new external dependency is `pi-background-commands`; there is no `agent` → `terminal`, `subprocess`,
 settings or workspaces edge. The owning parent graph records this package dependency.
+
+## Session policy
+
+`sessionPolicy.ts` is the host-side answer to the two knobs `SessionStateRecord` carries. It is one more
+`InlineExtension` on every parent session (`createSessionPolicyExtension`, registered beside the
+background-commands and MCP extensions), and it enforces on pi's `tool_call` hook before a tool runs:
+
+- **Collaboration** (`ask`, `plan`) blocks `READ_ONLY_BLOCKED_TOOLS` — `edit`, `write`, `bash`,
+  `background_command`, `Agent`, `unity_edit_scene`, `unity_project_action` — with a reason naming the
+  mode and how to leave it. `Agent` is in the set because a subagent session does not inherit this
+  policy, so allowing delegation would be a hole; `ask` and `plan` therefore differ only in the wording
+  the model reads, not in what they permit.
+- **Approval** (`request`) asks before a `bash` call through the manager's `askForToolCall` port — the
+  same `selectForToolCall` dialog the MCP guard uses, anchored to the call — and the answer is `Deny` /
+  `Allow once` / `Allow in this chat`. "Allow in this chat" is held in the extension's own set, like the
+  MCP guard's, so a chat that has allowed shell commands is not asked again. No UI or no answer blocks
+  the call. File edits are already automatic, so `request` does not cover them.
+- The policy is read from the live `Entry` on every call (`policy: () => sessions.get(id)?.policy ??
+  DEFAULT_SESSION_POLICY`), so `setSessionCollaboration` / `setSessionApproval` apply to the next call
+  without rebinding extensions. Each setter publishes a state record; the policy itself is memory-only
+  and a reopened chat starts from `DEFAULT_SESSION_POLICY`.
 
 ## MCP servers
 

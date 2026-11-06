@@ -4,6 +4,7 @@ import type { UnityBridgeStatus } from "./index.ts";
 import {
 	connectUnityBridge,
 	readUnityBridgeDiscovery,
+	UNITY_BRIDGE_PROTOCOL_VERSION,
 	UnityBridgeClient,
 	UnityBridgeError,
 	withUnityBridge,
@@ -31,6 +32,7 @@ interface MockState {
 	testPolls: number;
 	isPlaying: boolean;
 	requests: string[];
+	bodies: unknown[];
 	token: string;
 	statusPayload?: unknown;
 	consolePayload?: unknown;
@@ -51,6 +53,7 @@ function mockBridge(projectPath: string, overrides: Partial<MockState> = {}) {
 		testPolls: 0,
 		isPlaying: false,
 		requests: [],
+		bodies: [],
 		token: TOKEN,
 		...overrides,
 	};
@@ -63,7 +66,8 @@ function mockBridge(projectPath: string, overrides: Partial<MockState> = {}) {
 			if (request.headers.get("authorization") !== `Bearer ${state.token}`) {
 				return new Response("unauthorized", { status: 401 });
 			}
-			if (url.pathname === "/v1/health") return Response.json({ ok: true, protocolVersion: 2 });
+			if (url.pathname === "/v1/health")
+				return Response.json({ ok: true, protocolVersion: UNITY_BRIDGE_PROTOCOL_VERSION });
 			if (url.pathname === "/v1/status") {
 				state.onStatus?.(state);
 				if (state.statusPayload !== undefined) return Response.json(state.statusPayload);
@@ -73,7 +77,7 @@ function mockBridge(projectPath: string, overrides: Partial<MockState> = {}) {
 						state.compileState = state.failCompile ? "failed" : "succeeded";
 				}
 				const status: UnityBridgeStatus = {
-					protocolVersion: 2,
+					protocolVersion: UNITY_BRIDGE_PROTOCOL_VERSION,
 					port: server.port ?? 0,
 					projectPath,
 					unityVersion: "6000.0.23f1",
@@ -203,6 +207,44 @@ function mockBridge(projectPath: string, overrides: Partial<MockState> = {}) {
 			if (url.pathname === "/v1/open" || url.pathname === "/v1/select") {
 				return Response.json({ ok: true });
 			}
+			if (url.pathname === "/v1/tools") {
+				if (request.method === "GET") {
+					return Response.json({
+						ok: true,
+						tools: [
+							{
+								name: "bake_tiles",
+								description: "Bake the tilemap into a texture.",
+								parameters: "output: Assets/Textures",
+							},
+						],
+					});
+				}
+				state.bodies.push(await request.json());
+				return Response.json({ ok: true, name: "bake_tiles", result: { textures: 2 } });
+			}
+			if (url.pathname === "/v1/scene/object" && request.method === "POST") {
+				state.bodies.push(await request.json());
+				return Response.json({
+					ok: true,
+					path: "Root/Player",
+					instanceId: 7,
+					created: false,
+					components: ["BoxCollider"],
+					saved: false,
+				});
+			}
+			if (url.pathname === "/v1/component" && request.method === "POST") {
+				state.bodies.push(await request.json());
+				return Response.json({
+					ok: true,
+					path: "Root/Player",
+					component: "BoxCollider",
+					instanceId: 9,
+					added: false,
+					saved: false,
+				});
+			}
 			return new Response("not found", { status: 404 });
 		},
 	});
@@ -212,7 +254,7 @@ function mockBridge(projectPath: string, overrides: Partial<MockState> = {}) {
 
 function writeDiscovery(root: string, port: number, projectPath = root, token = TOKEN) {
 	writeBridgeFile(join(root, "Library", "ThinkRailBridge.json"), {
-		protocolVersion: 2,
+		protocolVersion: UNITY_BRIDGE_PROTOCOL_VERSION,
 		port,
 		token,
 		pid: process.pid,
@@ -425,6 +467,50 @@ describe("Unity bridge client", () => {
 		expect(result.hierarchy.roots[0]?.name).toBe("Main");
 		expect(result.inspection.components[0]?.type).toBe("Transform");
 		expect(result.assets[0]?.path).toBe("Assets/Scenes/Main.unity");
+	});
+
+	test("lists and invokes the project's [BridgeTool] editor tools", async () => {
+		const created = fixture();
+		const { server, state } = mockBridge(created.root);
+		writeDiscovery(created.root, server.port ?? 0);
+		const result = await withUnityBridge(created.root, async (client) => ({
+			tools: await client.listEditorTools(),
+			invocation: await client.invokeEditorTool("bake_tiles", { output: "Assets/Textures" }),
+		}));
+		expect(result.tools).toEqual([
+			{
+				name: "bake_tiles",
+				description: "Bake the tilemap into a texture.",
+				parameters: "output: Assets/Textures",
+			},
+		]);
+		expect(result.invocation.result).toEqual({ textures: 2 });
+		expect(state.bodies.at(-1)).toEqual({
+			name: "bake_tiles",
+			parameters: { output: "Assets/Textures" },
+		});
+	});
+
+	test("passes ensure to scene writes and reads what the bridge actually changed", async () => {
+		const created = fixture();
+		const { server, state } = mockBridge(created.root);
+		writeDiscovery(created.root, server.port ?? 0);
+		const result = await withUnityBridge(created.root, async (client) => ({
+			created: await client.createObject({
+				name: "Player",
+				components: ["BoxCollider"],
+				ensure: true,
+			}),
+			added: await client.addComponent("Root/Player", "BoxCollider", { ensure: true }),
+		}));
+		expect(state.bodies[0]).toMatchObject({ name: "Player", ensure: true });
+		expect(result.created.created).toBe(false);
+		expect(state.bodies[1]).toMatchObject({
+			path: "Root/Player",
+			component: "BoxCollider",
+			ensure: true,
+		});
+		expect(result.added.added).toBe(false);
 	});
 
 	test("flags an unsupported bridge protocol", async () => {

@@ -31,7 +31,7 @@ the matching installed Editor (`findUnityInstall`, `openUnityProject`).
   `findUnityInstall`, `openUnityProject`, `diagnoseUnityWorkspace`; the bridge discovery types and client
   (`UnityBridgeClient`, `connectUnityBridge`, `withUnityBridge`); the bridge protocol shape.
 - **Protocol:** `src/bridge/protocol.ts` is the contract with `unity-package/com.thinkrail.bridge` — one
-  versioned shape (`UNITY_BRIDGE_PROTOCOL_VERSION = 2`), default port `39217`, discovery file
+  versioned shape (`UNITY_BRIDGE_PROTOCOL_VERSION = 3`), default port `39217`, discovery file
   `Library/ThinkRailBridge.json`, registry `~/.thinkrail/unity/bridges.json`. The Unity side implements
   it with Newtonsoft.Json; this side treats every field as untrusted and normalizes it (discovery is
   parsed strictly; status, Console pages, hierarchy snapshots and test-run records go through
@@ -115,8 +115,27 @@ same-named roots are tried in order. A miss names the loaded scenes and whether 
 so an agent can correct the path instead of guessing (the running Editor assembly only picks this up after
 Unity actually reloads, which a project with compile errors prevents).
 
-`UNITY_BRIDGE_PROTOCOL_VERSION` is **2**: an older Editor package is refused rather than parsed
-optimistically. Confirmation is a product-level rule, not a bridge one: the server/tool layer requires
+Scene writes are replay-safe when the caller asks for it: `create` and `addComponent` take `ensure`, which
+makes the end state true instead of replaying the step — `create` reuses the GameObject at the composed
+`parent/name` path (adding only the components it does not have) and reports `created: false`, while
+`addComponent` returns the already-attached component with `added: false`. A retry after a dropped
+connection therefore cannot duplicate a sibling object or a component, which is exactly the failure an
+agent cannot see. `setProperty` needs no flag: writing the same value twice is the same end state.
+
+Project code can extend the bridge without forking it: a `public static object Method(JObject)` marked
+`[BridgeTool("name", "description", "parameter docs")]` in an Editor assembly appears in
+`GET /v1/tools` and is invoked by `POST /v1/tools { name, parameters }` on the main thread with a 120 s
+bound, refusing while Unity compiles or imports. Discovery is `TypeCache` on every call (no cache to
+invalidate across a domain reload), duplicate names keep the first in name order, and only `static`,
+single-`JObject`-parameter, non-`void` methods are listed. A throwing tool reaches the caller as a 500
+with the method's own message, and a result that will not serialize fails the same way instead of
+crossing the wire as a half-object. As for every other route, confirmation is the tool layer's rule, not
+the bridge's.
+
+`UNITY_BRIDGE_PROTOCOL_VERSION` is **3**: v2 added the write/control routes, v3 the `[BridgeTool]`
+surface and `ensure`, and an older Editor package is refused rather than parsed optimistically — silently
+ignoring `ensure` would let a retry duplicate work the agent believed was guarded. Confirmation is a
+product-level rule, not a bridge one: the server/tool layer requires
 `confirm: true` for destructive or global actions (delete/remove component, menu, build, package change,
 settings write, quit); the bridge itself executes what an authenticated caller asks for, so a hand-written
 HTTP client keeps full control.

@@ -8,6 +8,7 @@ import {
 	SETTLE_IDLE_DAYS,
 	SUBAGENT_MAX_CONCURRENT,
 } from "./domain";
+import { DEFAULT_SESSION_POLICY, isSessionApproval, isSessionCollaboration } from "./piProtocol";
 import {
 	AGENT_REVIEW_SETTING_PROTOCOL_VERSION,
 	ANALYTICS_CONSENT_PROTOCOL_VERSION,
@@ -51,6 +52,7 @@ import {
 	REVIEW_ACTIONS_PROTOCOL_VERSION,
 	REVIEW_RICH_ANCHORS_PROTOCOL_VERSION,
 	readToolResponseMessage,
+	SESSION_POLICY_PROTOCOL_VERSION,
 	SESSION_RENAME_PROTOCOL_VERSION,
 	SESSION_STATE_PROTOCOL_VERSION,
 	SESSION_TITLE_MAX_LENGTH,
@@ -579,4 +581,16 @@ test("Unity Editor bridge methods are pinned to v105", () => {
 	expect(WS_METHODS.unityOpenEditor).toBe("unity.openEditor");
 	expect(WS_METHODS.unityLinkModule).toBe("unity.linkModule");
 	expect(WS_METHODS.unityUnlinkModule).toBe("unity.unlinkModule");
+});
+
+test("the session policy knobs are pinned to v108", () => {
+	expect(SESSION_POLICY_PROTOCOL_VERSION).toBe(108);
+	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(SESSION_POLICY_PROTOCOL_VERSION);
+	expect(WS_METHODS.sessionSetCollaboration).toBe("session.setCollaboration");
+	expect(WS_METHODS.sessionSetApproval).toBe("session.setApproval");
+	expect(DEFAULT_SESSION_POLICY).toEqual({ collaboration: "default", approval: "request" });
+	expect(isSessionCollaboration("ask")).toBe(true);
+	expect(isSessionCollaboration("yolo")).toBe(false);
+	expect(isSessionApproval("full-auto")).toBe(true);
+	expect(isSessionApproval("auto_edit")).toBe(false);
 });

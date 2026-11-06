@@ -56,8 +56,8 @@ convention; their boundary is held by convention + spec. Sibling edges live here
 | `lib` | shared path/array primitives + highlighting | yes | [lib/SPEC.md](src/lib/SPEC.md) |
 
 Leaf utilities without their own spec: `constants/` (branding — the product name, the storage/event prefixes,
-and the `BRAND_MARK_SEGMENTS` rail-border cube, `BRAND_RAIL_TIES` and stroke widths that the shell logo and the
-components' working badge stroke), `clientPreferences.ts` (feature-neutral
+and the `BRAND_MARK_SEGMENTS` rail-border cube and stroke width that the shell logo and the components'
+working badge stroke), `clientPreferences.ts` (feature-neutral
 access to the optional native stable string adapter, and `firstPaintPreferenceStorage` — that adapter, else
 `localStorage` — which the theme and font first-paint hints share), and `styles/` — which holds the three
 design-system SOURCES (`typography.json`, `colors.json`, `spacing.json`), their generated CSS, and the

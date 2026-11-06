@@ -235,6 +235,19 @@ the palette ranks with — kept here so host-side search can rank with the same 
     version gate) carry `firstPromptHead` of the transcript's first user prompt beside the title: the
     display fallback for a chat that has no name, never a name — no mutation accepts it, nothing writes
     it into the session, and an older host simply omits it (the client shows its generic label).
+  - **Session policy** — `session.setCollaboration { sessionId, collaboration }` and
+    `session.setApproval { sessionId, approval }` (both ack `{ ok: true }`,
+    `SESSION_POLICY_PROTOCOL_VERSION` = v108) set the two knobs the host enforces on `tool_call`: the
+    collaboration mode (`default | ask | plan`) decides whether a mutating tool may run at all, and the
+    approval policy (`request | full-auto`) decides whether the user confirms a shell command first. The
+    values ride `SessionStateRecord.collaboration` / `.approval` (optional, additive) on the
+    `session.stateList` snapshot and every `session.state` push, so the pills a client shows are the
+    values the host enforces, not a local preference; absent means an older host reads
+    `DEFAULT_SESSION_POLICY` (`default` + `request`), and `isSessionCollaboration` /
+    `isSessionApproval` validate an unknown value rather than trusting it. The policy is per live
+    session and deliberately not persisted: reopening a chat starts from the default, so a stale
+    `full-auto` can never outlive the session that agreed to it. No new push channel and no change to
+    `SessionState`, which stays derivation-only.
   - the **extension-UI frames** **`ExtUiRequest`** / **`ExtUiResponse`** — our wire shape for pi's in-process
     `uiContext` calls (`select`/`confirm`/`input`/`editor` round-trip; `notify`/`setStatus`/`setWidget`/
     `setTitle`/`dismiss` are fire-and-forget), carried on the `pi.extensionUi` channel. One member is
@@ -467,6 +480,9 @@ the palette ranks with — kept here so host-side search can rank with the same 
   and `autoExecuteModel` (full allowlisted `WireModel`s, one per routed phase) and `autoEffort` (optional
   `ThinkingLevel`) — all three optional, all three cleared by `null`, and all three absent from an older
   host's `AppConfig`, so the Settings controls gate on the version exactly like the default-model row.
+  **`AUTO_REASONING_PROTOCOL_VERSION`** (v109) pins `autoReasoning` (`"automatic"` | `"chat"`, optional,
+  cleared by `null`): `automatic` lets the router derive the thinking level per phase and difficulty,
+  `chat`/unset follows the chat's own level, and a pinned `autoEffort` still wins.
   **`MODEL_PICKER_PROTOCOL_VERSION`** (v77) pins the picker's host-kept lists: **`favoriteModels`** (full
   `WireModel`s in the user's display order — the client writes the whole list through `settings.update`,
   identity by `sameModel`) and **`recentModels`** (newest-first, at most **`RECENT_MODELS_LIMIT`** = 5,
@@ -480,9 +496,6 @@ the palette ranks with — kept here so host-side search can rank with the same 
   `submodule-server-terminal`'s shell-selection decision for what each value spawns.
   **`PROJECT_TEMPLATE_PREVIEW_PROTOCOL_VERSION`** pins v63's additive project-located `template.list` /
   `template.get` reads, allowing Create Workspace to preview global plus current-checkout project templates
-  **`AUTO_REASONING_PROTOCOL_VERSION`** (v109) pins `autoReasoning` (`"automatic"` | `"chat"`, optional,
-  cleared by `null`): `automatic` lets the router derive the thinking level per phase and difficulty,
-  `chat`/unset follows the chat's own level, and a pinned `autoEffort` still wins.diff --git a/packages/server/src/agent/SPEC.md b/packages/server/src/agent/SPEC.md
   without sending host paths; older hosts retain a global-only fallback. `themeMode` defaults to `"fixed"`
   and no pair, preserving both legacy configs
   and the explicit Dark default; `subagentsEnabled` is the host-wide subagent default (`true` for current
@@ -833,7 +846,9 @@ the palette ranks with — kept here so host-side search can rank with the same 
   **`environment.get`** / **`environment.update`** (`HOST_ENVIRONMENT_PROTOCOL_VERSION`, v91; the stored host environment — optional pi config folder
   plus ordered `{ name, value }` variables — outside `AppConfig`, never broadcast or in `server.welcome`
   because values may be secrets; `get` → `HostEnvironmentStatus` with `restartRequired`, `launchOverridden`
-  names and the `effectiveAgentDir`; `update` replaces the whole record and returns
+  names and the `effectiveAgentDir`, plus the optional `piVersion` / `piPackageDir` of the pi build the host
+  embeds (additive: an older host omits both, and the client gates on their presence); `update` replaces the
+  whole record and returns
   `{ ok: false, issues }` per field/row index instead of saving anything when it is invalid) /
   **`feedback.respond`** (`{ action: SurveyInvitationResponse }` → ack; persists postpone or the permanent
   dismissal; neither stops message counting) /

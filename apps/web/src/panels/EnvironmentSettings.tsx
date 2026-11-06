@@ -271,6 +271,35 @@ export function EnvironmentForm({
 					</div>
 				</fieldset>
 			</SettingsGroup>
+			{status.piVersion && status.piPackageDir ? (
+				<SettingsGroup
+					title={t("settings.environment.piRuntime.title")}
+					description={t("settings.environment.piRuntime.description")}
+					testId="settings-pi-runtime"
+				>
+					<div className="flex flex-col gap-4 border-border-muted border-b py-12">
+						<p className="flex min-w-0 items-center gap-8 tr-text-metadata text-text-muted">
+							<span className="shrink-0">{t("settings.environment.piRuntime.version")}</span>
+							<code
+								data-testid="settings-pi-version"
+								className="min-w-0 truncate tr-code-text text-text-default"
+							>
+								{status.piVersion}
+							</code>
+						</p>
+						<p className="flex min-w-0 items-center gap-8 tr-text-metadata text-text-muted">
+							<span className="shrink-0">{t("settings.environment.piRuntime.packageDir")}</span>
+							<code
+								data-testid="settings-pi-package-dir"
+								title={status.piPackageDir}
+								className="min-w-0 truncate tr-code-text"
+							>
+								{status.piPackageDir}
+							</code>
+						</p>
+					</div>
+				</SettingsGroup>
+			) : null}
 		</div>
 	);
 }

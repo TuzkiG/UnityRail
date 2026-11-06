@@ -34,6 +34,16 @@ description: "Use when starting work in a Unity project, when you need the proje
 - The Unity version in `ProjectSettings/ProjectVersion.txt` is the compiler and API contract. Do not
   use APIs newer than that version without checking the package or a version define.
 
+## The project's own Editor tools
+
+- Some projects register their own Editor tools in C# (`[BridgeTool]`). They arrive as a `unity-editor-tools`
+  section of your context, and `unity_editor_tool` with no `name` lists them with their parameter docs.
+- Use them before writing a new editor script: a project that already ships a folder generator, importer,
+  validator or bake step expects that one to run. Call one as
+  `unity_editor_tool { name, parameters }` and read its JSON result; a tool that throws comes back as an
+  error with the C# message, which is the real failure, not a transport problem.
+- After a tool changes the project, run `unity_compile` (and `unity_console`) before claiming it worked.
+
 ## Scenes and prefabs
 
 - `unity_hierarchy` reads the open scene; `unity_find` finds scene and prefab assets by name/type.

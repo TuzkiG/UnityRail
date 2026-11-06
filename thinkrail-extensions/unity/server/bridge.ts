@@ -138,6 +138,12 @@ const editSceneParams = Type.Object({
 			description: "Required for delete/removeComponent: set true only after the user approved.",
 		}),
 	),
+	ensure: Type.Optional(
+		Type.Boolean({
+			description:
+				"create/addComponent: make the end state true instead of replaying the step. `create` reuses an existing object at the same path, and both actions skip components that are already attached. Use it when retrying a write whose result is unknown.",
+		}),
+	),
 });
 
 const projectActionParams = Type.Object({
@@ -685,6 +691,7 @@ export function registerUnityBridgeTools(pi: ExtensionAPI): void {
 										...(params.parent ? { parent: params.parent } : {}),
 										...(params.components ? { components: params.components } : {}),
 										...(params.save === true ? { save: true } : {}),
+										...(params.ensure === true ? { ensure: true } : {}),
 									},
 									signal,
 								);
@@ -696,6 +703,7 @@ export function registerUnityBridgeTools(pi: ExtensionAPI): void {
 							case "addComponent":
 								return client.addComponent(params.path ?? "", params.component ?? "", {
 									...(params.save === true ? { save: true } : {}),
+									...(params.ensure === true ? { ensure: true } : {}),
 									...(signal ? { signal } : {}),
 								});
 							case "removeComponent":
@@ -746,8 +754,20 @@ export function registerUnityBridgeTools(pi: ExtensionAPI): void {
 						const saved = result as { path: string };
 						return `Saved ${saved.path}.`;
 					}
-					const scene = result as { path: string; components?: string[] };
-					return `${action} ${scene.path}${scene.components && scene.components.length > 0 ? ` (+${scene.components.join(", ")})` : ""}${params.save === true ? " — saved" : ""}`;
+					const scene = result as {
+						path: string;
+						components?: string[];
+						created?: boolean;
+						added?: boolean;
+					};
+					const detail = scene.components?.length ? ` (+${scene.components.join(", ")})` : "";
+					const reused =
+						scene.created === false
+							? " — already existed"
+							: scene.added === false
+								? " — already attached"
+								: "";
+					return `${action} ${scene.path}${detail}${reused}${params.save === true ? " — saved" : ""}`;
 				})();
 				return textResult(text, result as unknown as Record<string, unknown>);
 			} catch (error) {

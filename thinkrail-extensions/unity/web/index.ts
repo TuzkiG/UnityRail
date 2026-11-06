@@ -18,6 +18,8 @@ const LABEL_KEYS: Record<string, MessageKey> = {
 	unity_doctor: "unity.tool.doctor.label",
 	unity_edit_scene: "unity.tool.editScene.label",
 	unity_project_action: "unity.tool.projectAction.label",
+	unity_install_bridge: "unity.tool.installBridge.label",
+	unity_editor_tool: "unity.tool.editorTool.label",
 };
 
 const PLAY_ACTION_KEYS: Record<string, MessageKey> = {
@@ -127,6 +129,13 @@ function summaryFor(toolName: string, t: Translator, result: unknown): string {
 			}
 			if (typeof details?.buildId === "string") return label(toolName, t);
 			return label(toolName, t);
+		}
+		case "unity_editor_tool": {
+			if (details?.mode === "list") {
+				return t("unity.tool.editorTool.list", { count: listValue(details.tools).length });
+			}
+			const name = typeof details?.name === "string" ? details.name : "";
+			return name ? t("unity.tool.editorTool.invoke", { name }) : label(toolName, t);
 		}
 		case "unity_playmode": {
 			const action =
@@ -248,6 +257,22 @@ export default defineWebExtension({
 						: label("unity_open_editor", t);
 				},
 			},
+		},
+		unity_edit_scene: {
+			renderer: UnityToolCard,
+			options: { summary: toolSummary("unity_edit_scene") },
+		},
+		unity_project_action: {
+			renderer: UnityToolCard,
+			options: { summary: toolSummary("unity_project_action") },
+		},
+		unity_install_bridge: {
+			renderer: UnityToolCard,
+			options: { summary: toolSummary("unity_install_bridge") },
+		},
+		unity_editor_tool: {
+			renderer: UnityToolCard,
+			options: { summary: toolSummary("unity_editor_tool") },
 		},
 	},
 });

@@ -27,6 +27,7 @@ namespace UnityRail.Bridge
             string parentPath = (string)body["parent"];
             string[] components = StringArray(body["components"]);
             bool save = body["save"] != null && (bool)body["save"];
+            bool ensure = body["ensure"] != null && (bool)body["ensure"];
             return MainThread.Run(delegate
             {
                 GameObject parent = null;
@@ -35,12 +36,22 @@ namespace UnityRail.Bridge
                     parent = FindEditObject(parentPath);
                     if (parent == null) throw new BridgeHttpException(404, "No GameObject at " + parentPath + ".");
                 }
-                GameObject created = new GameObject(name);
-                Undo.RegisterCreatedObjectUndo(created, "UnityRail Create " + name);
-                if (parent != null)
+                GameObject created = null;
+                if (ensure)
                 {
-                    Undo.SetTransformParent(created.transform, parent.transform, "UnityRail Parent " + name);
-                    created.transform.localPosition = Vector3.zero;
+                    string targetPath = string.IsNullOrEmpty(parentPath) ? name : parentPath + "/" + name;
+                    created = HierarchyUtil.FindByPath(targetPath);
+                }
+                bool existed = created != null;
+                if (!existed)
+                {
+                    created = new GameObject(name);
+                    Undo.RegisterCreatedObjectUndo(created, "UnityRail Create " + name);
+                    if (parent != null)
+                    {
+                        Undo.SetTransformParent(created.transform, parent.transform, "UnityRail Parent " + name);
+                        created.transform.localPosition = Vector3.zero;
+                    }
                 }
                 List<string> added = new List<string>();
                 foreach (string component in components)
@@ -48,18 +59,23 @@ namespace UnityRail.Bridge
                     if (string.IsNullOrEmpty(component) || component == "Transform") continue;
                     Type type = ResolveComponentType(component);
                     if (type == null) throw new BridgeHttpException(400, "Unknown component type: " + component + ".");
+                    if (created.GetComponent(type) != null) continue;
                     Undo.AddComponent(created, type);
                     added.Add(type.Name);
                 }
-                MarkDirty(created.scene);
-                if (save) SaveEditScene(created.scene);
+                if (!existed || added.Count > 0)
+                {
+                    MarkDirty(created.scene);
+                    if (save) SaveEditScene(created.scene);
+                }
                 return BridgeResponse.Json(new
                 {
                     ok = true,
                     path = HierarchyUtil.PathOf(created),
                     instanceId = created.GetInstanceID(),
+                    created = !existed,
                     components = added,
-                    saved = save,
+                    saved = save && (!existed || added.Count > 0),
                 });
             }, 30000);
         }
@@ -95,22 +111,44 @@ namespace UnityRail.Bridge
             if (string.IsNullOrEmpty(path)) return BridgeResponse.Error(400, "MISSING_PATH", "addComponent requires a path.");
             if (string.IsNullOrEmpty(component)) return BridgeResponse.Error(400, "MISSING_COMPONENT", "addComponent requires a component type.");
             bool save = body["save"] != null && (bool)body["save"];
+            bool ensure = body["ensure"] != null && (bool)body["ensure"];
             return MainThread.Run(delegate
             {
                 GameObject target = FindEditObject(path);
                 if (target == null) throw new BridgeHttpException(404, "No GameObject at " + path + ".");
                 Type type = ResolveComponentType(component);
                 if (type == null) throw new BridgeHttpException(400, "Unknown component type: " + component + ".");
+                if (ensure)
+                {
+                    Component present = target.GetComponent(type);
+                    if (present != null)
+                    {
+                        return BridgeResponse.Json(new
+                        {
+                            ok = true,
+                            path,
+                            component = present.GetType().Name,
+                            instanceId = present.GetInstanceID(),
+                            added = false,
+                            saved = false,
+                        });
+                    }
+                }
                 Component added = Undo.AddComponent(target, type);
-                MarkDirty(target.scene);
-                if (save) SaveEditScene(target.scene);
+                bool attached = added != null;
+                if (attached)
+                {
+                    MarkDirty(target.scene);
+                    if (save) SaveEditScene(target.scene);
+                }
                 return BridgeResponse.Json(new
                 {
                     ok = true,
                     path,
                     component = type.Name,
-                    instanceId = added != null ? added.GetInstanceID() : 0,
-                    saved = save,
+                    instanceId = attached ? added.GetInstanceID() : 0,
+                    added = attached,
+                    saved = save && attached,
                 });
             }, 30000);
         }

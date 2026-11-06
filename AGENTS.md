@@ -143,3 +143,19 @@ Bun + Turbo monorepo · TypeScript strict · React 19 + Zustand + Tailwind v4 ·
 Dependencies pin exact versions. Cross-cutting dependencies are pinned once in the root
 `workspaces.catalog` and referenced through `catalog:`; peer dependencies and local protocols are the
 only exemptions. `architecture.md` Decision #10 owns the rationale.
+
+## Working speed
+
+Measured on this repo; the general tool/context rules live in the user-level `AGENTS.md`.
+
+- **Verify locally, not repo-wide.** Run the touched package's `tsc --noEmit -p <package>` and the
+  affected `bun test <path>` while iterating; a full `bun run typecheck` is ~139s and belongs at
+  handoff, not after every edit.
+- **Read in slices.** Locate with `rg` first, then `read` with `offset`/`limit`; never pull a whole
+  generated bundle (`apps/web/dist/assets/*`, `bun.lock`, `package/shared/assets/*`) into the context.
+- **Script the packaging loop.** `desktop:package:stable` → stop a running install →
+  `UnityRail-Setup.exe` → assert the installed `Resources/app/views/web/assets` hash: run it as one
+  script (see `apps/desktop/SPEC.md`), never as an interleaved poll of `Get-Process`/`Start-Sleep`.
+- **Login shells / network.** `git` over HTTPS to github is blocked here and SSH needs
+  `ssh -i ~/.ssh/awyyds -o IdentitiesOnly=yes`; use `git ls-remote` to probe a remote, never a bare
+  `git fetch` with no timeout.

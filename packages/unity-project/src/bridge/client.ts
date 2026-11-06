@@ -15,6 +15,8 @@ import {
 	type UnityConsoleEntry,
 	type UnityConsolePage,
 	type UnityDiagnostic,
+	type UnityEditorTool,
+	type UnityEditorToolResult,
 	type UnityGameObjectInspection,
 	type UnityHierarchyNode,
 	type UnityHierarchySnapshot,
@@ -270,6 +272,26 @@ function normalizeProfilerSnapshot(value: unknown): UnityProfilerSnapshot {
 	};
 }
 
+function normalizeEditorTools(value: unknown): UnityEditorTool[] {
+	const raw = objectValue(value);
+	const tools = Array.isArray(raw.tools) ? raw.tools : [];
+	return tools.flatMap((entry): UnityEditorTool[] => {
+		if (!entry || typeof entry !== "object") return [];
+		const tool = entry as Record<string, unknown>;
+		const name = stringValue(tool.name);
+		if (name.length === 0) return [];
+		return [
+			{
+				name,
+				description: stringValue(tool.description),
+				...(typeof tool.parameters === "string" && tool.parameters.length > 0
+					? { parameters: tool.parameters }
+					: {}),
+			},
+		];
+	});
+}
+
 function normalizeSceneObject(value: unknown): UnitySceneObjectResult {
 	const raw = objectValue(value);
 	return {
@@ -278,11 +300,13 @@ function normalizeSceneObject(value: unknown): UnitySceneObjectResult {
 		...(optionalNumber(raw.instanceId) === undefined
 			? {}
 			: { instanceId: numberValue(raw.instanceId) }),
+		...(typeof raw.created === "boolean" ? { created: raw.created } : {}),
 		...(Array.isArray(raw.components)
 			? {
 					components: raw.components.filter((entry): entry is string => typeof entry === "string"),
 				}
 			: {}),
+		...(typeof raw.added === "boolean" ? { added: raw.added } : {}),
 		...(typeof raw.saved === "boolean" ? { saved: raw.saved } : {}),
 	};
 }
@@ -476,7 +500,13 @@ export class UnityBridgeClient {
 	}
 
 	async createObject(
-		input: { name: string; parent?: string; components?: string[]; save?: boolean },
+		input: {
+			name: string;
+			parent?: string;
+			components?: string[];
+			save?: boolean;
+			ensure?: boolean;
+		},
 		signal?: AbortSignal,
 	): Promise<UnitySceneObjectResult> {
 		const body = {
@@ -484,6 +514,7 @@ export class UnityBridgeClient {
 			...(input.parent ? { parent: input.parent } : {}),
 			...(input.components ? { components: input.components } : {}),
 			...(input.save === true ? { save: true } : {}),
+			...(input.ensure === true ? { ensure: true } : {}),
 		};
 		return normalizeSceneObject(
 			await this.requestJson<unknown>("/v1/scene/object", {
@@ -510,12 +541,17 @@ export class UnityBridgeClient {
 	async addComponent(
 		path: string,
 		component: string,
-		options: { save?: boolean; signal?: AbortSignal | undefined } = {},
+		options: { save?: boolean; ensure?: boolean; signal?: AbortSignal | undefined } = {},
 	): Promise<UnitySceneObjectResult> {
 		return normalizeSceneObject(
 			await this.requestJson<unknown>("/v1/component", {
 				method: "POST",
-				body: { path, component, ...(options.save === true ? { save: true } : {}) },
+				body: {
+					path,
+					component,
+					...(options.save === true ? { save: true } : {}),
+					...(options.ensure === true ? { ensure: true } : {}),
+				},
 				...(options.signal ? { signal: options.signal } : {}),
 			}),
 		);
@@ -716,6 +752,28 @@ export class UnityBridgeClient {
 				...(signal ? { signal } : {}),
 			}),
 		);
+	}
+
+	/** Project-registered [BridgeTool] methods the Editor exposes through `unity_tool`. */
+	async listEditorTools(signal?: AbortSignal): Promise<UnityEditorTool[]> {
+		return normalizeEditorTools(
+			await this.requestJson<unknown>("/v1/tools", { ...(signal ? { signal } : {}) }),
+		);
+	}
+
+	async invokeEditorTool(
+		name: string,
+		parameters: Record<string, unknown> = {},
+		signal?: AbortSignal,
+	): Promise<UnityEditorToolResult> {
+		const raw = objectValue(
+			await this.requestJson<unknown>("/v1/tools", {
+				method: "POST",
+				body: { name, parameters },
+				...(signal ? { signal } : {}),
+			}),
+		);
+		return { ok: raw.ok === true, name: stringValue(raw.name) || name, result: raw.result };
 	}
 
 	private async poll<T>(

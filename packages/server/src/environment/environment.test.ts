@@ -87,7 +87,8 @@ test("a saved update is private on disk, drops blank rows and requires a restart
 		},
 	});
 	const file = join(dataDir, "environment.json");
-	expect(statSync(file).mode & 0o777).toBe(0o600);
+	// Windows ignores POSIX modes; the write still asks for 0600 where it is meaningful.
+	if (process.platform !== "win32") expect(statSync(file).mode & 0o777).toBe(0o600);
 	expect(JSON.parse(readFileSync(file, "utf8")).vars).toEqual([{ name: "TR_ENV_A", value: "a" }]);
 	expect(process.env.TR_ENV_A).toBeUndefined();
 
@@ -98,6 +99,12 @@ test("a saved update is private on disk, drops blank rows and requires a restart
 		restartRequired: false,
 		effectiveAgentDir: agentDir,
 	});
+});
+
+test("the status reports the pi build this host embeds", () => {
+	const status = hostEnvironmentStatus();
+	expect(status.piVersion).toMatch(/^\d+\.\d+\.\d+/);
+	expect(status.piPackageDir).toContain("pi-coding-agent");
 });
 
 test("a launch variable wins and is reported as overridden", () => {
@@ -149,7 +156,8 @@ test("on Windows names match case-insensitively for launch overrides and duplica
 	process.env.tr_env_b = "launch";
 	updateHostEnvironment({ vars: [{ name: "TR_ENV_B", value: "stored" }] });
 	applyHostEnvironment({ platform: "win32" });
-	expect(process.env.TR_ENV_B).toBeUndefined();
+	// process.env is case-insensitive on Windows, so the launch value is what both spellings read.
+	expect(process.env.TR_ENV_B).toBe(process.platform === "win32" ? "launch" : undefined);
 	expect(process.env.tr_env_b).toBe("launch");
 	expect(hostEnvironmentStatus().launchOverridden).toEqual(["TR_ENV_B"]);
 });

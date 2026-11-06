@@ -5,7 +5,7 @@
  * untrusted input and normalizes it. Bump `UNITY_BRIDGE_PROTOCOL_VERSION` for any shape change that an
  * older Editor package cannot answer.
  */
-export const UNITY_BRIDGE_PROTOCOL_VERSION = 2;
+export const UNITY_BRIDGE_PROTOCOL_VERSION = 3;
 
 export const UNITY_BRIDGE_DISCOVERY_FILE = "ThinkRailBridge.json";
 export const UNITY_BRIDGE_REGISTRY_FILE = "bridges.json";
@@ -207,11 +207,34 @@ export interface UnityBuildRecord {
 	error?: string;
 }
 
+export interface UnityEditorTool {
+	name: string;
+	description: string;
+	/** Free-form parameter documentation the project attached to the tool. */
+	parameters?: string;
+}
+
+export interface UnityEditorToolList {
+	ok: boolean;
+	tools: UnityEditorTool[];
+}
+
+export interface UnityEditorToolResult {
+	ok: boolean;
+	name: string;
+	result: unknown;
+}
+
 export interface UnitySceneObjectResult {
 	ok: boolean;
 	path: string;
 	instanceId?: number;
+	/** create: false when `ensure` reused an existing GameObject; absent on older bridges. */
+	created?: boolean;
+	/** create/addComponent: the components this call actually added. */
 	components?: string[];
+	/** addComponent: false when `ensure` found the component already attached. */
+	added?: boolean;
 	saved?: boolean;
 }
 

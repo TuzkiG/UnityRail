@@ -45,6 +45,11 @@ test("Settings → Environment validates, saves and asks for a restart", async (
 	await expect(section.getByTestId("settings-environment-restart")).toHaveCount(0);
 	await expect(section.getByTestId("settings-environment-save")).toBeDisabled();
 
+	// The embedded pi build is named, folder included — it is fixed by the app, not configurable.
+	const runtime = page.getByTestId("settings-pi-runtime");
+	await expect(runtime.getByTestId("settings-pi-version")).toHaveText(/^\d+\.\d+\.\d+/);
+	await expect(runtime.getByTestId("settings-pi-package-dir")).toContainText("pi-coding-agent");
+
 	await section.getByTestId("settings-environment-agent-dir").fill(join(agentDir, "missing"));
 	await section.getByTestId("settings-environment-add-var").click();
 	await section.getByTestId("settings-environment-var-name").fill("THINKRAIL_PORT");

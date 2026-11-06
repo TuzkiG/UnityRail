@@ -1,4 +1,10 @@
-import type { SessionState, ThinkingLevel, WireModel } from "./piProtocol";
+import type {
+	SessionApproval,
+	SessionCollaboration,
+	SessionState,
+	ThinkingLevel,
+	WireModel,
+} from "./piProtocol";
 
 export interface SessionStateRecord {
 	sessionId: string;
@@ -7,6 +13,9 @@ export interface SessionStateRecord {
 	state: SessionState;
 	title?: string;
 	firstPrompt?: string;
+	/** Absent from an older host, which reads as the default policy. */
+	collaboration?: SessionCollaboration;
+	approval?: SessionApproval;
 }
 
 export const FIRST_PROMPT_MAX_LENGTH = 200;
@@ -1278,6 +1287,10 @@ export interface HostEnvironmentStatus {
 	restartRequired: boolean;
 	launchOverridden: string[];
 	effectiveAgentDir: string;
+	/** The pi build this host embeds (its package version); additive, an older host omits it. */
+	piVersion?: string;
+	/** The embedded pi package's install folder; additive, an older host omits it. */
+	piPackageDir?: string;
 }
 
 export type HostEnvironmentUpdateResult =
@@ -1502,8 +1515,13 @@ export interface AppConfig extends ThemePreference {
 	autoPlanModel?: WireModel;
 	/** The model an Auto chat's execution phase connects to; unset keeps the automatic cheap pick. */
 	autoExecuteModel?: WireModel;
-	/** Auto chat effort; unset follows the chat's own thinking level. */
+	/** Auto chat effort; unset follows the chat's own thinking level (or automatic reasoning). */
 	autoEffort?: ThinkingLevel;
+	/**
+	 * Auto's reasoning policy: `automatic` derives the level from the phase and difficulty,
+	 * `chat` (or unset) follows the chat's own level. A pinned `autoEffort` always wins.
+	 */
+	autoReasoning?: AutoReasoningMode;
 	/** Models the user starred in the picker, in display order; identity is `{provider, id}`. */
 	favoriteModels: WireModel[];
 	/** Models most recently chosen for a chat, newest first; host-maintained, never client-written. */
@@ -1517,11 +1535,6 @@ export interface AppConfig extends ThemePreference {
 	subagentMaxConcurrent: number;
 	jbcentralQuotaEnabled: boolean;
 	jbcentralQuotaRefreshSeconds: number;
-	/**
-	 * Auto's reasoning policy: `automatic` derives the level from the phase and difficulty,
-	 * `chat` (or unset) follows the chat's own level. A pinned `autoEffort` always wins.
-	 */
-	autoReasoning?: AutoReasoningMode;
 	/** Which shell new workspace terminals start on Windows; ignored on other platforms. */
 	terminalWindowsShell: TerminalWindowsShell;
 	/** Idle days after which a quiet workspace settles onto its project's shelf; `null` = never. */
@@ -1554,6 +1567,9 @@ export interface ExtensionCatalogEntry {
 	hasChildExtensions: boolean;
 }
 
+/** Auto's reasoning policy; `automatic` derives the level, `chat` follows the chat. */
+export type AutoReasoningMode = "automatic" | "chat";
+
 /** How many recently chosen models the host remembers. */
 export const RECENT_MODELS_LIMIT = 5;
 
@@ -1567,10 +1583,8 @@ export type AppConfigUpdate = Partial<
 		| "reviewEffort"
 		| "autoPlanModel"
 		| "autoExecuteModel"
-/** Auto's reasoning policy; `automatic` derives the level, `chat` follows the chat. */
-export type AutoReasoningMode = "automatic" | "chat";
-
 		| "autoEffort"
+		| "autoReasoning"
 		| "recentModels"
 	>
 > & {
@@ -1581,10 +1595,10 @@ export type AutoReasoningMode = "automatic" | "chat";
 	autoPlanModel?: WireModel | null;
 	autoExecuteModel?: WireModel | null;
 	autoEffort?: ThinkingLevel | null;
+	autoReasoning?: AutoReasoningMode | null;
 };
 
 export type SurveyInvitationResponse = "postpone" | "never";
-		| "autoReasoning"
 
 export interface GithubStarAsk {
 	stars: number | null;
@@ -1595,7 +1609,6 @@ export const SURVEY_OPEN_TEXT_LIMIT = 2000;
 export type SurveyRatingScale = 3 | 5 | 7 | 10;
 
 export function surveyRatingValues(scale: SurveyRatingScale): number[] {
-	autoReasoning?: AutoReasoningMode | null;
 	if (scale === 10) return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 	return Array.from({ length: scale }, (_, index) => index + 1);
 }

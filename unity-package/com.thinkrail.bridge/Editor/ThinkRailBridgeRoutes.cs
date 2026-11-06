@@ -94,6 +94,10 @@ namespace UnityRail.Bridge
                         return ReadSettings(request);
                     case "POST /v1/settings":
                         return WriteSettings(request);
+                    case "GET /v1/tools":
+                        return ListTools();
+                    case "POST /v1/tools":
+                        return InvokeTool(request);
                     default:
                         return BridgeResponse.Error(404, "NOT_FOUND", "Unknown bridge route: " + key);
                 }

@@ -1157,7 +1157,7 @@ a project picker, the prompt hero, and the reused
   (`auto-reasoning-row`/`auto-reasoning-toggle`; `autoReasoning`). Turning it on clears the manual level and
   shows `auto-reasoning-hint` instead of the level row; picking a level turns the switch back off. That
   level is Auto's, not the chat's — it overrides the composer's selection for every routed turn — and
-  unset stays the default, so the difficulty router keeps escalating on its own.diff --git a/packages/locales/en.json b/packages/locales/en.json
+  unset stays the default, so the difficulty router keeps escalating on its own.
   **REVIEW** (`models-review-group`) — everything that configures review in one place, because
   users look for it by that word: the **Review model** row (`review-model-row`; `reviewModel`,
   `reviewEffort`), independent of the Chat model row's loading state, then the two automation toggles
@@ -1275,7 +1275,11 @@ a project picker, the prompt hero, and the reused
   response can never overwrite edits made after it was sent, nor attach its issues to rows it never saw. Save sends
   the whole record through `environment.update`; `{ ok: false }` maps each issue back to its field or row
   (blank rows are dropped client-side first so server indexes line up). A pending restart shows
-  `settings-environment-restart`; names set at launch carry a "Set at launch" badge. Pure draft helpers
+  `settings-environment-restart`; names set at launch carry a "Set at launch" badge. A second group,
+  **Pi runtime** (`settings-pi-runtime`, `settings-pi-version` / `settings-pi-package-dir`), names the pi
+  build the host embeds and its package folder — read-only, because the host runs pi in-process from its own
+  bundle and has no executable path to choose; it renders only when the status carries both fields (an older
+  host omits them). Pure draft helpers
   live in `panels/environmentDraft.ts`; the props-driven `EnvironmentForm` is what tests render. No folder
   picker: `dialog.selectDirectory` is the project-setup picker and records setup analytics.
   `ProvidersSettings`/`McpSettings`/`AppearanceSettings`/`LineWidthControl`/`ChatSettings`/`TemplatesSettings`/

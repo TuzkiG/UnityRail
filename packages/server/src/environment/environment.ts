@@ -1,7 +1,7 @@
 import { statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, getPackageDir, VERSION } from "@earendil-works/pi-coding-agent";
 import type {
 	HostEnvironment,
 	HostEnvironmentIssue,
@@ -134,6 +134,8 @@ export function hostEnvironmentStatus(): HostEnvironmentStatus {
 		restartRequired: !sameEnvironment(stored, applied),
 		launchOverridden: launchOverridden(stored),
 		effectiveAgentDir: getAgentDir(),
+		piVersion: VERSION,
+		piPackageDir: getPackageDir(),
 	};
 }
 

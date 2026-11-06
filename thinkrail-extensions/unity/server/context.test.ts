@@ -1,7 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { UnityBridgeStatus, UnitySelectionEntry } from "@thinkrail/unity-project";
-import { registerUnityContext, UNITY_SELECTION_SECTION, unitySelectionSection } from "./context";
+import type {
+	UnityBridgeStatus,
+	UnityEditorTool,
+	UnitySelectionEntry,
+} from "@thinkrail/unity-project";
+import {
+	registerUnityContext,
+	UNITY_SELECTION_SECTION,
+	UNITY_TOOLS_SECTION,
+	unitySelectionSection,
+	unityToolsSection,
+} from "./context";
 
 interface CapturedEvent {
 	systemPromptOptions: { cwd: string; sections: Record<string, string> };
@@ -9,14 +19,17 @@ interface CapturedEvent {
 
 type Handler = (event: CapturedEvent) => Promise<void> | void;
 
-function capture(readStatus: () => Promise<UnityBridgeStatus | null>): Handler {
+function capture(
+	readStatus: () => Promise<UnityBridgeStatus | null>,
+	readTools: () => Promise<UnityEditorTool[] | null> = async () => null,
+): Handler {
 	let handler: Handler | undefined;
 	const pi = {
 		on: (event: string, next: Handler) => {
 			if (event === "before_agent_start") handler = next;
 		},
 	} as unknown as ExtensionAPI;
-	registerUnityContext(pi, readStatus);
+	registerUnityContext(pi, readStatus, readTools);
 	if (!handler) throw new Error("before_agent_start was not registered");
 	return handler;
 }
@@ -86,6 +99,53 @@ describe("the Unity Editor selection context", () => {
 			await capture(read)(started);
 			expect(started.systemPromptOptions.sections[UNITY_SELECTION_SECTION]).toBeUndefined();
 		}
+	});
+});
+
+describe("the project Editor tool context", () => {
+	test("the project's [BridgeTool] tools become a system-prompt section", async () => {
+		const handler = capture(
+			async () => null,
+			async () => [{ name: "bake_tiles", description: "Bake the tilemap.\nRuns in the Editor." }],
+		);
+		const started = event();
+		await handler(started);
+		const section = started.systemPromptOptions.sections[UNITY_TOOLS_SECTION] ?? "";
+		expect(section).toContain("- bake_tiles — Bake the tilemap. Runs in the Editor.");
+		expect(section).toContain("unity_editor_tool { name, parameters }");
+	});
+
+	test("no tools, a closed Editor or a throw removes the section", async () => {
+		for (const readTools of [
+			async () => null,
+			async () => [],
+			async () => {
+				throw new Error("bridge closed");
+			},
+		] as Array<() => Promise<UnityEditorTool[] | null>>) {
+			const started = event();
+			started.systemPromptOptions.sections[UNITY_TOOLS_SECTION] = "stale";
+			await capture(async () => null, readTools)(started);
+			expect(started.systemPromptOptions.sections[UNITY_TOOLS_SECTION]).toBeUndefined();
+		}
+	});
+});
+
+describe("unityToolsSection", () => {
+	test("caps the list and points at the full one", () => {
+		const tools = Array.from({ length: 20 }, (_, index) => ({
+			name: `tool_${index}`,
+			description: "y".repeat(300),
+		}));
+		const section = unityToolsSection(tools) ?? "";
+		expect(section.split("\n").filter((line) => line.startsWith("- "))).toHaveLength(12);
+		expect(section).toContain("… and 8 more");
+		expect(section).not.toContain("tool_19");
+	});
+
+	test("null or empty tools have no section", () => {
+		expect(unityToolsSection(null)).toBeNull();
+		expect(unityToolsSection([])).toBeNull();
 	});
 });
 

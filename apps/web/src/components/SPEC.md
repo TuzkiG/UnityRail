@@ -58,10 +58,10 @@ primitive. The shared shadcn primitives live in [[module-ui]] (`@thinkrail/ui/*`
   like a Remix icon, with the accessible label “Agent working”. While motion is allowed, one 3.263s cycle
   (`loader-*` keyframes in `index.css`) keeps the badge busy: the frame halves draw and erase, **both border
   rails crawl** — a 90/310 dash walked by `stroke-dashoffset`, the inner rail half a cycle behind the outer —
-  and the cube's spokes draw and erase; the ties stay still, so the motion reads as a train running round the
-  cube. A beat with only the frame showing is part of the design. Every path and both stroke weights come from
-  `BRAND_MARK_SEGMENTS` / `BRAND_RAIL_TIES` / the brand widths, the same geometry the shell's logo is built
-  from, so the badge is that mark rather than a second copy that could drift. Reduced motion leaves the rails
+  and the cube's spokes draw and erase; the motion reads as a train running round the cube. A beat with only
+  the frame showing is part of the design. Every path and its stroke weight come from `BRAND_MARK_SEGMENTS` /
+  `BRAND_RAIL_WIDTH`, the same geometry the shell's logo is built from, so the badge is that mark rather than
+  a second copy that could drift. Reduced motion leaves the rails
   and spokes fully drawn: the static, complete mark. This loader replaced a ring with a lapping train and a
   pulsing monogram; before that the row's own identity glyph breathed, dropped because a dimming folder reads
   as “disabled” at 14px. Callers pass only size/colour classes and decide from normalized host state whether
@@ -89,11 +89,10 @@ primitive. The shared shadcn primitives live in [[module-ui]] (`@thinkrail/ui/*`
   itself).
 - **Allowed deps:** React, `@remixicon/react`, `@thinkrail/ui/utils` (`cn`), `@thinkrail/ui/button` (the
   error fallback's Reload / Try again are shared buttons), `@thinkrail/locales` (UI strings), `lib` (`shallowEqualArrays` — the reset-keys comparison, shared
-  rather than re-stated), `constants` (`BRAND_MARK_SEGMENTS` — the rail-border cube's rails and spokes, the
-  `BRAND_RAIL_TIES` rungs and the two stroke widths `RunningIcon` strokes, shared with the shell logo rather
-  than copied). Kept dependency-light on purpose, and
-  both are leaves, so *any* region
-  (shell, panels, `main.tsx`) can still wrap in it without creating a cycle.
+  rather than re-stated), `constants` (`BRAND_MARK_SEGMENTS` — the rail-border cube's rails and spokes — and
+  the `BRAND_RAIL_WIDTH` stroke, shared with the shell logo rather than copied). Kept dependency-light on
+  purpose, and both are leaves, so *any* region (shell, panels, `main.tsx`) can still wrap in it without
+  creating a cycle.
 - **Forbidden:** `store`/`transport`/`panels`/`shell`/`chat`/`contracts`; `server`/`shared`/`pi`; inline
   `style` objects or raw hex (fallback is themed with token utilities only).
 

@@ -8,7 +8,13 @@ import {
 	RiSparkling2Line as Sparkles,
 	RiStopFill as StopFill,
 } from "@remixicon/react";
-import type { ComposerGrowthLimit, ThinkingLevel, WireModel } from "@thinkrail/contracts";
+import type {
+	ComposerGrowthLimit,
+	SessionApproval,
+	SessionCollaboration,
+	ThinkingLevel,
+	WireModel,
+} from "@thinkrail/contracts";
 import type { MessageKey } from "@thinkrail/locales";
 import { useT } from "@thinkrail/locales/react";
 import { Button, IconButton } from "@thinkrail/ui/button";
@@ -52,6 +58,7 @@ import {
 } from "./ModelEffortPicker";
 import { isModelCommand, parseModelCommand } from "./nativeCommands";
 import { imagePasteDropHandlers, PromptImageChips, usePromptImages } from "./promptImages";
+import { SessionPolicyPicker } from "./SessionPolicyPicker";
 import type { ChatAttachment } from "./types";
 import { UnitySelectionChip } from "./UnitySelectionChip";
 import type { UnityEditorSelection } from "./unitySelection";
@@ -164,6 +171,12 @@ interface ComposerProps {
 	currentModel: WireModel | null;
 	thinkingLevel: ThinkingLevel;
 	modelPreferences: ModelPreferences;
+	sessionPolicy?: {
+		collaboration: SessionCollaboration;
+		approval: SessionApproval;
+		onCycleCollaboration: () => void;
+		onSelectApproval: (approval: SessionApproval) => void;
+	};
 	onMentionQuery: (query: string | null) => void;
 	onSlashActive: (active: boolean) => void;
 	onSelectModel: (selection: ModelSelection) => void;
@@ -206,6 +219,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 		currentModel,
 		thinkingLevel,
 		modelPreferences,
+		sessionPolicy,
 		onMentionQuery,
 		onSlashActive,
 		onSelectModel,
@@ -444,6 +458,11 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 			}
 		}
 		if (slashCompletion.handleKeyDown(e)) return;
+		if (e.key === "Tab" && e.shiftKey && sessionPolicy && !slots && !menuOpen) {
+			e.preventDefault();
+			sessionPolicy.onCycleCollaboration();
+			return;
+		}
 		const recallAt = recallIdxRef.current;
 		if (e.key === "ArrowUp" && (value === "" || recallAt !== null) && recentPrompts.length > 0) {
 			e.preventDefault();
@@ -580,7 +599,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 						expanded && growthLimit === "half-chat" && "max-h-[50cqh]",
 					)}
 				>
-					<div className="col-start-1 row-start-2 flex min-w-0 items-center self-end">
+					<div className="col-start-1 row-start-2 flex min-w-0 items-center gap-4 self-end">
 						<ModelEffortPicker
 							ref={pickerRef}
 							models={models}
@@ -593,6 +612,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 							preferences={modelPreferences}
 							className="max-w-[60vw] px-4 sm:max-w-[320px]"
 						/>
+						{sessionPolicy ? (
+							<SessionPolicyPicker
+								collaboration={sessionPolicy.collaboration}
+								approval={sessionPolicy.approval}
+								onCycleCollaboration={sessionPolicy.onCycleCollaboration}
+								onSelectApproval={sessionPolicy.onSelectApproval}
+							/>
+						) : null}
 					</div>
 					<div
 						className={cn(

@@ -86,8 +86,12 @@ export type * from "./piProtocol";
 export {
 	assistantToolCallsAreExecutable,
 	canMarkCompletionUnread,
+	DEFAULT_SESSION_POLICY,
+	isSessionApproval,
+	isSessionCollaboration,
 	isSessionWorking,
 	isTranscriptMessageRole,
+	SESSION_COLLABORATION_CYCLE,
 	sameModel,
 } from "./piProtocol";
 export type { QuitConfirmationDependencies } from "./quitConfirmation";

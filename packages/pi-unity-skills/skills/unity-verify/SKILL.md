@@ -41,6 +41,9 @@ state or keep Play Mode running.
 ## Boundaries
 
 - Unity's domain reload invalidates in-memory state. Re-read status after play/compile transitions.
+- A write whose connection dropped is **unknown**, not failed. Re-read the scene (`unity_status`,
+  `unity_inspect`) before retrying, and retry `create`/`addComponent` with `ensure: true` so a second
+  attempt converges on one object and one component instead of duplicating them.
 - If the bridge says the Editor has a different project open, do not drive it: open this workspace in
   Unity (`unity_open_editor`) or ask the user which project to use.
 - PlayMode tests can reload the domain. An interrupted test run is not a pass; report it and re-run

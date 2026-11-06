@@ -1,12 +1,7 @@
 import { useT } from "@thinkrail/locales/react";
 import { cn } from "@thinkrail/ui/utils";
 import { useId } from "react";
-import {
-	BRAND_MARK_SEGMENTS,
-	BRAND_RAIL_TIES,
-	BRAND_RAIL_WIDTH,
-	BRAND_TIE_WIDTH,
-} from "../constants/branding";
+import { BRAND_MARK_SEGMENTS, BRAND_RAIL_WIDTH } from "../constants/branding";
 
 const FRAME_HALVES = [
 	"M20 195 V110 A90 90 0 0 1 110 20 H650 A90 90 0 0 1 740 110 V552",
@@ -49,7 +44,7 @@ export function RunningIcon({ className }: { className?: string | undefined }) {
 						className="motion-safe:animate-loader-frame"
 					/>
 				))}
-				<g transform="translate(-81 -81) scale(0.9)">
+				<g transform="translate(-40 -40) scale(0.82)">
 					<g
 						fill="none"
 						stroke="currentColor"
@@ -66,18 +61,6 @@ export function RunningIcon({ className }: { className?: string | undefined }) {
 								pathLength="1000"
 								className={stroke.className}
 							/>
-						))}
-					</g>
-					<g
-						data-testid="running-icon-ties"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth={BRAND_TIE_WIDTH}
-						strokeLinecap="round"
-						className="motion-safe:animate-loader-ties"
-					>
-						{BRAND_RAIL_TIES.map((d) => (
-							<path key={d} d={d} />
 						))}
 					</g>
 				</g>

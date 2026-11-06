@@ -75,6 +75,8 @@ import {
 	saveCustomEndpoint,
 	sendReviewFixToSession,
 	setModelContextWindow,
+	setSessionApproval,
+	setSessionCollaboration,
 	setSessionModel,
 	setSessionThinkingLevel,
 	steerSession,
@@ -1340,6 +1342,14 @@ const handlers: WsHandlers = {
 	},
 	"session.setThinkingLevel": (p) => {
 		setSessionThinkingLevel(p.sessionId, p.level);
+		return { ok: true } as const;
+	},
+	"session.setCollaboration": (p) => {
+		setSessionCollaboration(p.sessionId, p.collaboration);
+		return { ok: true } as const;
+	},
+	"session.setApproval": (p) => {
+		setSessionApproval(p.sessionId, p.approval);
 		return { ok: true } as const;
 	},
 	"session.compact": async (p) => {

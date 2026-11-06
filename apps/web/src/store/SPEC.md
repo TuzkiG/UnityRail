@@ -336,7 +336,12 @@ re-read while a server starts. The state vocabulary and the attention/active pre
     this client was away — and only a record from an older host without the field falls back to the named
     layout tab, then the history row.
     `SessionRuntime.hostState` is installed with transcript hydration and by state pushes delivered after Pi
-    events. A result is **read when it is seen**, not on a gesture: `selectReadyCompletionAck` returns the
+    events. The record's `collaboration` / `approval` are read by **`selectSessionCollaboration`** and
+    **`selectSessionApproval`** (an absent or unrecognized value reads `DEFAULT_SESSION_POLICY`, the same
+    fallback the host starts a session with) and gated by **`selectSupportsSessionPolicy`**; the store
+    keeps no policy state of its own — `Composer` writes through `session.setCollaboration` /
+    `session.setApproval` and the next pushed record moves the pill, so a rejected write leaves the
+    displayed value honest. A result is **read when it is seen**, not on a gesture: `selectReadyCompletionAck` returns the
     exact unread completion id only while the connection is current, the runtime is synced to this
     generation, its `hostState` names that same completion, the exact result row has rendered, and
     `selectChatAttended` holds — the chat is the selected tab of the last-focused center group in the active

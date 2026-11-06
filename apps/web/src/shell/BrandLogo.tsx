@@ -1,10 +1,4 @@
-import {
-	BRAND_MARK_SEGMENTS,
-	BRAND_RAIL_TIES,
-	BRAND_RAIL_WIDTH,
-	BRAND_TIE_WIDTH,
-	PRODUCT_NAME,
-} from "../constants/branding";
+import { BRAND_MARK_SEGMENTS, BRAND_RAIL_WIDTH, PRODUCT_NAME } from "../constants/branding";
 
 export function BrandLogo() {
 	return (
@@ -22,9 +16,6 @@ export function BrandLogo() {
 				<path d={BRAND_MARK_SEGMENTS.outerRail} strokeWidth={BRAND_RAIL_WIDTH} />
 				<path d={BRAND_MARK_SEGMENTS.innerRail} strokeWidth={BRAND_RAIL_WIDTH} />
 				<path d={BRAND_MARK_SEGMENTS.spokes} strokeWidth={BRAND_RAIL_WIDTH} />
-				{BRAND_RAIL_TIES.map((d) => (
-					<path key={d} d={d} strokeWidth={BRAND_TIE_WIDTH} />
-				))}
 			</g>
 		</svg>
 	);

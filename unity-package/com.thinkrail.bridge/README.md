@@ -26,6 +26,32 @@ The bridge listens on `127.0.0.1` only, requires a per-session bearer token, and
 `Library/ThinkRailBridge.json` plus `~/.thinkrail/unity/bridges.json`. It never opens a port on another
 interface.
 
+## Extend it from your own project code
+
+A static method in an Editor assembly can become an Editor tool the agent can call:
+
+```csharp
+using Newtonsoft.Json.Linq;
+using UnityRail.Bridge;
+
+public static class MyTools
+{
+    [BridgeTool("create_folder", "Create a folder under the project.", "path: project-relative folder")]
+    public static object CreateFolder(JObject parameters)
+    {
+        string path = (string)parameters["path"];
+        AssetDatabase.CreateFolder("Assets", path);
+        return new { ok = true, path = "Assets/" + path };
+    }
+}
+```
+
+The method must be `public static`, take one `JObject` and return a JSON-serializable value. Assemblies
+with an asmdef need a reference to `ThinkRail.Bridge.Editor`; `Assembly-CSharp-Editor` needs nothing.
+Tools are discovered on every call (no reload needed after a script change compiles), listed by
+`GET /v1/tools` and called through `POST /v1/tools` with `{ name, parameters }`. The agent sees both the
+list and the call as one `unity_editor_tool` — it lists them with no name and runs one with a name.
+
 ## What the agent can do
 
 - Read compile diagnostics and wait for a recompile (including across Unity's domain reload). A forced
@@ -41,6 +67,9 @@ interface.
 - Edit the open scene or prefab stage: create/delete a GameObject, add/remove a component, and set a
   serialized property (scalars, enums, vectors, colors, object references). Every change is one Undo
   step; saving happens only when the caller asks for it (save: true), and the caller can undo.
+  `create` and `addComponent` accept `ensure: true` when the caller may be retrying: the object at
+  `parent/name` is reused (`created: false`) and an already-attached component is returned
+  (`added: false`) instead of duplicating either.
 - Run an Editor menu item (Assets/Refresh, a build menu, a project tool).
 - Build a player for a supported target and poll the build report (size, duration, errors).
 - List, add and remove packages through the Package Manager client.

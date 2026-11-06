@@ -82,23 +82,8 @@
 		}
 	}
 
-	/* The "agent working" brand badge (`components/RunningIcon`): the split frame and the mark's border rails
-	   draw and erase on one 3.263s cycle, and the ties breathe with them. */
-	--animate-loader-ties: loader-ties 3.263s -2.036s ease-in-out infinite;
-	@keyframes loader-ties {
-		0%,
-		8% {
-			opacity: 0;
-		}
-		13%,
-		44% {
-			opacity: 1;
-		}
-		52%,
-		100% {
-			opacity: 0;
-		}
-	}
+	/* The "agent working" brand badge (`components/RunningIcon`): the split frame and the mark's two border
+	   rails draw and erase on one 3.263s cycle, the inner rail and spokes trailing. */
 	--animate-loader-frame: loader-frame 3.263s infinite;
 	@keyframes loader-frame {
 		0% {

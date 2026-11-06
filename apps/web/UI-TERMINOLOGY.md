@@ -306,6 +306,7 @@ Children / associated surfaces:
 | Canonical name | Implementation | `data-testid` | Responsibility |
 |---|---|---|---|
 | Model Selector | `chat/ModelSelector.tsx` → `ModelSelector` | — | Model picker (+ Refresh catalog) |
+| Session Policy Picker | `chat/SessionPolicyPicker.tsx` → `SessionPolicyPicker` | `composer-collaboration`, `composer-approval` | Collaboration mode (`Default` / `Ask` / `Plan`, `⇧Tab`) and approval policy (`Ask before running` / `Full auto`) for the current chat |
 | Thinking Selector | `chat/ThinkingSelector.tsx` → `ThinkingSelector` | — | Thinking/effort level picker |
 | Slash-Command Menu | `chat/SlashCommandCompletion.tsx` → `SlashCommandMenu` | `slash-templates-empty` (footer) | `/` command + template completion |
 | Send Button | inline (`ArrowUp` / `Square` abort) | — | Send / steer / follow-up / abort |

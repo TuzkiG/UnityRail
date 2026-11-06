@@ -948,6 +948,18 @@ both message orders. *Rejected:* keeping the modal for non-MCP extensions — ev
   collapse to one read, and a response superseded by a newer session revision, host generation, or unmount
   is ignored. Text deltas do not trigger reads because Pi itself cannot finalize new usage until the message
   boundary; transient read failure keeps the last good snapshot rather than replacing it with guessed state.
+- **Session policy pills** (`Composer`, `SessionPolicyPicker.tsx`) — the footer's left cluster carries
+two borderless pills beside the model pill: **collaboration** (`Default` / `Ask` / `Plan`) and
+**approval** (`Ask before running` / `Full auto`). They are the host's knobs, not local preferences:
+the value shown is `SessionStateRecord.collaboration` / `.approval` from the installed state record
+(absent → `DEFAULT_SESSION_POLICY`), each click sends `session.setCollaboration` /
+`session.setApproval` and the next state push moves the pill, so a failed write simply leaves the old
+value. Both render only when `supportsSessionPolicy(protocolVersion)` (v108). A read-only mode tints
+the collaboration pill `feedback-warning`, because it is the one state that silently refuses work.
+**Shift+Tab** cycles the collaboration mode (`SESSION_COLLABORATION_CYCLE`) from the composer, and only
+there: open slots, the `@` menu, the slash menu and an active IME consume Tab first, so template-slot
+stepping and command selection keep their keys. Approval is click-only — it changes what the agent may
+do without asking, which is worth a deliberate tap.
 - **Adaptive composer geometry** (`Composer`) — an idle draft that fits one visual line renders as a
   shared two-tier shell: a full-width, one-visual-line message row above a stable action footer. The
   model · effort pill is the footer's one left-hand trigger; History and Send remain explicit on the right. A wrap, explicit

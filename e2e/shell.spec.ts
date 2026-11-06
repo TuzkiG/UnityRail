@@ -30,11 +30,16 @@ test("renders the branded shell and, with no workspace, the Welcome screen", asy
 	expect(logoBox).not.toBeNull();
 	expect(logoBox?.height).toBeCloseTo(32, 0);
 	expect(logoBox?.width).toBeCloseTo(32, 0);
-	const logoColors = await logo.evaluate((element) => ({
-		color: getComputedStyle(element).color,
-		fill: getComputedStyle(element.querySelector("path") ?? element).fill,
-	}));
-	expect(logoColors.fill).toBe(logoColors.color);
+	const logoColors = await logo.evaluate((element) => {
+		const path = element.querySelector("path") ?? element;
+		return {
+			color: getComputedStyle(element).color,
+			fill: getComputedStyle(path).fill,
+			stroke: getComputedStyle(path).stroke,
+		};
+	});
+	expect(logoColors.fill).toBe("none");
+	expect(logoColors.stroke).toBe(logoColors.color);
 
 	const favicon = page.locator('link[rel="icon"]');
 	await expect(favicon).toHaveAttribute("type", "image/svg+xml");

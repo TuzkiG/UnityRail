@@ -10,7 +10,7 @@ references: [submodule-server-unity, submodule-server-extensions, submodule-web-
 
 ## Responsibility
 
-The UnityRail halves of the Unity capability. `./server` gives the agent 18 `unity_*` tools over
+The UnityRail halves of the Unity capability. `./server` gives the agent 19 `unity_*` tools over
 [[module-unity-project]]; `./web` renders each tool call as a card. The tool name joins the halves with no
 wire change. The extension is a normal [[module-thinkrail-extensions]] entry named `unity`, switchable in
 Settings → Extensions; it has no child extensions.
@@ -24,7 +24,7 @@ Settings → Extensions; it has no child extensions.
   model, bridge client and doctor), `typebox` for the parameter schemas, and
   `@earendil-works/pi-coding-agent` — types only in production code, the package's `ExtensionAPI` type.
 - **Web:** `@thinkrail/ext-unity/web` default-exports a `defineWebExtension` whose `toolRenderers` map all
-  18 names to `UnityToolCard`, with per-tool summaries. It may import `@thinkrail/contracts` (the wire
+  19 names to `UnityToolCard`, with per-tool summaries. It may import `@thinkrail/contracts` (the wire
   detail types), `@thinkrail/locales` + `@thinkrail/locales/react` (`unity.*` keys), `@thinkrail/ui/utils`
   (`cn`), `@thinkrail/extension-api/web` (`ToolRenderProps`, `resultText`, `strArg`), and
   `@remixicon/react`; it does not import the server half, the host, or any pi package at runtime.
@@ -53,7 +53,20 @@ open scene (or a named scene or the open prefab stage) with paths and component 
 action `create` (name/parent/components), `delete`, `addComponent`, `removeComponent`, `setProperty`
 (hierarchy path + component + serialized property + value), `save` and `undo`. `delete` and
 `removeComponent` require `confirm: true`; the tool refuses otherwise and tells the agent to ask the user.
-Updates are Undo-backed and saved only when the call says `save: true`.
+Updates are Undo-backed and saved only when the call says `save: true`. `create` and `addComponent` take
+`ensure: true` for a write the agent may be retrying: the bridge reuses the GameObject at `parent/name`
+and an already-attached component, and reports `created: false` / `added: false`, so a redelivered call
+returns the same end state instead of a duplicate. The tool never retries a write itself —
+`withUnityBridge` only retries reads — so the flag is the caller's, not a hidden replay.
+
+**Project code** (`tools.ts`): `unity_editor_tool` reaches the `[BridgeTool]` methods the project
+registers in its own C# — with no `name` it lists them (`GET /v1/tools`), with a `name` it runs one
+(`POST /v1/tools`) and returns the tool's JSON result. It is one meta-tool on purpose: a project's tools
+are discovered at runtime, so registering each as a pi tool would need the Editor to be up when the
+session starts. The tool has no `confirm` gate of its own — the bridge executes what its authenticated
+caller asks, and the project's C# decides what its tool does — while the host's policy guard still
+blocks it in a read-only collaboration mode. `unity_editor_tool` details are `{ mode: "list", tools }`
+or `{ mode: "invoke", name, result }`.
 
 **Project control** (`bridge.ts`, protocol v2): `unity_project_action` runs `menu`, starts and polls a
 `build`, lists/adds/removes `packages`, reads/writes allowlisted PlayerSettings, takes a `profiler`
@@ -96,13 +109,17 @@ extension's tools, so switching `unity` off drops its skills too. See [[module-p
 
 ## Editor selection context
 
-`context.ts` registers one `before_agent_start` hook: when the workspace is inside a Unity project and its
-bridge answers within 2 s, the Editor's selection (up to five entries that have a path, with hierarchy path
-and active scene for GameObjects) is written into the `unity-editor-selection` system-prompt section; no
-selection, a closed Editor, a busy domain reload or any bridge failure instead removes the section and
-never throws — an optional Editor must not block a turn. The section is injected context, not a chat
-message: the web composer's chip shows the same selection, while message text, titles and reconciliation
-stay the user's own words. Only the selection is read; the hook caches nothing and writes no state.
+`context.ts` registers one `before_agent_start` hook that adds two system-prompt sections and never blocks
+a turn: when the workspace is inside a Unity project and its bridge answers within 2 s, the Editor's
+selection (up to five entries that have a path, with hierarchy path and active scene for GameObjects) is
+written into the `unity-editor-selection` section, and the project's own `[BridgeTool]` tools (name plus a
+one-line description, capped at 12, with a pointer to `unity_editor_tool` for the full list) into
+`unity-editor-tools`. No selection, no tools, a closed Editor, a busy domain reload or any bridge failure
+instead removes that section and never throws — an optional Editor must not block a turn, and a stale tool
+list is worse than none because the agent would call a name the Editor no longer has. The selection section
+is injected context, not a chat message: the web composer's chip shows the same selection, while message
+text, titles and reconciliation stay the user's own words. Only status and the tool list are read; the hook
+caches nothing and writes no state.
 
 ## Rendering contract (web)
 

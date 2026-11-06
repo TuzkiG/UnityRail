@@ -133,10 +133,10 @@ bundled into `apps/web`. Exposed through explicit subpath exports, not a barrel.
   - **Artwork.** The mark keeps its rounded-square silhouette and the original ThinkRail construction: one
     flat brand green (`#8dff4f`) on a solid black tile — no second tint, no gradient, no translucent glass or
     outer glow. It is a hollow isometric cube whose **border is a rail track**: two concentric hexagonal rails
-    (the outer at 104% and the inner at 56% of the base hexagon's centreline), with the cube's three inner
+    (the outer at 126% and the inner at 88% of the base hexagon's centreline), with the cube's three inner
     edges as spokes from the centre to the inner rail. Every part is a stroked path (rail 56), so the app
-    icon, the monochrome favicon, the shell logo and the working badge carry one geometry, and the mark fills
-    enough of the tile to stay readable at small taskbar sizes.
+    icon, the monochrome favicon, the shell logo and the working badge carry one geometry, and the mark runs
+    close to the tile edge so it stays readable at small taskbar sizes.
   - **ICO frames.** PNG-compressed at 256/128/80/72/64/56/48/40/36/32/28/24/20/16: Microsoft's
     documented minimum (16/24/32/48/256), plus 64/128 and every small and big icon size Windows asks for
     between 125% and 250% scaling. `LoadImage` picks the closest frame that does not exceed the requested

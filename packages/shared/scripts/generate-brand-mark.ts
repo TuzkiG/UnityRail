@@ -19,8 +19,8 @@ const UPPER_LEFT = [CENTER - HALF_WIDTH, CENTER - 154] as const;
 const HEXAGON = [APEX, UPPER_RIGHT, LOWER_RIGHT, BOTTOM, LOWER_LEFT, UPPER_LEFT];
 
 /** Centrelines: the outer rail rides `OUTER_SCALE`, the inner one `INNER_SCALE`, both about the centre. */
-const OUTER_SCALE = 1.04;
-const INNER_SCALE = 0.56;
+const OUTER_SCALE = 1.26;
+const INNER_SCALE = 0.88;
 const RAIL = 56;
 
 type Point = readonly [number, number];

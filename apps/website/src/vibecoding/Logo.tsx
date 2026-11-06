@@ -2,9 +2,9 @@
 // `apps/web/src/constants/branding.ts`; the website cannot import the app's constants.
 const RAIL = 56;
 
-const OUTER_RAIL = "M512 191.68 L824 351.84 L824 672.16 L512 832.32 L200 672.16 L200 351.84 Z";
-const INNER_RAIL = "M512 339.52 L680 425.76 L680 598.24 L512 684.48 L344 598.24 L344 425.76 Z";
-const SPOKES = "M344 425.76 L512 512 L680 425.76 M512 512 L512 684.48";
+const OUTER_RAIL = "M512 123.92 L890 317.96 L890 706.04 L512 900.08 L134 706.04 L134 317.96 Z";
+const INNER_RAIL = "M512 240.96 L776 376.48 L776 647.52 L512 783.04 L248 647.52 L248 376.48 Z";
+const SPOKES = "M248 376.48 L512 512 L776 376.48 M512 512 L512 783.04";
 
 export function LogoMark({ className }: { className?: string }) {
 	return (

@@ -2,8 +2,8 @@
 	<title>UnityRail</title>
 	<rect width="1024" height="1024" rx="224" fill="#000000" />
 	<g fill="none" stroke="#8dff4f" stroke-linejoin="round" stroke-linecap="round">
-		<path d="M512 191.68 L824 351.84 L824 672.16 L512 832.32 L200 672.16 L200 351.84 Z" stroke-width="56" />
-		<path d="M512 339.52 L680 425.76 L680 598.24 L512 684.48 L344 598.24 L344 425.76 Z" stroke-width="56" />
-		<path d="M344 425.76 L512 512 L680 425.76 M512 512 L512 684.48" stroke-width="56" />
+		<path d="M512 123.92 L890 317.96 L890 706.04 L512 900.08 L134 706.04 L134 317.96 Z" stroke-width="56" />
+		<path d="M512 240.96 L776 376.48 L776 647.52 L512 783.04 L248 647.52 L248 376.48 Z" stroke-width="56" />
+		<path d="M248 376.48 L512 512 L776 376.48 M512 512 L512 783.04" stroke-width="56" />
 	</g>
 </svg>

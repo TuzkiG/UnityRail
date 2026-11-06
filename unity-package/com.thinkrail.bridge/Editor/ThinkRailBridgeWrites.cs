@@ -215,7 +215,6 @@ namespace UnityRail.Bridge
             return MainThread.Run(delegate
             {
                 for (int step = 0; step < steps; step += 1) Undo.PerformUndo();
-                MarkDirty();
                 return BridgeResponse.Json(new { ok = true, steps });
             }, 30000);
         }
@@ -277,8 +276,8 @@ namespace UnityRail.Bridge
             PrefabStage stage = PrefabStageUtility.GetCurrentPrefabStage();
             if (stage != null && stage.prefabContentsRoot != null)
             {
-                PrefabUtility.SaveAsPrefabAsset(stage.prefabContentsRoot, stage.assetPath);
-                EditorSceneManager.SaveScene(stage.scene);
+                GameObject saved = PrefabUtility.SaveAsPrefabAsset(stage.prefabContentsRoot, stage.assetPath);
+                if (saved == null) throw new BridgeHttpException(409, "Unity refused to save " + stage.assetPath + ".");
                 return stage.assetPath;
             }
             Scene scene = SceneManager.GetActiveScene();

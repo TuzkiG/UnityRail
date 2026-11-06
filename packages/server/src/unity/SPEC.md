@@ -81,8 +81,9 @@ draft the user hands to the agent.
 
 ## Verification history
 
-`unity.tests` records every answered run through [[submodule-server-verification]] before replying, so a
-run started from the chat tool and one started from the Verify panel share one history.
+`unity.tests` records every answered run through [[submodule-server-verification]] before replying, so
+every run the Verify panel (or any host client) starts appears in its history. An agent tool call
+reaches the bridge from its extension and is not recorded there; its chat card shows the result inline.
 
 ## Error mapping
 

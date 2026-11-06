@@ -693,7 +693,8 @@ enabled/confirmed choice before entering analytics attribution.
   unity module's semantic reader (object-level diff or `null`), `unity.assetGuard` passes
   `gitUncommittedPaths` into that module's guard (nothing is written; a fix is the client's draft), and
   every `unity.tests` answer is recorded through `verification` before the reply, so the Verify panel
-  and the chat tool share one history. **Backfill:**
+  lists what this handler answered (an agent tool call reaches the bridge from its extension and is not
+  recorded there). **Backfill:**
   the same post-list pass gives records without `lastActiveAt` their
   stamp from the newest chat's `updatedAt` (`listSessions`), else the worktree's `.git` gitfile mtime
   (managed and external worktrees alike — only the Default row, whose `.git` is the repository itself,

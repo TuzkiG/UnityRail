@@ -10,10 +10,11 @@ tags: [unity, persistence]
 
 ## Responsibility
 
-The small durable history behind the Verify panel: the test runs the host answered for a workspace,
-newest first, whether they were started from the panel or by the agent's Unity test tool. It stores
-what the run reported (state, counts, per-test results with their messages and stack traces) and
-nothing the run did not report; it never re-runs, schedules, or interprets a test.
+The small durable history behind the Verify panel: the test runs the host itself answered for a
+workspace (`unity.tests`), newest first. An agent tool call reaches the bridge from its extension and
+is not recorded here — its chat card shows the result inline. It stores what the run reported (state,
+counts, per-test results with their messages and stack traces) and nothing the run did not report; it
+never re-runs, schedules, or interprets a test.
 
 ## Boundary
 

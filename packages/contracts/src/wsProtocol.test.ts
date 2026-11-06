@@ -320,7 +320,7 @@ test("project create and the onboarding dismissal are pinned to v94", () => {
 
 test("the GitHub star ask is pinned to v103", () => {
 	expect(GITHUB_STAR_PROTOCOL_VERSION).toBe(103);
-	expect(PROTOCOL_VERSION).toBe(103);
+	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(GITHUB_STAR_PROTOCOL_VERSION);
 	expect(WS_CHANNELS.feedbackGithubStar).toBe("feedback.githubStar");
 });
 
@@ -571,8 +571,8 @@ test("custom endpoints are pinned to v101 and own only custom-* providers", () =
 	expect(isCustomEndpointId("ollama")).toBe(false);
 });
 
-test("Unity Editor bridge methods are pinned to v104", () => {
-	expect(UNITY_PROTOCOL_VERSION).toBe(104);
+test("Unity Editor bridge methods are pinned to v105", () => {
+	expect(UNITY_PROTOCOL_VERSION).toBe(105);
 	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(UNITY_PROTOCOL_VERSION);
 	expect(WS_METHODS.unitySnapshot).toBe("unity.snapshot");
 	expect(WS_METHODS.unityStatus).toBe("unity.status");

@@ -33,6 +33,10 @@ const AUTO_PHASE_LEVEL: Record<AutoPhase, Record<AutoDifficulty, ModelThinkingLe
 /** Tools whose successful result means the plan is being carried out. */
 const EXECUTION_TOOLS: ReadonlySet<string> = new Set(["edit", "write"]);
 
+/** A successful Git write is execution even though it never touches edit/write. */
+const GIT_WRITE_COMMAND =
+	/\bgit\b[^\n;&|]*?\s(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|push|rebase|reset|restore|revert|rm|stash|switch|tag|update-ref)\b/iu;
+
 /** An easy turn never reaches the flagship model; its shape must say so positively. */
 const EASY_MAX_CHARS = 280;
 const EASY_MAX_LINES = 6;
@@ -46,7 +50,11 @@ const CHANGE_VERB =
 
 /** Paths, code blocks and failure text mean the question is about specific work. */
 const HARD_SIGNAL =
-	/```|[\w./-]+\.(?:[cm]?[jt]sx?|json|md|py|go|rs|java|kt|cs|unity|ya?ml|toml|css|html|sh|ps1)\b|\b(?:error|exception|traceback|stack trace|报错|异常)\b/iu;
+	/```|[\w./-]+\.(?:[cm]?[jt]sx?|json|md|py|go|rs|java|kt|cs|unity|ya?ml|toml|css|html|sh|ps1)\b|\b(?:error|exception|traceback|stack trace|conflict(?:s|ed|ing)?|fail(?:s|ed|ures?)?|报错|异常|冲突|失败)\b/iu;
+
+/** A short, mechanical Git request is execution; conflict/failure text stays hard above. */
+const GIT_MECHANIC =
+	/\bgit\b|(?:提交|推送|合并|合成|压缩|变基|回滚)[^\n]{0,16}(?:分支|提交|仓库|代码|改动|main|master|git)|(?:分支|提交|仓库|代码|改动|main|master)[^\n]{0,16}(?:提交|推送|合并|合成|压缩|变基|回滚)|(?:rebase|merge|squash|cherry-pick)[^\n]{0,20}(?:origin\/|main|master|branch|commit)/iu;
 
 export type AutoPhase = "plan" | "execute";
 
@@ -125,15 +133,25 @@ export function setAutoModelPreferencesSource(source: () => AutoModelPreferences
 
 export type AutoRoute = ModelRoute<AutoModelState>;
 
-/** Whether an edit succeeded since the last user message — the hand-off from plan to execute. */
+/** Whether execution started since the last user message — the hand-off from plan to execute. */
 function executedPlan(messages: readonly Message[]): boolean {
 	const lastUser = messages.findLastIndex((message) => message.role === "user");
-	return messages
-		.slice(lastUser + 1)
-		.some(
-			(message) =>
-				message.role === "toolResult" && EXECUTION_TOOLS.has(message.toolName) && !message.isError,
-		);
+	const after = messages.slice(lastUser + 1);
+	const bashCommands = new Map<string, string>();
+	for (const message of after) {
+		if (message.role !== "assistant") continue;
+		for (const block of message.content) {
+			if (block.type !== "toolCall" || block.name !== "bash") continue;
+			const command = block.arguments.command;
+			if (typeof command === "string") bashCommands.set(block.id, command);
+		}
+	}
+	return after.some((message) => {
+		if (message.role !== "toolResult" || message.isError) return false;
+		if (EXECUTION_TOOLS.has(message.toolName)) return true;
+		const command = bashCommands.get(message.toolCallId);
+		return !!command && GIT_WRITE_COMMAND.test(command);
+	});
 }
 
 function latestUserText(messages: readonly Message[]): string {
@@ -153,7 +171,9 @@ export function assessDifficulty(messages: readonly Message[]): AutoDifficulty {
 	const text = latestUserText(messages).trim();
 	if (!text) return "hard";
 	if (text.length > EASY_MAX_CHARS || text.split("\n").length > EASY_MAX_LINES) return "hard";
-	if (CHANGE_VERB.test(text) || HARD_SIGNAL.test(text)) return "hard";
+	if (HARD_SIGNAL.test(text)) return "hard";
+	if (GIT_MECHANIC.test(text)) return "easy";
+	if (CHANGE_VERB.test(text)) return "hard";
 	const asks = text.endsWith("?") || text.endsWith("？") || QUESTION_START.test(text);
 	return asks ? "easy" : "hard";
 }

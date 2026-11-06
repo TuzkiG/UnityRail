@@ -52,6 +52,36 @@ function toolResult(toolName: string, isError = false): Message {
 	};
 }
 
+function bashTurn(command: string, isError = false): readonly Message[] {
+	return [
+		{
+			role: "assistant",
+			content: [{ type: "toolCall", id: "call-1", name: "bash", arguments: { command } }],
+			api: opus.api,
+			provider: opus.provider,
+			model: opus.id,
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "toolUse",
+			timestamp: 2,
+		},
+		{
+			role: "toolResult",
+			toolCallId: "call-1",
+			toolName: "bash",
+			content: [{ type: "text", text: "ok" }],
+			isError,
+			timestamp: 3,
+		},
+	];
+}
+
 type RouteOverrides = Omit<Partial<AutoRouteInput>, "state" | "previous"> & {
 	state?: AutoModelState | undefined;
 	previous?: Model<Api> | undefined;
@@ -113,6 +143,40 @@ test("a failed edit does not hand off", () => {
 	});
 	expect(decision.model.id).toBe("claude-opus-4-8");
 	expect(decision.state).toBeUndefined();
+});
+
+test("a successful git write hands the rest of the turn to the cheap model", () => {
+	const decision = route({
+		reason: "continuation",
+		state: route().state,
+		messages: [userMessage, ...bashTurn("git rebase origin/master")],
+	});
+	expect(decision.model.id).toBe("claude-haiku-4-5");
+	expect(decision.state?.phase).toBe("execute");
+});
+
+test("read-only, non-git or failed bash keeps the plan model", () => {
+	const state = route().state;
+	const readOnly = route({
+		reason: "continuation",
+		state,
+		messages: [userMessage, ...bashTurn("git status && git log --oneline -5")],
+	});
+	expect(readOnly.model.id).toBe("claude-opus-4-8");
+
+	const build = route({
+		reason: "continuation",
+		state,
+		messages: [userMessage, ...bashTurn("bun run build")],
+	});
+	expect(build.model.id).toBe("claude-opus-4-8");
+
+	const failed = route({
+		reason: "continuation",
+		state,
+		messages: [userMessage, ...bashTurn("git rebase origin/master", true)],
+	});
+	expect(failed.model.id).toBe("claude-opus-4-8");
 });
 
 test("each hard user message starts a new plan phase", () => {
@@ -214,6 +278,11 @@ test("difficulty reads the latest message: short questions are easy, work is not
 	expect(assessDifficulty(question("why does src/agent/oneshot.ts pick haiku?"))).toBe("hard");
 	expect(assessDifficulty(question("what is this error: TS2304?"))).toBe("hard");
 	expect(assessDifficulty(question("add a spec for the router"))).toBe("hard");
+	expect(assessDifficulty(question("合成一个Git"))).toBe("easy");
+	expect(assessDifficulty(question("合并到 main"))).toBe("easy");
+	expect(assessDifficulty(question("rebase onto origin/main"))).toBe("easy");
+	expect(assessDifficulty(question("git push"))).toBe("easy");
+	expect(assessDifficulty(question("merge conflicts on main"))).toBe("hard");
 	expect(assessDifficulty(question("修复这个报错"))).toBe("hard");
 	expect(assessDifficulty(question("what? ".repeat(80)))).toBe("hard");
 	expect(assessDifficulty([])).toBe("hard");

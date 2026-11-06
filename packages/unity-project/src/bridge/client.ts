@@ -219,7 +219,11 @@ function normalizePackageList(value: unknown): UnityPackageList {
 				};
 			})
 		: [];
-	return { packages };
+	return {
+		packages,
+		...(typeof raw.pending === "boolean" ? { pending: raw.pending } : {}),
+		...(optionalString(raw.error) === undefined ? {} : { error: stringValue(raw.error) }),
+	};
 }
 
 function normalizePlayerSettings(value: unknown): UnityPlayerSettings {
@@ -665,9 +669,22 @@ export class UnityBridgeClient {
 	}
 
 	async listPackages(signal?: AbortSignal): Promise<UnityPackageList> {
-		return normalizePackageList(
-			await this.requestJson<unknown>("/v1/packages", { ...(signal ? { signal } : {}) }),
-		);
+		const deadline = Date.now() + 60_000;
+		for (;;) {
+			const page = normalizePackageList(
+				await this.requestJson<unknown>("/v1/packages", { ...(signal ? { signal } : {}) }),
+			);
+			if (!page.pending) {
+				if (page.error && page.packages.length === 0) {
+					throw new UnityBridgeError("BRIDGE_HTTP", page.error);
+				}
+				return page;
+			}
+			if (Date.now() > deadline) {
+				throw new UnityBridgeError("BRIDGE_TIMEOUT", "Unity did not list packages in time.");
+			}
+			await sleep(POLL_INTERVAL_MS, signal);
+		}
 	}
 
 	async changePackage(

@@ -1,45 +1,104 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
-using UnityEditor.Build;
-using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 using UnityEngine;
+using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 
 namespace UnityRail.Bridge
 {
+    /// <summary>
+    /// The Package Manager can only be touched from the editor thread — even `Request.IsCompleted` throws
+    /// off it. Requests are therefore started and polled inside `Tick()` (driven by the editor update
+    /// loop) and the routes answer from a cache, with `pending` telling the caller to ask again.
+    /// </summary>
+    internal static class BridgePackageState
+    {
+        private static ListRequest Listing;
+        private static Request Changing;
+        private static List<object> Cached;
+        private static string LastError;
+
+        public static bool Pending
+        {
+            get { return Listing != null || Changing != null; }
+        }
+
+        public static void RequestList()
+        {
+            if (Listing != null) return;
+            LastError = null;
+            Listing = Client.List(false, true);
+        }
+
+        public static void RequestChange(string action, string identifier)
+        {
+            if (Changing != null) throw new BridgeHttpException(409, "A package change is already running.");
+            LastError = null;
+            Changing = action == "add" ? (Request)Client.Add(identifier) : Client.Remove(identifier);
+            if (Changing == null) throw new BridgeHttpException(409, "Unity did not start the package request.");
+        }
+
+        public static void Tick()
+        {
+            if (Listing != null && Listing.IsCompleted)
+            {
+                if (Listing.Status == StatusCode.Success)
+                {
+                    List<PackageInfo> sorted = Listing.Result.ToList();
+                    sorted.Sort((left, right) => string.CompareOrdinal(left.name, right.name));
+                    Cached = sorted.Select((package) => (object)new
+                    {
+                        name = package.name,
+                        displayName = package.displayName,
+                        version = package.version,
+                        source = package.source.ToString(),
+                        direct = package.isDirectDependency,
+                    }).ToList();
+                }
+                else
+                {
+                    LastError = Listing.Error != null ? Listing.Error.message : "Unity could not list packages.";
+                }
+                Listing = null;
+            }
+            if (Changing != null && Changing.IsCompleted)
+            {
+                if (Changing.Status != StatusCode.Success)
+                {
+                    LastError = Changing.Error != null ? Changing.Error.message : "Unity rejected the package change.";
+                }
+                Changing = null;
+                // The list changes after an add/remove; refresh it on the next request.
+                Cached = null;
+            }
+        }
+
+        public static object Snapshot()
+        {
+            return new
+            {
+                packages = Cached ?? new List<object>(),
+                pending = Pending,
+                error = LastError,
+            };
+        }
+    }
+
     public static partial class BridgeRoutes
     {
-        private const int PackageTimeoutMs = 180000;
-
         private static BridgeResponse ListPackages(BridgeRequest request)
         {
-            ListRequest list = Client.List(false, true);
-            if (!WaitFor(list)) return BridgeResponse.Error(504, "PACKAGE_TIMEOUT", "Unity did not answer the package list in time.");
-            if (list.Status != StatusCode.Success)
+            return MainThread.Run(delegate
             {
-                return BridgeResponse.Error(409, "PACKAGE_FAILED", list.Error != null ? list.Error.message : "Unity could not list packages.");
-            }
-            List<PackageInfo> sorted = list.Result.ToList();
-            sorted.Sort((left, right) => string.CompareOrdinal(left.name, right.name));
-            List<object> packages = new List<object>();
-            foreach (PackageInfo package in sorted)
-            {
-                packages.Add(new
-                {
-                    name = package.name,
-                    displayName = package.displayName,
-                    version = package.version,
-                    source = package.source.ToString(),
-                    direct = package.isDirectDependency,
-                });
-            }
-            return BridgeResponse.Json(new { packages });
+                if (!BridgePackageState.Pending) BridgePackageState.RequestList();
+                BridgePackageState.Tick();
+                return BridgeResponse.Json(BridgePackageState.Snapshot());
+            }, 30000);
         }
 
         private static BridgeResponse ChangePackage(BridgeRequest request)
@@ -59,39 +118,15 @@ namespace UnityRail.Bridge
             {
                 return BridgeResponse.Error(409, "BUSY", "Unity is compiling or importing. Retry when it is idle.");
             }
-            Request change = action == "add" ? (Request)Client.Add(identifier) : Client.Remove(identifier);
-            if (!WaitFor(change))
+            try
             {
-                // A package change often triggers a domain reload before the request completes; the caller
-                // treats this as "accepted, re-read packages later" rather than a failure.
-                return BridgeResponse.Json(new { ok = true, accepted = true, id = identifier, action });
+                MainThread.Run(delegate { BridgePackageState.RequestChange(action, identifier); }, 30000);
             }
-            if (change.Status != StatusCode.Success)
+            catch (BridgeHttpException error)
             {
-                return BridgeResponse.Error(409, "PACKAGE_FAILED", change.Error != null ? change.Error.message : "Unity rejected the package change.");
+                return BridgeResponse.Error(error.Status, "PACKAGE_FAILED", error.Message);
             }
-            AddRequest added = change as AddRequest;
-            return BridgeResponse.Json(new
-            {
-                ok = true,
-                accepted = true,
-                id = identifier,
-                action,
-                package = added != null
-                    ? (object)new { name = added.Result.name, version = added.Result.version, source = added.Result.source.ToString() }
-                    : null,
-            });
-        }
-
-        private static bool WaitFor(Request request)
-        {
-            Stopwatch watch = Stopwatch.StartNew();
-            while (!request.IsCompleted)
-            {
-                if (watch.ElapsedMilliseconds > PackageTimeoutMs) return false;
-                Thread.Sleep(50);
-            }
-            return true;
+            return BridgeResponse.Json(new { ok = true, accepted = true, id = identifier, action });
         }
     }
 
@@ -128,8 +163,8 @@ namespace UnityRail.Bridge
         {
             JObject body = ParseBody(request);
             JObject values = body["settings"] as JObject ?? body;
-            BuildTargetGroup group = CurrentGroup();
             string platform = (string)values["platform"];
+            BuildTargetGroup? requested = null;
             if (!string.IsNullOrEmpty(platform))
             {
                 BuildTargetGroup parsed;
@@ -137,10 +172,11 @@ namespace UnityRail.Bridge
                 {
                     return BridgeResponse.Error(400, "INVALID_PLATFORM", "Unknown platform: " + platform + ".");
                 }
-                group = parsed;
+                requested = parsed;
             }
             return MainThread.Run(delegate
             {
+                BuildTargetGroup group = requested ?? CurrentGroup();
                 foreach (JProperty entry in values.Properties())
                 {
                     if (entry.Name == "platform") continue;

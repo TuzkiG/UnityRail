@@ -100,7 +100,10 @@ Global control is separate and explicit: `POST /v1/menu` runs an Editor menu ite
 compiling/importing), `POST /v1/build` + `GET /v1/build/status?id=` drive `BuildPipeline.BuildPlayer`
 into a project-contained output and report size/duration/errors, `GET`/`POST /v1/packages` use the
 Package Manager client (an add/remove may reload the domain before answering; callers treat a dropped
-connection as accepted), `GET`/`POST /v1/settings` read/write an allowlisted PlayerSettings subset,
+connection as accepted). The Package Manager is editor-thread only — even `Request.IsCompleted`
+throws off it — so a list/change request is started on the main thread, completed in the editor update
+tick, and the route answers `{ packages, pending, error }` from a cache; the client polls until `pending`
+is false, `GET`/`POST /v1/settings` read/write an allowlisted PlayerSettings subset,
 `GET /v1/profiler` reports the render/memory markers this Unity version exposes, `POST /v1/input` queues
 a keyboard state through the Input System **by reflection** (the bridge assembly has no package
 reference, so a project without Input System gets a clear 409), and `POST /v1/editor/quit` refuses while

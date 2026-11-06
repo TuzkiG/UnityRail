@@ -425,6 +425,9 @@ export interface UnityPackageInfo {
 
 export interface UnityPackageList {
 	packages: UnityPackageInfo[];
+	/** A list request is still running; ask again. */
+	pending?: boolean;
+	error?: string;
 }
 
 export interface UnityPackageChange {

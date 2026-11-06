@@ -93,4 +93,5 @@ export {
 export type { QuitConfirmationDependencies } from "./quitConfirmation";
 export { createQuitConfirmation, QUIT_CONFIRMATION } from "./quitConfirmation";
 export type * from "./unity";
+export type * from "./verification";
 export * from "./wsProtocol";

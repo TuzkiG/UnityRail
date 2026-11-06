@@ -84,6 +84,23 @@ references and cycles, scenes/prefabs, counts, bridge discovery and human-readab
 clears the GUID/asset caches (`clearUnityProjectCaches`). `findUnityInstall` checks
 `THINKRAIL_UNITY_EDITOR` / `UNITY_EDITOR_PATH`, then the Unity Hub install roots per platform.
 
+## Asset semantics (`src/semantics/`)
+
+`parseUnityYaml` reads Unity's multi-document asset YAML read-only and returns one record per object
+(`classId`, `fileId`, root type, line, flattened scalar/reference fields). It parses as YAML **1.2
+failsafe**: Unity declares 1.1, where `y`/`n`/`on` are booleans (a field named
+`m_LocalPosition.y` must stay a key), and every scalar must stay a string, because a 64-bit fileID
+must never pass through a JS number. Bounds: 4,000 documents, 2,000 fields per document, 160-character
+values, depth 12; `truncated` says a cap was hit.
+
+`buildUnityObjectModel` resolves GameObject names, transform paths (through `m_Father`), MonoBehaviour
+scripts and asset references through an injected GUID resolver, so it owns no project cache. FileID
+references stay raw (`fileID 100`): resolving them to names would make a rename ripple into every
+component's `m_GameObject` and every parent's `m_Children`, hiding the one field that changed.
+`diffUnityObjectModels` matches objects by fileID and returns added/removed objects plus per-field
+before/after changes, each object carrying the line its document starts at (the review anchor). Caps:
+200 objects per side and 60 field changes per object, with `truncated`.
+
 ## Diagnosis
 
 `diagnoseUnityWorkspace` never throws and returns `UnityDoctorResult`: whether the workspace is a Unity

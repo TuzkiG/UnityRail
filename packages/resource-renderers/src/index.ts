@@ -35,6 +35,7 @@ export {
 	type ResourceEnvironment,
 	type ResourceIntent,
 	type ResourceRenderer,
+	type ResourceSemanticDiff,
 	type ResourceViewModule,
 	type ResourceViewProps,
 	type ReviewThread,

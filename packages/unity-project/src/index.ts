@@ -135,3 +135,24 @@ export type {
 	UnityProjectInfo,
 } from "./project/types.ts";
 export { UnityProjectError } from "./project/types.ts";
+export type {
+	UnityAssetDiff,
+	UnityAssetFieldChange,
+	UnityAssetKind,
+	UnityAssetObjectChange,
+	UnityAssetObjectRef,
+	UnityObjectModel,
+	UnityObjectModelOptions,
+	UnitySemanticObject,
+	UnityYamlDocument,
+	UnityYamlField,
+	UnityYamlText,
+} from "./semantics/index.ts";
+export {
+	buildUnityObjectModel,
+	diffUnityObjectModels,
+	isEmptyUnityAssetDiff,
+	parseUnityYaml,
+	unityAssetKind,
+	unityClassType,
+} from "./semantics/index.ts";

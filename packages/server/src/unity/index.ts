@@ -1,3 +1,5 @@
+export { unityAssetDiff } from "./assetDiff.ts";
+export { unityAssetGuard } from "./guard.ts";
 export {
 	unityClearConsole,
 	unityCompile,

@@ -124,6 +124,7 @@ export function openFileInTab(
 	reported: string,
 	intent: TabIntent,
 	requestedNavigation?: CenterNavigationStamp | null,
+	revealLine?: number,
 ): Promise<void> {
 	const path = projectRelativePath(
 		reported,
@@ -147,7 +148,12 @@ export function openFileInTab(
 			loadedTick,
 		}),
 		requestedNavigation,
-	);
+	).then(() => {
+		if (revealLine === undefined) return;
+		useAppStore
+			.getState()
+			.revealFileLine(workspaceId, tupleKey("file", workspaceId, path), revealLine);
+	});
 }
 
 export function openDiffInTab(

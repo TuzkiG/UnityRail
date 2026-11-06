@@ -5,6 +5,7 @@ import type {
 	ReviewAnchorState,
 	ReviewCommentStatus,
 	ReviewSelector,
+	UnityAssetDiff,
 } from "@thinkrail/contracts";
 import type { MessageKey } from "@thinkrail/locales";
 import type { ComponentType } from "react";
@@ -63,6 +64,8 @@ export interface ResourceViewProps {
 	onPlacedThreadIds?(ids: ReadonlySet<string>): void;
 	viewState?: unknown;
 	onViewState?(state: unknown): void;
+	/** One-shot reveal request from the host UI (a failing test's frame). */
+	reveal?: { line: number; clock: number };
 }
 
 export interface HunkActions {
@@ -83,12 +86,16 @@ export interface HunkTriage {
 	onHunkKeys(keys: readonly string[]): void;
 }
 
+export type ResourceSemanticDiff = { kind: "unity-asset"; unityAsset: UnityAssetDiff };
+
 export interface ResourceDiffProps {
 	resource: ResourceDescriptor;
 	originalResource?: ResourceDescriptor;
 	original: ResourceContent;
 	modified: ResourceContent;
 	layout: "split" | "unified";
+	/** Structure the host derived for a format a text diff cannot explain (today Unity assets). */
+	semantic?: ResourceSemanticDiff;
 	ignoreWhitespace: boolean;
 	review?: { worktree: SurfaceReview; base: SurfaceReview };
 	hunkActions?: HunkActions;

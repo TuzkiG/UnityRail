@@ -107,6 +107,7 @@ export function FilePane({ tab }: { tab: FileTab }) {
 						review={review.worktree}
 						onPlacedThreadIds={onPlacedThreadIds}
 						viewState={tab.viewState}
+						{...(tab.reveal ? { reveal: tab.reveal } : {})}
 						onViewState={saveViewState}
 					/>
 				</Suspense>

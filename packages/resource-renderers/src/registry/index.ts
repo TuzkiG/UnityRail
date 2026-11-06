@@ -19,6 +19,7 @@ export type {
 	ResourceEnvironment,
 	ResourceIntent,
 	ResourceRenderer,
+	ResourceSemanticDiff,
 	ResourceViewModule,
 	ResourceViewProps,
 	ReviewThread,

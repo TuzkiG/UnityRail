@@ -324,6 +324,17 @@ treatment.
   `FileNode.nestedRepo` from the host's `fs.readDir` and swaps that folder's glyph for a git-repository
   icon with the *Nested git repository* tooltip. These flags are additive wire fields: an older host
   omits them, so the trees render exactly as before.
+  **Unity assets are reviewed as an object graph.** `DiffSurfaceBody` fetches `unity.assetDiff` for a
+  `.unity`/`.prefab`/`.asset` path once per path + scope + both content hashes (bounded cache) and passes
+  it as `semantic` to the registered Unity renderer; a failed read leaves the text diff in place. The
+  Changes panel also renders **`UnityGuardBanner`** above the list/tree whenever the scope has changes:
+  one debounced `unity.assetGuard` read, a severity summary, expandable findings that open the file, and
+  *Fix with agent*, which starts a chat with a draft listing the findings — the guard itself never writes.
+  Both are additive: an older host answers neither method, so the panel behaves as before.
+  The **Verify** tool panel (`VerifyPanel`, `LayoutToolId` `verify`) lists `verification.list` history for
+  the workspace, runs EditMode/PlayMode tests through `unity.tests` (with a filter field), and turns a
+  failing test's stack frames into links: `openFileInTab(..., revealLine)` stores a one-shot `reveal` on
+  the file tab and the code renderer reveals that line, so verification ends where the bug is.
   `ChangesTree`'s tree build + `+/−` aggregation + shared status glyphs live in the pure
   **`changesModel.ts`** (unit-tested; no store/transport — `ChangesTree` is presentational, fed `changes` +
   `onOpen`/`isActive` by `ChangesPanel`), together with the **diff-tab identity + scope vocabulary**:

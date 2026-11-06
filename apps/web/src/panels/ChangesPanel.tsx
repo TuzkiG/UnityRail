@@ -30,6 +30,7 @@ import { ChangesTree } from "./ChangesTree";
 import { changesTabId, scopeKey } from "./changesModel";
 import { openChangesTab, openDiffInTab } from "./openTabs";
 import { RememberedScrollArea } from "./RememberedScrollArea";
+import { UnityGuardBanner } from "./UnityGuardBanner";
 
 function selectReviewTab(
 	state: { tabsByWorkspace: Record<string, EditorTab[]> },
@@ -216,6 +217,13 @@ export function ChangesPanel({
 					onClick={() => setChangesView("tree")}
 				/>
 			</div>
+			{status !== null && status.changes.length > 0 ? (
+				<UnityGuardBanner
+					workspaceId={workspaceId}
+					changeCount={status.changes.length}
+					onOpen={(path) => openDiff(path, "preview")}
+				/>
+			) : null}
 			{changesView === "tree" || status === null || status.changes.length === 0 ? (
 				<RememberedScrollArea
 					key={`${changesView}:${viewKey}`}

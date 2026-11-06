@@ -11,8 +11,8 @@ references: [submodule-web-panels, submodule-web-chat]
 ## Responsibility
 
 Everything that turns a workspace resource into a viewable, reviewable surface: the engine-neutral resource
-description and renderer registry, the eleven bundled file/diff renderers (code, markdown, binary, LFS,
-image, SVG, CSV, JSON, notebook, PDF, HTML) with their review composers, thread cards and region surfaces,
+description and renderer registry, the twelve bundled file/diff renderers (code, markdown, binary, LFS,
+image, SVG, CSV, JSON, notebook, PDF, HTML, Unity asset) with their review composers, thread cards and region surfaces,
 and the shared Monaco, Pierre and markdown-document machinery they run on. It is presentation: it owns no
 content loading, review persistence, tabs or navigation — a host supplies those.
 
@@ -20,6 +20,16 @@ The package exists so one renderer stack serves every surface that shows a file:
 diff panes, the file-comparison diff tab, and extension tool cards (visualize's file previews,
 [[module-ext-visualize]]), so a renderer fix lands everywhere at once.
 
+### Unity asset diff (`thinkrail/unity-asset`)
+
+`*.unity`/`*.prefab`/`*.asset` diffs get a renderer ranked above the code renderer. It renders the
+**object model** the host derived (`ResourceDiffProps.semantic` = `{ kind: "unity-asset", unityAsset }`):
+per-object type/name/transform path/fileID/line, added/removed sections, and field before/after rows.
+When the semantic block is absent (not a Unity project, an oversized file, an older host) or the user
+flips to *Source*, it renders the code diff from inside the same component, so the file is never
+unopenable. Comments anchor to the object's document line through the ordinary lineRange selector and
+`ReviewComposer`/`ReviewThreadCard`; the component reports the placed thread ids so the unplaced
+strip stays correct, and it offers comment buttons on the worktree side only.
 ## Public surface
 
 One barrel, `@thinkrail/resource-renderers` (`src/index.ts`):

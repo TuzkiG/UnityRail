@@ -1,4 +1,9 @@
-import type { ChangeReceipt, GitDiffScope, ResourceMeta } from "@thinkrail/contracts";
+import type {
+	ChangeReceipt,
+	GitDiffScope,
+	ResourceMeta,
+	UnityAssetDiff,
+} from "@thinkrail/contracts";
 import { i18n, useT } from "@thinkrail/locales/react";
 import {
 	createAskAgentRequest,
@@ -18,16 +23,67 @@ import {
 } from "@thinkrail/resource-renderers";
 import { Button } from "@thinkrail/ui/button";
 import { LoadingRegion } from "@thinkrail/ui/skeleton";
-import { Suspense, useCallback, useMemo } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { selectWorkspaceIsRunning, toast, useAppStore } from "../store";
 import { errorText, getTransport, wsErrorCode } from "../transport";
 import { canOfferChangeMutations, scopeHasMutableModifiedSide } from "./changeMutationAvailability";
-import { splitPath } from "./changesModel";
+import { scopeKey, splitPath } from "./changesModel";
 import { openFileInTab } from "./openTabs";
 import { resourceBytesUrl } from "./resourcePane";
 import { type FileReview, useFileReview } from "./useReviewCommenting";
 
 const loading = <LoadingRegion rows={12} className="h-full p-12" />;
+
+const UNITY_ASSET_PATH = /\.(unity|prefab|asset)$/i;
+const semanticCache = new Map<string, UnityAssetDiff | null>();
+
+/**
+ * The object model behind a Unity asset's diff. It is fetched once per path + scope + both content
+ * hashes (a stacked review renders the same file from several places), and a failed read degrades to
+ * the text diff rather than blocking the surface.
+ */
+function useUnityAssetSemantic(
+	workspaceId: string,
+	path: string,
+	scope: GitDiffScope | undefined,
+	originalHash: string,
+	modifiedHash: string,
+): UnityAssetDiff | null {
+	const applies = UNITY_ASSET_PATH.test(path);
+	const key = `${workspaceId}\u0000${path}\u0000${scopeKey(scope ?? { kind: "uncommitted" })}\u0000${originalHash}\u0000${modifiedHash}`;
+	const [value, setValue] = useState<UnityAssetDiff | null>(() =>
+		applies ? (semanticCache.get(key) ?? null) : null,
+	);
+	useEffect(() => {
+		if (!applies) {
+			setValue(null);
+			return;
+		}
+		if (semanticCache.has(key)) {
+			setValue(semanticCache.get(key) ?? null);
+			return;
+		}
+		let cancelled = false;
+		void getTransport()
+			.request("unity.assetDiff", { workspaceId, path, ...(scope ? { scope } : {}) })
+			.then((diff) => {
+				if (semanticCache.size > 32) {
+					const oldest = semanticCache.keys().next();
+					if (!oldest.done) semanticCache.delete(oldest.value);
+				}
+				semanticCache.set(key, diff);
+				if (!cancelled) setValue(diff);
+			})
+			.catch(() => {
+				semanticCache.set(key, null);
+				if (!cancelled) setValue(null);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [applies, key, workspaceId, path, scope]);
+	return value;
+}
 
 export interface DiffSurfaceContent {
 	original: string;
@@ -282,6 +338,13 @@ export function DiffSurfaceBody({
 	const { renderer, candidates, review, reviewable, hunkActions, placedThreadIds } = surface;
 	const reviews = reviewable ? [review.worktree, review.base] : [];
 	const { workspaceId, path } = surface.resource;
+	const semantic = useUnityAssetSemantic(
+		workspaceId,
+		path,
+		surface.resource.scope,
+		surface.original.kind === "text" ? surface.original.hash : "",
+		surface.modified.kind === "text" ? surface.modified.hash : "",
+	);
 	return (
 		<>
 			<UnplacedReviewStrip
@@ -302,6 +365,9 @@ export function DiffSurfaceBody({
 						modified={surface.modified}
 						layout={view === "split" ? "split" : "unified"}
 						ignoreWhitespace={ignoreWhitespace}
+						{...(semantic
+							? { semantic: { kind: "unity-asset" as const, unityAsset: semantic } }
+							: {})}
 						{...(reviewable ? { review } : {})}
 						{...(hunkActions ? { hunkActions } : {})}
 						onPlacedThreadIds={surface.onPlacedThreadIds}

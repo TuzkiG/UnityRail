@@ -102,6 +102,7 @@ import type {
 	WireModel,
 } from "./piProtocol";
 import type {
+	UnityAssetDiff,
 	UnityAssetResult,
 	UnityBridgeInstallResult,
 	UnityBridgeStatus,
@@ -109,6 +110,7 @@ import type {
 	UnityConsolePage,
 	UnityDoctorReport,
 	UnityGameObjectInspection,
+	UnityGuardReport,
 	UnityHierarchySnapshot,
 	UnityLogLevel,
 	UnityOpenEditorResult,
@@ -120,6 +122,8 @@ import type {
 	UnityTestRunStatus,
 	UnityWorkspaceSnapshot,
 } from "./unity";
+
+import type { VerificationHistory } from "./verification";
 
 export interface TerminalDataPush {
 	id: string;
@@ -436,6 +440,9 @@ export const WS_METHODS = {
 	unityPlaymode: "unity.playmode",
 	unityScreenshot: "unity.screenshot",
 	unityTests: "unity.tests",
+	unityAssetDiff: "unity.assetDiff",
+	unityAssetGuard: "unity.assetGuard",
+	verificationList: "verification.list",
 	unityHierarchy: "unity.hierarchy",
 	unityInspect: "unity.inspect",
 	unityFind: "unity.find",
@@ -1292,6 +1299,18 @@ export interface WsMethodMap {
 	"unity.tests": {
 		params: { workspaceId: string; mode?: "edit" | "play"; filter?: string };
 		result: UnityTestRunStatus;
+	};
+	"unity.assetDiff": {
+		params: { workspaceId: string; path: string; scope?: GitDiffScope };
+		result: UnityAssetDiff | null;
+	};
+	"unity.assetGuard": {
+		params: { workspaceId: string };
+		result: UnityGuardReport;
+	};
+	"verification.list": {
+		params: { workspaceId: string };
+		result: VerificationHistory;
 	};
 	"unity.hierarchy": {
 		params: { workspaceId: string; scene?: string };

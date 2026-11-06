@@ -62,6 +62,28 @@ kept while it still contains that target and replaced otherwise, so a re-pointed
 folder list pointing at the old worktree. A submodule that is itself a directory link is reported once,
 as the link, because that entry carries the folder actually mounted.
 
+## Asset diff and guard
+
+`unityAssetDiff(workspaceId, path, original, modified)` (`assetDiff.ts`) answers the object model of a
+`.unity`/`.prefab`/`.asset` diff: it refuses a non-asset path, a workspace without a Unity project,
+and a side over 8 MiB (the caller keeps the text diff). GUIDs resolve through the project's cached index,
+so a MonoBehaviour shows its script name. The host composes it with `git.diffFile` behind
+`unity.assetDiff`; the renderer only receives the result.
+
+`unityAssetGuard(workspaceId, changedPaths)` (`guard.ts`) checks the change set against the project:
+an asset under `Assets/` with no `.meta` (error), a changed `.meta` whose asset is gone (warning),
+a changed `.meta` whose GUID another asset also owns (error, naming the other path), a file over 2 MiB
+with no matching `filter=lfs` rule from the worktree/project `.gitattributes` (warning), and the two
+project-wide checks — no `unityyamlmerge` merge driver and no `Library/` ignore entry (warnings).
+It reads only changed paths that resolve inside the project's `Assets/`, builds the GUID index only
+when a `.meta` changed, and caps findings at 40. It is advisory: nothing is written and a fix is a
+draft the user hands to the agent.
+
+## Verification history
+
+`unity.tests` records every answered run through [[submodule-server-verification]] before replying, so a
+run started from the chat tool and one started from the Verify panel share one history.
+
 ## Error mapping
 
 Every service converts a failure into a `CodedError` with one of four wire codes:

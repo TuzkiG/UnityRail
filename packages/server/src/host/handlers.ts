@@ -131,6 +131,7 @@ import {
 	countPushTargetDivergence,
 	gitDiffFile,
 	gitStatus,
+	gitUncommittedPaths,
 	ignoredPaths,
 	listBranches,
 	listBranchesAt,
@@ -226,6 +227,8 @@ import {
 } from "../todos";
 import { forgetWorkspaceTurns, listTurns } from "../turns";
 import {
+	unityAssetDiff,
+	unityAssetGuard,
 	unityClearConsole,
 	unityCompile,
 	unityConsole,
@@ -247,6 +250,7 @@ import {
 	unityTests,
 	unityUnlinkModule,
 } from "../unity";
+import { listVerificationRuns, recordUnityTestRun } from "../verification";
 import { ensureWatch, nudgeRepoMeta, stopWatch } from "../watch";
 import {
 	createWorkspace,
@@ -794,7 +798,18 @@ const handlers: WsHandlers = {
 	"unity.compile": (p) => unityCompile(p.workspaceId, p.force === true),
 	"unity.playmode": (p) => unityPlaymode(p.workspaceId, p.action),
 	"unity.screenshot": (p) => unityScreenshot(p.workspaceId, p.view, p.width),
-	"unity.tests": (p) => unityTests(p.workspaceId, p.mode, p.filter),
+	"unity.tests": async (p) => {
+		const run = await unityTests(p.workspaceId, p.mode, p.filter);
+		recordUnityTestRun(p.workspaceId, run, p.filter);
+		return run;
+	},
+	"verification.list": (p) => ({ runs: listVerificationRuns(p.workspaceId) }),
+	"unity.assetDiff": async (p) => {
+		void ensureWatch(p.workspaceId);
+		const file = await gitDiffFile(p.workspaceId, p.path, p.scope);
+		return unityAssetDiff(p.workspaceId, p.path, file.original, file.modified);
+	},
+	"unity.assetGuard": (p) => unityAssetGuard(p.workspaceId, gitUncommittedPaths(p.workspaceId)),
 	"unity.hierarchy": (p) => unityHierarchy(p.workspaceId, p.scene),
 	"unity.inspect": (p) => unityInspect(p.workspaceId, p.path),
 	"unity.find": (p) => unityFind(p.workspaceId, p.query, p.type, p.limit),

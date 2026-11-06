@@ -40,6 +40,7 @@ import { UnityProjectPanel } from "../panels/UnityProjectPanel";
 import { useWorkspaceReview } from "../panels/useWorkspaceReview";
 import { useWorkspaceSpecs } from "../panels/useWorkspaceSpecs";
 import { useLoadWorkspaceTurns } from "../panels/useWorkspaceTurns";
+import { VerifyPanel } from "../panels/VerifyPanel";
 import {
 	createChangesTab,
 	type EditorTab,
@@ -669,6 +670,7 @@ export function WorkspaceWorkbench({ workspaceId }: { workspaceId: string }) {
 					</div>
 				),
 			review: <ReviewPanel key={workspaceId} workspaceId={workspaceId} failed={review.failed} />,
+			verify: <VerifyPanel key={workspaceId} workspaceId={workspaceId} />,
 			plan: railPlanSessionId ? (
 				<ErrorBoundary
 					label={t("shell.workbench.panel.planRail")}

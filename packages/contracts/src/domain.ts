@@ -1407,7 +1407,8 @@ export type LayoutToolId =
 	| "files"
 	| "review"
 	| "plan"
-	| "unity";
+	| "unity"
+	| "verify";
 
 export type LayoutBottomAlignment = "center" | "center-left" | "center-right" | "full";
 

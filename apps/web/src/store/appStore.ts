@@ -163,6 +163,8 @@ export interface FileTab {
 	rendererId?: string;
 	viewState?: unknown;
 	loadedTick?: number;
+	/** A one-shot request to reveal a line (a failing test's frame); the renderer consumes it. */
+	reveal?: { line: number; clock: number };
 }
 export interface ChatTab {
 	kind: "chat";
@@ -1184,6 +1186,7 @@ interface AppState {
 	noteNavigation: (workspaceId: string) => void;
 	setTabRenderer: (workspaceId: string, id: string, rendererId: string) => void;
 	setTabViewState: (workspaceId: string, id: string, viewState: unknown) => void;
+	revealFileLine: (workspaceId: string, id: string, line: number) => void;
 	setDiffTabView: (id: string, view: DiffTabView) => void;
 	setDiffTabIgnoreWhitespace: (id: string, ignoreWhitespace: boolean) => void;
 	setChangesTabView: (workspaceId: string, id: string, view: DiffTabView) => void;
@@ -3114,6 +3117,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 				delete next.viewState;
 				return next;
 			}),
+		),
+	revealFileLine: (workspaceId, id, line) =>
+		set((s) =>
+			patchResourceTab(s, workspaceId, id, (tab) => ({
+				...tab,
+				reveal: { line, clock: Date.now() },
+			})),
 		),
 	setTabViewState: (workspaceId, id, viewState) =>
 		set((s) =>

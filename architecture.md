@@ -494,6 +494,18 @@ dependency. This keeps test process drivers outside both launchers and the serve
     artifacts. Detail: [[submodule-server-git]], [[submodule-server-workspaces]], [[submodule-server-turns]],
     [[submodule-server-changes]], [[submodule-server-reviews]].
 
+26. **Unity assets are read semantically, never written that way.** A .unity/.prefab/.asset
+    change is shown as the object graph it encodes — GameObject/component identity by fileID, transform
+    path, resolved script and asset references, and field-level before/after — because a line diff of
+    Unity YAML hides what actually changed. The host parses both sides read-only (bounded documents,
+    fields and objects; a truncated result says so) and the same parse feeds the **asset guard**:
+    missing/orphan `.meta`, duplicated GUIDs, large assets outside LFS, an unconfigured Unity merge
+    driver and an unignored `Library/`. Guard findings are advisory; a fix is a draft handed to the
+    agent, never an automatic write. **Verification** runs the same way: a Unity test run the host
+    answered is recorded as history (failed results first, bounded), and its stack frames open the
+    script at the failing line. Accepted cost: an asset changed outside the semantic reader's view
+    (an unknown class) still yields its fields but no friendly type name, and object-level review
+    anchors point at the object's document line rather than an individual YAML key.
 ## Invariants
 
 - Never **value**-import `pi` in browser-bundled code; import types only, from the `pi-ai` /

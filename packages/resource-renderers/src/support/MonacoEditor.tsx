@@ -47,6 +47,7 @@ export default function MonacoEditor({
 	review,
 	viewState,
 	onViewState,
+	reveal,
 }: ResourceViewProps) {
 	const t = useT();
 	const { fileLineWidth, fileLineWidthBounded } = useResourcePreferences();
@@ -173,6 +174,14 @@ export default function MonacoEditor({
 		else codeEditor.revealLineInCenter(line);
 		review.onFocusHandled();
 	}, [review]);
+
+	useEffect(() => {
+		const codeEditor = editorRef.current;
+		if (!reveal || !codeEditor) return;
+		codeEditor.revealLineInCenter(reveal.line);
+		codeEditor.setPosition({ lineNumber: reveal.line, column: 1 });
+		codeEditor.focus();
+	}, [reveal]);
 
 	return (
 		<>

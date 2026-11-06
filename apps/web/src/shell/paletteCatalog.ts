@@ -24,6 +24,7 @@ import {
 	RiNodeTree,
 	RiSearchEyeLine,
 	RiSettings3Line,
+	RiShieldCheckLine,
 	RiSparkling2Line,
 	RiTerminalBoxLine,
 } from "@remixicon/react";
@@ -45,6 +46,7 @@ const TOOL_LABELS: Record<PaletteTool, MessageKey> = {
 	plan: "workbench.tool.plan",
 	"unity-project": "workbench.tool.unityProject",
 	unity: "workbench.tool.unity",
+	verify: "workbench.tool.verify",
 };
 
 const TOOL_ICONS: Record<PaletteTool, RemixiconComponentType> = {
@@ -54,6 +56,7 @@ const TOOL_ICONS: Record<PaletteTool, RemixiconComponentType> = {
 	plan: RiListCheck3,
 	"unity-project": RiLinkM,
 	unity: RiGamepadLine,
+	verify: RiShieldCheckLine,
 };
 
 export interface PaletteCatalogDeps {

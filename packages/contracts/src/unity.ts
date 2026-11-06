@@ -313,3 +313,61 @@ export interface UnityOpenEditorResult {
 	editorPath: string;
 	pid: number | null;
 }
+
+export type UnityAssetKind = "scene" | "prefab" | "asset";
+
+export interface UnityAssetObjectRef {
+	fileId: string;
+	classId: number;
+	/** Display type: a class name, or the script's name for a MonoBehaviour. */
+	type: string;
+	name: string;
+	/** Transform path, e.g. `Player/Weapon`; empty when the object has no GameObject. */
+	path: string;
+	/** 1-based line of the object's YAML document (modified side; base side for a removed object). */
+	line: number;
+}
+
+export interface UnityAssetFieldChange {
+	field: string;
+	before: string;
+	after: string;
+}
+
+export interface UnityAssetObjectChange {
+	object: UnityAssetObjectRef;
+	fields: UnityAssetFieldChange[];
+}
+
+export interface UnityAssetDiff {
+	kind: UnityAssetKind;
+	added: UnityAssetObjectRef[];
+	removed: UnityAssetObjectRef[];
+	changed: UnityAssetObjectChange[];
+	/** A cap was hit (objects, fields or documents); the view says so rather than lying. */
+	truncated: boolean;
+}
+
+export type UnityGuardCode =
+	| "MISSING_META"
+	| "ORPHAN_META"
+	| "DUPLICATE_GUID"
+	| "LARGE_ASSET"
+	| "MERGE_DRIVER_MISSING"
+	| "IGNORE_MISSING";
+
+export interface UnityGuardFinding {
+	code: UnityGuardCode;
+	severity: "error" | "warning";
+	/** Workspace-relative path the finding is about; absent for a project-wide finding. */
+	path?: string;
+	/** Extra identifiers, e.g. the GUID an asset conflicts on. */
+	detail?: string;
+}
+
+export interface UnityGuardReport {
+	findings: UnityGuardFinding[];
+	checkedAt: number;
+	/** The changed paths the guard inspected, so the UI can say "nothing found" honestly. */
+	checkedPaths: number;
+}

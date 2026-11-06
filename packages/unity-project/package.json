@@ -12,6 +12,9 @@
 		"typecheck": "tsc --noEmit",
 		"test": "bun test"
 	},
+	"dependencies": {
+		"yaml": "catalog:"
+	},
 	"devDependencies": {
 		"@types/bun": "catalog:",
 		"typescript": "catalog:"

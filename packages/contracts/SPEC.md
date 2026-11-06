@@ -767,6 +767,13 @@ the palette ranks with — kept here so host-side search can rank with the same 
   original side for `/blob`), both
   taking an optional **`scope: GitDiffScope`** (an unresolvable scope — a commit a rebase removed — is
   *rejected*, which the panel reads as "reset the scope" instead of staying wedged on a dead sha) /
+  **`unity.assetDiff`** (`{ workspaceId, path, scope? }` → `UnityAssetDiff | null`: object-level diff of a
+  `.unity`/`.prefab`/`.asset` file, `null` when it is not a Unity asset or has no project; additive, so an
+  older host answering "unknown method" leaves the text diff) / **`unity.assetGuard`** (`{ workspaceId }` →
+  `UnityGuardReport`: advisory findings over the uncommitted change set — missing/orphan `.meta`, duplicated
+  GUID, large non-LFS asset, unconfigured Unity merge driver, unignored `Library/`) /
+  **`verification.list`** (`{ workspaceId }` → `VerificationHistory`: the newest test runs the host
+  answered, failed results first and bounded) /
   **`git.listCommits`** (the workspace branch's own commits, `<diff base>..HEAD`, newest first, capped
   host-side — the scope menu's lazily-fetched list) / **`workspace.turns`** (`{ workspaceId }` → the
   workspace's recorded agent runs, oldest first, capped host-side) / the **`change.*` write path**

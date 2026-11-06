@@ -54,6 +54,7 @@ const ACCEPTED_UPDATE_KEYS = {
 	autoPlanModel: true,
 	autoExecuteModel: true,
 	autoEffort: true,
+	autoReasoning: true,
 	reviewAutoFix: true,
 	agentReviewEnabled: true,
 	subagentsEnabled: true,
@@ -197,6 +198,7 @@ export function updateConfig(partial: AppConfigUpdate): AppConfig {
 		autoPlanModel,
 		autoExecuteModel,
 		autoEffort,
+		autoReasoning,
 		favoriteModels,
 		recentModels: _hostOwnedRecentModels,
 		customLayoutPresets,
@@ -227,6 +229,14 @@ export function updateConfig(partial: AppConfigUpdate): AppConfig {
 		if (value !== undefined && value !== null && !isWireModelRef(value)) {
 			throw new Error(`${name} must be a model or null`);
 		}
+	}
+	if (
+		autoReasoning !== undefined &&
+		autoReasoning !== null &&
+		autoReasoning !== "automatic" &&
+		autoReasoning !== "chat"
+	) {
+		throw new Error("autoReasoning must be automatic, chat, or null");
 	}
 	if (subagentsEnabled !== undefined && typeof subagentsEnabled !== "boolean") {
 		throw new Error("subagentsEnabled must be a boolean");
@@ -341,6 +351,10 @@ export function updateConfig(partial: AppConfigUpdate): AppConfig {
 	if (autoEffort !== undefined) {
 		if (autoEffort === null) delete next.autoEffort;
 		else next.autoEffort = autoEffort;
+	}
+	if (autoReasoning !== undefined) {
+		if (autoReasoning === null) delete next.autoReasoning;
+		else next.autoReasoning = autoReasoning;
 	}
 	saveConfig(next);
 	cached = next;

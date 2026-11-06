@@ -1102,6 +1102,7 @@ interface AppState {
 	autoPlanModel: WireModel | undefined;
 	autoExecuteModel: WireModel | undefined;
 	autoEffort: ThinkingLevel | undefined;
+	autoReasoning: "automatic" | "chat" | undefined;
 	favoriteModels: WireModel[];
 	recentModels: WireModel[];
 	reviewAutoFix: boolean;
@@ -1511,6 +1512,7 @@ function configPatch(config: AppConfig) {
 		autoPlanModel: config.autoPlanModel,
 		autoExecuteModel: config.autoExecuteModel,
 		autoEffort: config.autoEffort,
+		autoReasoning: config.autoReasoning,
 		favoriteModels: config.favoriteModels ?? DEFAULT_CONFIG.favoriteModels,
 		recentModels: config.recentModels ?? DEFAULT_CONFIG.recentModels,
 		reviewAutoFix: config.reviewAutoFix ?? DEFAULT_CONFIG.reviewAutoFix,
@@ -2405,6 +2407,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	autoPlanModel: DEFAULT_CONFIG.autoPlanModel,
 	autoExecuteModel: DEFAULT_CONFIG.autoExecuteModel,
 	autoEffort: DEFAULT_CONFIG.autoEffort,
+	autoReasoning: DEFAULT_CONFIG.autoReasoning,
 	favoriteModels: DEFAULT_CONFIG.favoriteModels,
 	recentModels: DEFAULT_CONFIG.recentModels,
 	reviewAutoFix: DEFAULT_CONFIG.reviewAutoFix,

@@ -1153,8 +1153,11 @@ a project picker, the prompt hero, and the reused
   group's primary row, so its *Automatic* also clears `autoEffort` — one gesture restores the whole group
   to automatic), plus one **Auto
   reasoning level** row (`auto-effort-row`; `autoEffort`) whose levels come from the catalog's virtual
-  `Auto` entry. That level is Auto's, not the chat's — it overrides the composer's selection for every
-  routed turn — and unset stays the default, so the difficulty router keeps escalating on its own.
+  `Auto` entry, plus — from `AUTO_REASONING_PROTOCOL_VERSION` — an **Automatic reasoning** switch
+  (`auto-reasoning-row`/`auto-reasoning-toggle`; `autoReasoning`). Turning it on clears the manual level and
+  shows `auto-reasoning-hint` instead of the level row; picking a level turns the switch back off. That
+  level is Auto's, not the chat's — it overrides the composer's selection for every routed turn — and
+  unset stays the default, so the difficulty router keeps escalating on its own.diff --git a/packages/locales/en.json b/packages/locales/en.json
   **REVIEW** (`models-review-group`) — everything that configures review in one place, because
   users look for it by that word: the **Review model** row (`review-model-row`; `reviewModel`,
   `reviewEffort`), independent of the Chat model row's loading state, then the two automation toggles

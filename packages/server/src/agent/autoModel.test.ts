@@ -218,3 +218,54 @@ test("difficulty reads the latest message: short questions are easy, work is not
 	expect(assessDifficulty(question("what? ".repeat(80)))).toBe("hard");
 	expect(assessDifficulty([])).toBe("hard");
 });
+
+test("automatic reasoning derives the level from phase and difficulty", () => {
+	const hard = route({ preferences: { reasoning: "automatic" } });
+	expect(hard.state?.phase).toBe("plan");
+	expect(hard.thinkingLevel).toBe("high");
+
+	const easy = route({
+		messages: question("What does the settle gate do?"),
+		preferences: { reasoning: "automatic" },
+	});
+	expect(easy.state?.phase).toBe("execute");
+	expect(easy.thinkingLevel).toBe("low");
+
+	const direct = route({
+		reason: "direct",
+		preferences: { reasoning: "automatic" },
+	});
+	expect(direct.thinkingLevel).toBe("medium");
+});
+
+test("automatic reasoning escalates a hard execution turn to medium", () => {
+	const decision = route({
+		reason: "continuation",
+		state: executing,
+		messages: [userMessage, toolResult("edit")],
+		preferences: { reasoning: "automatic" },
+	});
+	expect(decision.thinkingLevel).toBe("medium");
+});
+
+test("a pinned effort wins over automatic reasoning", () => {
+	const decision = route({
+		preferences: { reasoning: "automatic", effort: "low" },
+	});
+	expect(decision.thinkingLevel).toBe("low");
+});
+
+test("automatic reasoning clamps down to the model's supported levels", () => {
+	const lowOnly = { ...haiku, thinkingLevels: ["low"] } as unknown as Model<Api>;
+	const decision = route({
+		available: [lowOnly],
+		preferences: { reasoning: "automatic" },
+	});
+	expect(decision.model.id).toBe("claude-haiku-4-5");
+	expect(decision.thinkingLevel).toBe("low");
+});
+
+test("chat reasoning keeps the chat's own level", () => {
+	const decision = route({ preferences: { reasoning: "chat" } });
+	expect(decision.thinkingLevel).toBe("medium");
+});

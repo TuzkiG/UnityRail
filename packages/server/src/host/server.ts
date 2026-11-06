@@ -828,7 +828,7 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 	reconcilePendingReviewsOnBoot();
 
 	setAutoModelPreferencesSource(() => {
-		const { autoPlanModel, autoExecuteModel, autoEffort } = getConfig();
+		const { autoPlanModel, autoExecuteModel, autoEffort, autoReasoning } = getConfig();
 		return {
 			...(autoPlanModel
 				? { plan: { provider: autoPlanModel.provider, id: autoPlanModel.id } }
@@ -837,6 +837,7 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 				? { execute: { provider: autoExecuteModel.provider, id: autoExecuteModel.id } }
 				: {}),
 			...(autoEffort ? { effort: autoEffort } : {}),
+			...(autoReasoning ? { reasoning: autoReasoning } : {}),
 		};
 	});
 

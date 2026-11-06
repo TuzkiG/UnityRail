@@ -480,6 +480,9 @@ the palette ranks with — kept here so host-side search can rank with the same 
   `submodule-server-terminal`'s shell-selection decision for what each value spawns.
   **`PROJECT_TEMPLATE_PREVIEW_PROTOCOL_VERSION`** pins v63's additive project-located `template.list` /
   `template.get` reads, allowing Create Workspace to preview global plus current-checkout project templates
+  **`AUTO_REASONING_PROTOCOL_VERSION`** (v109) pins `autoReasoning` (`"automatic"` | `"chat"`, optional,
+  cleared by `null`): `automatic` lets the router derive the thinking level per phase and difficulty,
+  `chat`/unset follows the chat's own level, and a pinned `autoEffort` still wins.diff --git a/packages/server/src/agent/SPEC.md b/packages/server/src/agent/SPEC.md
   without sending host paths; older hosts retain a global-only fallback. `themeMode` defaults to `"fixed"`
   and no pair, preserving both legacy configs
   and the explicit Dark default; `subagentsEnabled` is the host-wide subagent default (`true` for current

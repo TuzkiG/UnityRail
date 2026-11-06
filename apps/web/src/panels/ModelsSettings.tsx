@@ -1,6 +1,7 @@
 import {
 	AGENT_REVIEW_SETTING_PROTOCOL_VERSION,
 	AUTO_MODEL_SETTING_PROTOCOL_VERSION,
+	AUTO_REASONING_PROTOCOL_VERSION,
 	type ModelDefault,
 	type ThinkingLevel,
 	type WireModel,
@@ -29,6 +30,7 @@ export function ModelsSettings() {
 	const autoPlanModel = useAppStore((s) => s.autoPlanModel);
 	const autoExecuteModel = useAppStore((s) => s.autoExecuteModel);
 	const autoEffort = useAppStore((s) => s.autoEffort);
+	const autoReasoning = useAppStore((s) => s.autoReasoning);
 	const autoFix = useAppStore((s) => s.reviewAutoFix);
 	const agentReviewEnabled = useAppStore((s) => s.agentReviewEnabled);
 	const protocolVersion = useAppStore((s) => s.protocolVersion);
@@ -113,6 +115,7 @@ export function ModelsSettings() {
 		autoPlanModel?: WireModel | null;
 		autoExecuteModel?: WireModel | null;
 		autoEffort?: ThinkingLevel | null;
+		autoReasoning?: "automatic" | "chat" | null;
 	}) => {
 		getTransport()
 			.request("settings.update", { config })
@@ -224,18 +227,48 @@ export function ModelsSettings() {
 							preferences={preferences}
 						/>
 					</div>
-					<SettingsRow
-						testId="auto-effort-row"
-						label={t("settings.models.autoEffort")}
-						description={t("settings.models.autoEffortDescription")}
-						control={
-							<ThinkingSelector
-								level={autoEffort ?? resolvedDefault?.thinkingLevel ?? "medium"}
-								levels={autoCatalogModel?.thinkingLevels ?? []}
-								onSelect={(level) => updateAuto({ autoEffort: level })}
-							/>
-						}
-					/>
+					{protocolVersion !== null && protocolVersion >= AUTO_REASONING_PROTOCOL_VERSION ? (
+						<SettingsRow
+							testId="auto-reasoning-row"
+							label={t("settings.models.autoReasoning")}
+							description={t("settings.models.autoReasoningDescription")}
+							control={
+								<SettingsSwitch
+									checked={autoReasoning === "automatic"}
+									label={t("settings.models.autoReasoning")}
+									testId="auto-reasoning-toggle"
+									onChange={(on) =>
+										updateAuto(
+											on
+												? { autoReasoning: "automatic", autoEffort: null }
+												: { autoReasoning: null },
+										)
+									}
+								/>
+							}
+						/>
+					) : null}
+					{autoReasoning === "automatic" ? (
+						<p
+							data-testid="auto-reasoning-hint"
+							className="border-border-muted border-b py-12 tr-text-metadata text-text-muted"
+						>
+							{t("settings.models.autoReasoningOnHint")}
+						</p>
+					) : (
+						<SettingsRow
+							testId="auto-effort-row"
+							label={t("settings.models.autoEffort")}
+							description={t("settings.models.autoEffortDescription")}
+							control={
+								<ThinkingSelector
+									level={autoEffort ?? resolvedDefault?.thinkingLevel ?? "medium"}
+									levels={autoCatalogModel?.thinkingLevels ?? []}
+									onSelect={(level) => updateAuto({ autoEffort: level, autoReasoning: null })}
+								/>
+							}
+						/>
+					)}
 				</SettingsGroup>
 			)}
 

@@ -2,7 +2,10 @@ import { expect, type Page, test } from "@playwright/test";
 import type { AppConfig } from "@thinkrail/contracts";
 import { E2eWire } from "./fixtures/wire";
 
-type AutoSettings = Pick<AppConfig, "autoPlanModel" | "autoExecuteModel" | "autoEffort">;
+type AutoSettings = Pick<
+	AppConfig,
+	"autoPlanModel" | "autoExecuteModel" | "autoEffort" | "autoReasoning"
+>;
 
 /** `settings.update` with an empty partial returns the persisted config. */
 async function readAuto(page: Page): Promise<AutoSettings> {
@@ -13,6 +16,7 @@ async function readAuto(page: Page): Promise<AutoSettings> {
 			...(config.autoPlanModel ? { autoPlanModel: config.autoPlanModel } : {}),
 			...(config.autoExecuteModel ? { autoExecuteModel: config.autoExecuteModel } : {}),
 			...(config.autoEffort ? { autoEffort: config.autoEffort } : {}),
+			...(config.autoReasoning ? { autoReasoning: config.autoReasoning } : {}),
 		};
 	} finally {
 		wire.close();
@@ -65,6 +69,24 @@ test("Auto settings persist the reasoning level and both model rows expose Autom
 	await page.getByTestId("auto-plan-model-row").getByTestId("model-selector").click();
 	await page.getByTestId("model-option-default").click();
 	await expect.poll(async () => readAuto(page)).toEqual({});
+
+	// Automatic reasoning supersedes the manual level and persists across a reload.
+	await page.getByTestId("auto-reasoning-toggle").click();
+	await expect.poll(async () => (await readAuto(page)).autoReasoning).toBe("automatic");
+	await expect(page.getByTestId("auto-effort-row")).toHaveCount(0);
+	await expect(page.getByTestId("auto-reasoning-hint")).toBeVisible();
+
+	await page.reload();
+	await expect(page.getByTestId("connection-status")).toHaveAttribute("data-status", "connected");
+	await page.getByTestId("open-settings").click();
+	await page.getByTestId("settings-nav-models").click();
+	await expect(page.getByTestId("auto-reasoning-toggle")).toHaveAttribute("aria-checked", "true");
+	await expect(page.getByTestId("auto-effort-row")).toHaveCount(0);
+
+	// Turning it off returns the group to the chat's own level.
+	await page.getByTestId("auto-reasoning-toggle").click();
+	await expect.poll(async () => (await readAuto(page)).autoReasoning).toBeUndefined();
+	await expect(page.getByTestId("auto-effort-row")).toBeVisible();
 
 	await page.keyboard.press("Escape");
 	await expect(dialog).toBeHidden();

@@ -1992,6 +1992,9 @@
 	"settings.nav.chat": "Chat",
 	"settings.nav.environment": "Environment",
 	"settings.nav.extensions": "Extensions",
+	"settings.models.autoReasoning": "Automatic reasoning",
+	"settings.models.autoReasoningDescription": "Let Auto pick the thinking level per phase: planning reasons harder, execution stays cheap. The manual level below does not apply while this is on.",
+	"settings.models.autoReasoningOnHint": "Auto chooses the level per phase (planning: medium/high, execution: low/medium).",diff --git a/packages/locales/zh-CN.json b/packages/locales/zh-CN.json
 	"settings.nav.github": "Integrations",
 	"settings.nav.group.agent": "Agent",
 	"settings.nav.group.interface": "Interface",

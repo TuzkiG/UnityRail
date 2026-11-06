@@ -13,6 +13,23 @@ export const AUTO_MODEL_NAME = "Auto";
 
 const AUTO_THINKING_LEVELS: readonly ModelThinkingLevel[] = ["low", "medium", "high"];
 
+/** Ordering used when a model cannot run the derived level. */
+const LEVEL_RANK: Record<ModelThinkingLevel, number> = {
+	off: 0,
+	minimal: 1,
+	low: 2,
+	medium: 3,
+	high: 4,
+	xhigh: 5,
+	max: 6,
+};
+
+/** Automatic reasoning: planning reasons harder, execution stays cheap. */
+const AUTO_PHASE_LEVEL: Record<AutoPhase, Record<AutoDifficulty, ModelThinkingLevel>> = {
+	plan: { easy: "medium", hard: "high" },
+	execute: { easy: "low", hard: "medium" },
+};
+
 /** Tools whose successful result means the plan is being carried out. */
 const EXECUTION_TOOLS: ReadonlySet<string> = new Set(["edit", "write"]);
 
@@ -95,6 +112,8 @@ export interface AutoModelPreferences {
 	execute?: ModelRef;
 	/** Overrides the chat's own thinking level for both phases. */
 	effort?: ModelThinkingLevel;
+	/** `automatic` derives the level per phase/difficulty; `chat` follows the chat. */
+	reasoning?: "automatic" | "chat";
 }
 
 let preferencesSource: () => AutoModelPreferences = () => ({});
@@ -139,6 +158,25 @@ export function assessDifficulty(messages: readonly Message[]): AutoDifficulty {
 	return asks ? "easy" : "hard";
 }
 
+function supportedLevels(model: Model<Api>): readonly ModelThinkingLevel[] {
+	const declared = (model as { thinkingLevels?: readonly ModelThinkingLevel[] }).thinkingLevels;
+	return declared && declared.length > 0 ? declared : AUTO_THINKING_LEVELS;
+}
+
+/** The derived level, clamped down to what the chosen model can actually run. */
+export function automaticThinkingLevel(
+	model: Model<Api>,
+	phase: AutoPhase,
+	difficulty: AutoDifficulty,
+): ModelThinkingLevel {
+	const desired = AUTO_PHASE_LEVEL[phase][difficulty];
+	const levels = supportedLevels(model);
+	if (levels.includes(desired)) return desired;
+	const sorted = [...levels].sort((left, right) => LEVEL_RANK[left] - LEVEL_RANK[right]);
+	const notAbove = sorted.filter((level) => LEVEL_RANK[level] <= LEVEL_RANK[desired]);
+	return notAbove.at(-1) ?? sorted[0] ?? desired;
+}
+
 export function routeAutoModel(input: AutoRouteInput): AutoRoute {
 	const available = input.available.filter((model) => !isVirtualModel(model));
 	const preferred = input.preferences ?? {};
@@ -152,20 +190,27 @@ export function routeAutoModel(input: AutoRouteInput): AutoRoute {
 			available,
 			refs(preferred.execute, input.state?.execute, cheapModel(available), plan),
 		) ?? plan;
-	const thinkingLevel = preferred.effort ?? input.thinkingLevel;
-
-	if (input.reason === "direct") return { model: execute, thinkingLevel };
-
 	const state = input.state;
+	const difficulty = assessDifficulty(input.messages);
 	const phase: AutoPhase =
-		input.reason === "user"
-			? assessDifficulty(input.messages) === "easy"
-				? "execute"
-				: "plan"
-			: state?.phase === "plan" && executedPlan(input.messages)
-				? "execute"
-				: (state?.phase ?? "plan");
+		input.reason === "direct"
+			? "execute"
+			: input.reason === "user"
+				? difficulty === "easy"
+					? "execute"
+					: "plan"
+				: state?.phase === "plan" && executedPlan(input.messages)
+					? "execute"
+					: (state?.phase ?? "plan");
 	const model = phase === "plan" ? plan : execute;
+	const thinkingLevel =
+		preferred.effort ??
+		(preferred.reasoning === "automatic"
+			? automaticThinkingLevel(model, phase, difficulty)
+			: input.thinkingLevel);
+
+	if (input.reason === "direct") return { model, thinkingLevel };
+
 	const sameSelection = state && state.phase === phase;
 	return {
 		model,

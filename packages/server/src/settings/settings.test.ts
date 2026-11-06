@@ -740,24 +740,44 @@ test("autoPlanModel/autoExecuteModel/autoEffort persist and clear back to unset"
 		thinkingLevels: [],
 	};
 	const other = { ...model, id: "m2" };
-	updateConfig({ autoPlanModel: model, autoExecuteModel: other, autoEffort: "high" });
+	updateConfig({
+		autoPlanModel: model,
+		autoExecuteModel: other,
+		autoEffort: "high",
+		autoReasoning: "automatic",
+	});
 	resetConfigCache();
 	expect(getConfig().autoPlanModel).toEqual(model);
 	expect(getConfig().autoExecuteModel).toEqual(other);
 	expect(getConfig().autoEffort).toBe("high");
+	expect(getConfig().autoReasoning).toBe("automatic");
 
-	const next = updateConfig({ autoPlanModel: null, autoExecuteModel: null, autoEffort: null });
+	const next = updateConfig({
+		autoPlanModel: null,
+		autoExecuteModel: null,
+		autoEffort: null,
+		autoReasoning: null,
+	});
 	expect("autoPlanModel" in next).toBe(false);
 	expect("autoExecuteModel" in next).toBe(false);
 	expect("autoEffort" in next).toBe(false);
+	expect("autoReasoning" in next).toBe(false);
 	resetConfigCache();
 	expect(getConfig().autoPlanModel).toBeUndefined();
 	expect(getConfig().autoExecuteModel).toBeUndefined();
 	expect(getConfig().autoEffort).toBeUndefined();
+	expect(getConfig().autoReasoning).toBeUndefined();
 	const onDisk = JSON.parse(readFileSync(join(dataDir, "config.json"), "utf8"));
 	expect(onDisk).not.toHaveProperty("autoPlanModel");
 	expect(onDisk).not.toHaveProperty("autoExecuteModel");
 	expect(onDisk).not.toHaveProperty("autoEffort");
+	expect(onDisk).not.toHaveProperty("autoReasoning");
+});
+
+test("a malformed autoReasoning is rejected before persistence", () => {
+	expect(() => updateConfig({ autoReasoning: "sometimes" as never })).toThrow(
+		"autoReasoning must be automatic, chat, or null",
+	);
 });
 
 test("a malformed defaultModel or reviewModel rejects the whole update before persistence or broadcast", () => {

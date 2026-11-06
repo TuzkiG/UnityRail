@@ -82,15 +82,70 @@
 		}
 	}
 
-	/* The "agent working" brand badge (`components/RunningIcon`): a bright segment laps the frame's track
-	   while the cube itself stays still. */
-	--animate-loader-comet: loader-comet 2.6s linear infinite;
-	@keyframes loader-comet {
-		from {
+	/* The "agent working" brand badge (`components/RunningIcon`): the split frame and the mark's two border
+	   rails draw and erase on one 3.263s cycle, the inner rail and spokes trailing. */
+	--animate-loader-frame: loader-frame 3.263s infinite;
+	@keyframes loader-frame {
+		0% {
 			stroke-dashoffset: 1000;
+			animation-timing-function: linear;
 		}
-		to {
+		37.606%,
+		59.341% {
 			stroke-dashoffset: 0;
+			animation-timing-function: linear;
+		}
+		96.947%,
+		100% {
+			stroke-dashoffset: -1000;
+		}
+	}
+	--animate-loader-t-bar: loader-t-bar 3.263s -2.036s infinite;
+	@keyframes loader-t-bar {
+		0% {
+			stroke-dashoffset: 1000;
+			animation-timing-function: linear;
+		}
+		8.693%,
+		44.299% {
+			stroke-dashoffset: 0;
+			animation-timing-function: linear;
+		}
+		52.991%,
+		100% {
+			stroke-dashoffset: -1000;
+		}
+	}
+	--animate-loader-r-tail: loader-r-tail 3.263s -2.036s infinite;
+	@keyframes loader-r-tail {
+		0% {
+			stroke-dashoffset: 1000;
+			animation-timing-function: linear;
+		}
+		16.708%,
+		44.299% {
+			stroke-dashoffset: 0;
+			animation-timing-function: linear;
+		}
+		61.007%,
+		100% {
+			stroke-dashoffset: -1000;
+		}
+	}
+	--animate-loader-r-bowl: loader-r-bowl 3.263s -1.491s infinite;
+	@keyframes loader-r-bowl {
+		0% {
+			stroke-dashoffset: 1000;
+			animation-timing-function: linear;
+		}
+		20.35%,
+		44.299% {
+			stroke-dashoffset: 0;
+			animation-timing-function: linear;
+		}
+		64.649%,
+		100% {
+			stroke-dashoffset: -1000;
 		}
 	}
 

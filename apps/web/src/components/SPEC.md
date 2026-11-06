@@ -54,17 +54,17 @@ primitive. The shared shadcn primitives live in [[module-ui]] (`@thinkrail/ui/*`
   attention.” It carries no reason, count, tooltip, motion, or clearing behavior; callers decide only whether
   it is present. It is the one marker for both needs-input and unread-result attention.
 - **`RunningIcon.tsx`** — the store-free **“UnityRail is working” badge**: the brand mark, the rail-border cube,
-  inside a rounded-square track, drawn in `currentColor` so it sizes with `size-*` and colours with `text-*`
-  like a Remix icon, with the accessible label “Agent working”. The badge is two strokes of one track plus the
-  still mark: the track sits dim while a short full-opacity segment laps it on one 2.6s cycle
-  (`loader-comet` keyframes in `index.css`), so the motion reads as a train running round the cube without
-  redrawing the mark the row identifies the workspace by — at `size-14`/`size-16` the cube stays legible and
-  only the light moves. Every mark path and its stroke weight come from `BRAND_MARK_SEGMENTS` /
+  inside a rounded-square frame, drawn in `currentColor` so it sizes with `size-*` and colours with `text-*`
+  like a Remix icon, with the accessible label “Agent working”. While motion is allowed, one 3.263s cycle
+  (`loader-*` keyframes in `index.css`) keeps the badge busy: the frame halves draw and erase, **both border
+  rails crawl** — a 90/310 dash walked by `stroke-dashoffset`, the inner rail half a cycle behind the outer —
+  and the cube's spokes draw and erase; the motion reads as a train running round the cube. A beat with only
+  the frame showing is part of the design. Every path and its stroke weight come from `BRAND_MARK_SEGMENTS` /
   `BRAND_RAIL_WIDTH`, the same geometry the shell's logo is built from, so the badge is that mark rather than
-  a second copy that could drift. Reduced motion stops the segment and keeps the track at full opacity: the
-  static, complete badge. This loader replaced a ring with a lapping train and a pulsing monogram; before
-  that the row's own identity glyph breathed, dropped because a dimming folder reads as “disabled” at 14px.
-  Callers pass only size/colour classes and decide from normalized host state whether a top-level session is
+  a second copy that could drift. Reduced motion leaves the rails and spokes fully drawn: the static,
+  complete mark. This loader replaced a ring with a lapping train and a pulsing monogram; before that the
+  row's own identity glyph breathed, dropped because a dimming folder reads as “disabled” at 14px. Callers
+  pass only size/colour classes and decide from normalized host state whether a top-level session is
   running; the icon renders no dot, spinner, count, tooltip, or idle state.
 - **Also governs (implementation in `@thinkrail/ui/skeleton`, [[module-ui]], so the app and
   [[module-resource-renderers]] share it):** `SkeletonRows`, the one pulsing-rows placeholder every loading surface

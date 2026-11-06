@@ -13,11 +13,13 @@ const FRAME_HALVES = [
 	"M20 225 V650 A90 90 0 0 0 110 740 H650 A90 90 0 0 0 740 650 V548",
 ] as const;
 
-/** The mark's border rails and spokes: each draws and erases on the shared 3.263s cycle, staggered. */
+/** The mark's border rails and spokes: each draws and erases on the shared 3.263s cycle, staggered. The
+ *  classes stay whole literals — Tailwind only generates a utility it can read in the source, so composing
+ *  `motion-safe:` in a template string silently ships an unanimated badge. */
 const STROKES: ReadonlyArray<{ d: string; className: string }> = [
-	{ d: BRAND_MARK_SEGMENTS.outerRail, className: "animate-loader-t-bar" },
-	{ d: BRAND_MARK_SEGMENTS.innerRail, className: "animate-loader-r-bowl" },
-	{ d: BRAND_MARK_SEGMENTS.spokes, className: "animate-loader-r-tail" },
+	{ d: BRAND_MARK_SEGMENTS.outerRail, className: "motion-safe:animate-loader-t-bar" },
+	{ d: BRAND_MARK_SEGMENTS.innerRail, className: "motion-safe:animate-loader-r-bowl" },
+	{ d: BRAND_MARK_SEGMENTS.spokes, className: "motion-safe:animate-loader-r-tail" },
 ];
 
 export function RunningIcon({ className }: { className?: string | undefined }) {
@@ -62,7 +64,7 @@ export function RunningIcon({ className }: { className?: string | undefined }) {
 								d={stroke.d}
 								strokeDasharray="1000 1000"
 								pathLength="1000"
-								className={`motion-safe:${stroke.className}`}
+								className={stroke.className}
 							/>
 						))}
 					</g>

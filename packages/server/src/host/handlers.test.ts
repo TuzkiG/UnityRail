@@ -623,6 +623,7 @@ test("feedback.respond persists a popup action through the handler", async () =>
 		submittedSurveyId: null,
 		submittedIteration: null,
 		lastInvitedAt: null,
+		githubStarAsked: false,
 	});
 });
 

@@ -1,4 +1,4 @@
-import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { type Dirent, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { FileNode, ResourceMeta } from "@thinkrail/contracts";
 import { loadWorkspaces } from "../persistence";
@@ -85,6 +85,21 @@ function resolveInWorktree(
 	return { root, abs };
 }
 
+/** A link lists as a directory when its target is one — inside the worktree, or a deliberate business
+ * mount: a link whose target is a Git repository (see `linkedGitAncestor`). */
+function entryKind(root: string, dir: string, entry: Dirent): FileNode["kind"] {
+	if (entry.isDirectory()) return "dir";
+	if (!entry.isSymbolicLink()) return "file";
+	const target = join(dir, entry.name);
+	try {
+		if (!statSync(target).isDirectory()) return "file";
+		const contained = isContained(realpathSync(root), realpathSync(target));
+		return contained || linkedGitAncestor(root, target) ? "dir" : "file";
+	} catch {
+		return "file";
+	}
+}
+
 export function readDir(workspaceId: string, path: string): FileNode[] {
 	const { root, abs } = resolveInWorktree(workspaceId, path, true);
 
@@ -92,16 +107,11 @@ export function readDir(workspaceId: string, path: string): FileNode[] {
 		.filter((entry) => entry.name !== ".git")
 		.map((entry): FileNode => {
 			const absEntry = join(abs, entry.name);
-			let isDir = entry.isDirectory();
-			if (!isDir && entry.isSymbolicLink()) {
-				try {
-					isDir = statSync(absEntry).isDirectory() && linkedGitAncestor(root, absEntry);
-				} catch {}
-			}
+
 			return {
 				path: posixRelative(root, absEntry),
 				name: entry.name,
-				kind: isDir ? "dir" : "file",
+				kind: entryKind(root, abs, entry),
 			};
 		})
 		.sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "dir" ? -1 : 1));

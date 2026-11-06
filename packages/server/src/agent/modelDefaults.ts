@@ -1,4 +1,5 @@
 import type { WireModel } from "@thinkrail/contracts";
+import { createPiSettings } from "./packages";
 
 /** pi's API id for catalog entries a router resolves before dispatch; not re-exported from the package root. */
 export const VIRTUAL_MODEL_API = "pi-virtual";
@@ -100,4 +101,13 @@ export function cheapModel<T extends PricedModel>(available: readonly T[]): T | 
 
 function tokenCost(model: PricedModel): number {
 	return model.cost.input + model.cost.output;
+}
+
+export function piDefaultModelRef() {
+	const { defaultProvider: provider, defaultModel: id } = createPiSettings(
+		process.cwd(),
+		undefined,
+		{ projectTrusted: false, packages: "all" },
+	).getGlobalSettings();
+	return provider && id ? { provider, id } : undefined;
 }

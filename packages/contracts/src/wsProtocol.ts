@@ -171,8 +171,9 @@ export type TemplateReadLocation =
 	| { projectId: string; workspaceId?: never }
 	| { workspaceId?: never; projectId?: never };
 
-export const PROTOCOL_VERSION = 104;
+export const PROTOCOL_VERSION = 105;
 export const UNITY_PROTOCOL_VERSION = 104;
+export const GITHUB_STAR_PROTOCOL_VERSION = 103;
 export const FONTS_PROTOCOL_VERSION = 102;
 export const CUSTOM_ENDPOINTS_PROTOCOL_VERSION = 101;
 export const PI_PACKAGES_PROTOCOL_VERSION = 100;
@@ -510,6 +511,7 @@ export const WS_CHANNELS = {
 	settingsChanged: "settings.changed",
 	hostUpdateAvailable: "host.updateAvailable",
 	feedbackInterview: "feedback.interview",
+	feedbackGithubStar: "feedback.githubStar",
 	reviewChanged: "review.changed",
 	reviewFailed: "review.failed",
 	turnChanged: "turn.changed",
@@ -1539,7 +1541,8 @@ export type WsErrorCode =
 	| "UNITY_LINK_EXISTS"
 	| "UNITY_LINK_FAILED"
 	| "UNITY_UNLINK_FAILED"
-	| "UNITY_CONFIRM_REQUIRED";
+	| "UNITY_CONFIRM_REQUIRED"
+	| "GIT_TIMEOUT";
 
 export interface WsResponse {
 	id: string;

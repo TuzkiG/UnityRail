@@ -1,6 +1,7 @@
 {
 	"name": "@thinkrail/monorepo",
 	"private": true,
+	"description": "UnityRail — the agentic IDE built around pi: isolated git-worktree workspaces, living specs, skills and workflows, and a live Unity Editor loop.",
 	"packageManager": "bun@1.4.4",
 	"workspaces": {
 		"packages": [

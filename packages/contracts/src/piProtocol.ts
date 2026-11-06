@@ -94,41 +94,6 @@ export interface SessionState {
 	backgroundWork: boolean;
 }
 
-/**
- * How much the agent may change on its own: `ask` answers questions read-only, `plan` is read-only until
- * a plan is agreed, `default` may change the workspace.
- */
-export type SessionCollaboration = "default" | "ask" | "plan";
-
-/** Whether a side-effecting tool call runs immediately (`full-auto`) or waits for the user (`request`). */
-export type SessionApproval = "request" | "full-auto";
-
-export interface SessionPolicy {
-	collaboration: SessionCollaboration;
-	approval: SessionApproval;
-}
-
-/** A session starts able to work but confirming side effects; both knobs narrow that, never widen it. */
-export const DEFAULT_SESSION_POLICY: SessionPolicy = {
-	collaboration: "default",
-	approval: "request",
-};
-
-/** The order the composer's Shift+Tab and its click walk. */
-export const SESSION_COLLABORATION_CYCLE: readonly SessionCollaboration[] = [
-	"default",
-	"ask",
-	"plan",
-];
-
-export function isSessionCollaboration(value: unknown): value is SessionCollaboration {
-	return value === "default" || value === "ask" || value === "plan";
-}
-
-export function isSessionApproval(value: unknown): value is SessionApproval {
-	return value === "request" || value === "full-auto";
-}
-
 export function isSessionWorking(state: SessionState): boolean {
 	return state.execution === "running" || state.backgroundWork === true;
 }

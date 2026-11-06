@@ -3,13 +3,10 @@ import {
 	type BackgroundCommandSummary,
 	CHAT_RESOURCES_PROTOCOL_VERSION,
 	canMarkCompletionUnread,
-	DEFAULT_SESSION_POLICY,
 	DEFAULT_WORKSPACE_NAME,
 	firstPromptOfTexts,
 	type GitDiffScope,
 	isLiveResource,
-	isSessionApproval,
-	isSessionCollaboration,
 	isSessionWorking,
 	MCP_PROTOCOL_VERSION,
 	type McpServerResourceSummary,
@@ -22,11 +19,8 @@ import {
 	type ResourceKind,
 	type ResourceRecord,
 	resourceTallyTotal,
-	SESSION_POLICY_PROTOCOL_VERSION,
 	SESSION_RENAME_PROTOCOL_VERSION,
 	SESSION_STATE_PROTOCOL_VERSION,
-	type SessionApproval,
-	type SessionCollaboration,
 	type SessionResourceHistory,
 	type SessionResources,
 	type SessionState,
@@ -164,10 +158,6 @@ export function selectOnboardingActive(
 
 export function selectSupportsMcp(state: ProtocolState): boolean {
 	return state.protocolVersion !== null && state.protocolVersion >= MCP_PROTOCOL_VERSION;
-}
-
-export function supportsSessionPolicy(protocolVersion: number | null): boolean {
-	return protocolVersion !== null && protocolVersion >= SESSION_POLICY_PROTOCOL_VERSION;
 }
 
 export function supportsChatResources(protocolVersion: number | null): boolean {
@@ -356,10 +346,6 @@ export function selectHasNormalizedSessionState(state: ProtocolState): boolean {
 	return state.protocolVersion !== null && state.protocolVersion >= SESSION_STATE_PROTOCOL_VERSION;
 }
 
-export function selectSupportsSessionPolicy(state: ProtocolState): boolean {
-	return supportsSessionPolicy(state.protocolVersion);
-}
-
 interface SessionStateProjection {
 	sessionStateByWorkspace: Record<string, Record<string, SessionStateRecord>>;
 }
@@ -370,28 +356,6 @@ export function selectSessionState(
 	sessionId: string,
 ): SessionState | null {
 	return state.sessionStateByWorkspace[workspaceId]?.[sessionId]?.state ?? null;
-}
-
-/** The collaboration mode the host enforces; absent (an older host) reads as the default. */
-export function selectSessionCollaboration(
-	state: SessionStateProjection,
-	workspaceId: string,
-	sessionId: string,
-): SessionCollaboration {
-	const record = state.sessionStateByWorkspace[workspaceId]?.[sessionId];
-	return isSessionCollaboration(record?.collaboration)
-		? record.collaboration
-		: DEFAULT_SESSION_POLICY.collaboration;
-}
-
-/** The approval policy the host enforces; absent (an older host) reads as the default. */
-export function selectSessionApproval(
-	state: SessionStateProjection,
-	workspaceId: string,
-	sessionId: string,
-): SessionApproval {
-	const record = state.sessionStateByWorkspace[workspaceId]?.[sessionId];
-	return isSessionApproval(record?.approval) ? record.approval : DEFAULT_SESSION_POLICY.approval;
 }
 
 export type WorkspaceOrder = "created" | "recent";

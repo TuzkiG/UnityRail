@@ -235,19 +235,6 @@ the palette ranks with — kept here so host-side search can rank with the same 
     version gate) carry `firstPromptHead` of the transcript's first user prompt beside the title: the
     display fallback for a chat that has no name, never a name — no mutation accepts it, nothing writes
     it into the session, and an older host simply omits it (the client shows its generic label).
-  - **Session policy** — `session.setCollaboration { sessionId, collaboration }` and
-    `session.setApproval { sessionId, approval }` (both ack `{ ok: true }`,
-    `SESSION_POLICY_PROTOCOL_VERSION` = v108) set the two knobs the host enforces on `tool_call`: the
-    collaboration mode (`default | ask | plan`) decides whether a mutating tool may run at all, and the
-    approval policy (`request | full-auto`) decides whether the user confirms a shell command first. The
-    values ride `SessionStateRecord.collaboration` / `.approval` (optional, additive) on the
-    `session.stateList` snapshot and every `session.state` push, so the pills a client shows are the
-    values the host enforces, not a local preference; absent means an older host reads
-    `DEFAULT_SESSION_POLICY` (`default` + `request`), and `isSessionCollaboration` /
-    `isSessionApproval` validate an unknown value rather than trusting it. The policy is per live
-    session and deliberately not persisted: reopening a chat starts from the default, so a stale
-    `full-auto` can never outlive the session that agreed to it. No new push channel and no change to
-    `SessionState`, which stays derivation-only.
   - the **extension-UI frames** **`ExtUiRequest`** / **`ExtUiResponse`** — our wire shape for pi's in-process
     `uiContext` calls (`select`/`confirm`/`input`/`editor` round-trip; `notify`/`setStatus`/`setWidget`/
     `setTitle`/`dismiss` are fire-and-forget), carried on the `pi.extensionUi` channel. One member is

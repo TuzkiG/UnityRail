@@ -89,8 +89,6 @@ import type {
 	QueueLane,
 	RefreshedModels,
 	RemovedQueuedMessage,
-	SessionApproval,
-	SessionCollaboration,
 	SessionQueueContent,
 	SessionStats,
 	SessionSummary,
@@ -174,7 +172,6 @@ export type TemplateReadLocation =
 	| { workspaceId?: never; projectId?: never };
 
 export const PROTOCOL_VERSION = 109;
-export const SESSION_POLICY_PROTOCOL_VERSION = 108;
 export const AUTO_MODEL_SETTING_PROTOCOL_VERSION = 107;
 export const AUTO_REASONING_PROTOCOL_VERSION = 109;
 export const UNITY_PROTOCOL_VERSION = 105;
@@ -373,8 +370,6 @@ export const WS_METHODS = {
 	sessionRename: "session.rename",
 	sessionSetModel: "session.setModel",
 	sessionSetThinkingLevel: "session.setThinkingLevel",
-	sessionSetCollaboration: "session.setCollaboration",
-	sessionSetApproval: "session.setApproval",
 	sessionCompact: "session.compact",
 	sessionGetStats: "session.getStats",
 	sessionGetCommands: "session.getCommands",
@@ -1094,11 +1089,6 @@ export interface WsMethodMap {
 	};
 	"session.setModel": { params: { sessionId: string; model: WireModel }; result: Ack };
 	"session.setThinkingLevel": { params: { sessionId: string; level: ThinkingLevel }; result: Ack };
-	"session.setCollaboration": {
-		params: { sessionId: string; collaboration: SessionCollaboration };
-		result: Ack;
-	};
-	"session.setApproval": { params: { sessionId: string; approval: SessionApproval }; result: Ack };
 	"session.compact": { params: { sessionId: string; instructions?: string }; result: Ack };
 	"session.getStats": { params: { sessionId: string }; result: SessionStats };
 	"session.getCommands": { params: { sessionId: string }; result: SlashCommandInfo[] };

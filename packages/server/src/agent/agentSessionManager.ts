@@ -30,12 +30,9 @@ import type {
 	RefreshedModels,
 	RemovedQueuedMessage,
 	ReviewFixDetails,
-	SessionApproval,
-	SessionCollaboration,
 	SessionCreatedPayload,
 	SessionDeletedPayload,
 	SessionEventPayload,
-	SessionPolicy,
 	SessionQueueContent,
 	SessionQueueState,
 	SessionState,
@@ -50,10 +47,7 @@ import type {
 } from "@thinkrail/contracts";
 import {
 	canMarkCompletionUnread,
-	DEFAULT_SESSION_POLICY,
 	firstPromptOfTexts,
-	isSessionApproval,
-	isSessionCollaboration,
 	isTranscriptMessageRole,
 	normalizeSessionTitle,
 	sameModel,
@@ -134,7 +128,6 @@ import {
 import { catalogProviderAuth } from "./providerAuth";
 import { REQUEST_REVIEW_TOOL_NAME } from "./requestReviewTool";
 import { projectSessionEvent } from "./sessionEventProjection";
-import { createSessionPolicyExtension } from "./sessionPolicy";
 import { repairDanglingToolCalls } from "./sessionRepair";
 import { deriveSessionState } from "./sessionState";
 import type { SkillAdmissionContext } from "./skillAdmission";
@@ -196,8 +189,6 @@ interface Entry {
 	reviewToolRefreshPending: boolean;
 	extensionToolsRefreshPending: boolean;
 	withheldExtensionTools: Set<string>;
-	/** The chat's collaboration mode and approval policy; set per live session, reset by a reopen. */
-	policy: SessionPolicy;
 	nudgePromptPending: boolean;
 	lastPublishedState: string | null;
 	firstPrompt: string | null;
@@ -475,8 +466,7 @@ function publishEntryState(entry: Entry): void {
 	const state = stateFromEntry(entry);
 	const title = entryTitle(entry);
 	const firstPrompt = entryFirstPrompt(entry);
-	const { collaboration, approval } = entry.policy;
-	const serialized = JSON.stringify({ state, title, ...firstPrompt, collaboration, approval });
+	const serialized = JSON.stringify({ state, title, ...firstPrompt });
 	if (entry.lastPublishedState === serialized) return;
 	entry.lastPublishedState = serialized;
 	publishState({
@@ -485,8 +475,6 @@ function publishEntryState(entry: Entry): void {
 		projectId,
 		state,
 		title,
-		collaboration,
-		approval,
 		...firstPrompt,
 	});
 }
@@ -552,8 +540,6 @@ function stateRecordForEntry(entry: Entry): SessionStateRecord {
 		workspaceId: entry.workspaceId,
 		projectId,
 		state: stateFromEntry(entry),
-		collaboration: entry.policy.collaboration,
-		approval: entry.policy.approval,
 		title: entryTitle(entry),
 		...entryFirstPrompt(entry),
 	};
@@ -1205,7 +1191,6 @@ async function prepareSessionEntry(
 		reviewToolRefreshPending: false,
 		extensionToolsRefreshPending: false,
 		withheldExtensionTools: new Set(),
-		policy: { ...DEFAULT_SESSION_POLICY },
 		nudgePromptPending: false,
 		lastPublishedState: null,
 		firstPrompt: null,
@@ -1472,24 +1457,17 @@ async function createParentSessionInternal(
 	const { sessionManager, settingsManager, cwd } = options;
 	const sessionId = sessionManager.getSessionId();
 	const toolResponseWaiters = createToolResponseWaiters();
-	const askForToolCall = (
-		toolCallId: string,
-		input: Record<string, unknown>,
-		title: string,
-		choices: string[],
-		signal: AbortSignal | undefined,
-	) =>
-		selectForToolCall(
-			sessionId,
-			{ toolCallId, toolInput: input },
-			title,
-			choices,
-			signal ? { signal } : undefined,
-		);
 	const mcpHost = createMcpSessionHost({
 		policy: () => mcpPolicyResolver(workspaceId),
 		onCommandSettled: scheduleMcpStatusRefresh,
-		askForToolCall,
+		askForToolCall: (toolCallId, input, title, choices, signal) =>
+			selectForToolCall(
+				sessionId,
+				{ toolCallId, toolInput: input },
+				title,
+				choices,
+				signal ? { signal } : undefined,
+			),
 		grantTool: (server, target, tool) => {
 			try {
 				mcpToolGrantWriter(workspaceId, server, target, tool);
@@ -1537,10 +1515,6 @@ async function createParentSessionInternal(
 				[
 					subagents.extension,
 					createBackgroundCommandsExtension({ service: commands }),
-					createSessionPolicyExtension({
-						policy: () => sessions.get(sessionId)?.policy ?? DEFAULT_SESSION_POLICY,
-						askForToolCall,
-					}),
 					...mcpHost.extensions,
 					extraUsageModelSelectExtension(sessionId),
 				],
@@ -2946,27 +2920,6 @@ export function recheckAnthropicExtraUsage(): void {
 
 export function setSessionThinkingLevel(sessionId: string, level: ThinkingLevel): void {
 	mustGet(sessionId).setThinkingLevel(level);
-}
-
-/** Both setters publish a state record, so every client shows the knobs the host actually enforces. */
-export function setSessionCollaboration(
-	sessionId: string,
-	collaboration: SessionCollaboration,
-): void {
-	if (!isSessionCollaboration(collaboration))
-		throw new Error(`Unknown collaboration mode: ${String(collaboration)}`);
-	const entry = mustGetEntry(sessionId);
-	if (entry.policy.collaboration === collaboration) return;
-	entry.policy = { ...entry.policy, collaboration };
-	publishEntryState(entry);
-}
-
-export function setSessionApproval(sessionId: string, approval: SessionApproval): void {
-	if (!isSessionApproval(approval)) throw new Error(`Unknown approval policy: ${String(approval)}`);
-	const entry = mustGetEntry(sessionId);
-	if (entry.policy.approval === approval) return;
-	entry.policy = { ...entry.policy, approval };
-	publishEntryState(entry);
 }
 
 export function getSessionStats(sessionId: string): SessionStats {

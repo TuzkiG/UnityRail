@@ -1,10 +1,4 @@
-import type {
-	SessionApproval,
-	SessionCollaboration,
-	SessionState,
-	ThinkingLevel,
-	WireModel,
-} from "./piProtocol";
+import type { SessionState, ThinkingLevel, WireModel } from "./piProtocol";
 
 export interface SessionStateRecord {
 	sessionId: string;
@@ -13,9 +7,6 @@ export interface SessionStateRecord {
 	state: SessionState;
 	title?: string;
 	firstPrompt?: string;
-	/** Absent from an older host, which reads as the default policy. */
-	collaboration?: SessionCollaboration;
-	approval?: SessionApproval;
 }
 
 export const FIRST_PROMPT_MAX_LENGTH = 200;

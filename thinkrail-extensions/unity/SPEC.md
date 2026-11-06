@@ -64,9 +64,8 @@ registers in its own C# — with no `name` it lists them (`GET /v1/tools`), with
 (`POST /v1/tools`) and returns the tool's JSON result. It is one meta-tool on purpose: a project's tools
 are discovered at runtime, so registering each as a pi tool would need the Editor to be up when the
 session starts. The tool has no `confirm` gate of its own — the bridge executes what its authenticated
-caller asks, and the project's C# decides what its tool does — while the host's policy guard still
-blocks it in a read-only collaboration mode. `unity_editor_tool` details are `{ mode: "list", tools }`
-or `{ mode: "invoke", name, result }`.
+caller asks, and the project's C# decides what its tool does. `unity_editor_tool` details are
+`{ mode: "list", tools }` or `{ mode: "invoke", name, result }`.
 
 **Project control** (`bridge.ts`, protocol v2): `unity_project_action` runs `menu`, starts and polls a
 `build`, lists/adds/removes `packages`, reads/writes allowlisted PlayerSettings, takes a `profiler`

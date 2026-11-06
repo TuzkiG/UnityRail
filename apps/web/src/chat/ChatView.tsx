@@ -2,8 +2,6 @@ import {
 	type PromptHit,
 	type QueueLane,
 	type ResourceKind,
-	type SessionApproval,
-	type SessionCollaboration,
 	type SessionQueueContent,
 	type SubagentResourceSummary,
 	sameModel,
@@ -30,11 +28,8 @@ import {
 	selectCatalogModel,
 	selectCompactionTurnIds,
 	selectPickerModels,
-	selectSessionApproval,
-	selectSessionCollaboration,
 	selectSkillsStale,
 	selectSupportsMcp,
-	selectSupportsSessionPolicy,
 	selectWorkspaceById,
 	toast,
 	useAppStore,
@@ -72,7 +67,6 @@ import {
 	ResourcesDock,
 	ResourcesInspector,
 } from "./resources";
-import { nextCollaboration } from "./SessionPolicyPicker";
 import { SkillsDialog } from "./SkillsDialog";
 import { SubagentTranscriptDialog, SubagentTranscriptPane } from "./SubagentTranscriptDialog";
 import { TemplateEditorDialog } from "./TemplateEditorDialog";
@@ -129,9 +123,6 @@ export default function ChatView({
 		useShallow((s) => deriveRecentPrompts(s.sessions[sessionId]?.turns ?? [])),
 	);
 	const unitySelection = useUnitySelection(workspaceId);
-	const collaboration = useAppStore((s) => selectSessionCollaboration(s, workspaceId, sessionId));
-	const approval = useAppStore((s) => selectSessionApproval(s, workspaceId, sessionId));
-	const policySupported = useAppStore(selectSupportsSessionPolicy);
 
 	const status = useAppStore((s) => s.status);
 	const connectionGeneration = useAppStore((s) => s.connectionGeneration);
@@ -507,27 +498,6 @@ export default function ChatView({
 		useAppStore.getState().setThinkingLevel(sessionId, level);
 		void requestLevel(level, thinkingLevel);
 	};
-
-	const requestApproval = (next: "request" | "full-auto") => {
-		if (next === approval) return;
-		getTransport()
-			.request("session.setApproval", { sessionId, approval: next })
-			.catch((error: unknown) => {
-				toast.error(errorText(error), translate("chat.view.policyChangeFailed"));
-			});
-	};
-
-	const requestCollaboration = (next: SessionCollaboration) => {
-		getTransport()
-			.request("session.setCollaboration", { sessionId, collaboration: next })
-			.catch((error: unknown) => {
-				toast.error(errorText(error), translate("chat.view.policyChangeFailed"));
-			});
-	};
-
-	const onSelectApproval = (next: SessionApproval) => requestApproval(next);
-
-	const onCycleCollaboration = () => requestCollaboration(nextCollaboration(collaboration));
 
 	const onSelectModel = ({ model, level }: ModelSelection) => {
 		if (sameModel(model, currentModel)) {
@@ -966,16 +936,6 @@ export default function ChatView({
 					onSlashActive={setSlashActive}
 					onSelectModel={onSelectModel}
 					onSelectThinking={onSelectThinking}
-					{...(policySupported
-						? {
-								sessionPolicy: {
-									collaboration,
-									approval,
-									onCycleCollaboration,
-									onSelectApproval,
-								},
-							}
-						: {})}
 					onSubmit={onSubmit}
 					onAbort={onAbort}
 					onHistoryOpen={onHistoryOpen}

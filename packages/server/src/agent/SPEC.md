@@ -1448,27 +1448,6 @@ an unhandled rejection that bun charged to every following test while that publi
 Its only new external dependency is `pi-background-commands`; there is no `agent` → `terminal`, `subprocess`,
 settings or workspaces edge. The owning parent graph records this package dependency.
 
-## Session policy
-
-`sessionPolicy.ts` is the host-side answer to the two knobs `SessionStateRecord` carries. It is one more
-`InlineExtension` on every parent session (`createSessionPolicyExtension`, registered beside the
-background-commands and MCP extensions), and it enforces on pi's `tool_call` hook before a tool runs:
-
-- **Collaboration** (`ask`, `plan`) blocks `READ_ONLY_BLOCKED_TOOLS` — `edit`, `write`, `bash`,
-  `background_command`, `Agent`, `unity_edit_scene`, `unity_project_action` — with a reason naming the
-  mode and how to leave it. `Agent` is in the set because a subagent session does not inherit this
-  policy, so allowing delegation would be a hole; `ask` and `plan` therefore differ only in the wording
-  the model reads, not in what they permit.
-- **Approval** (`request`) asks before a `bash` call through the manager's `askForToolCall` port — the
-  same `selectForToolCall` dialog the MCP guard uses, anchored to the call — and the answer is `Deny` /
-  `Allow once` / `Allow in this chat`. "Allow in this chat" is held in the extension's own set, like the
-  MCP guard's, so a chat that has allowed shell commands is not asked again. No UI or no answer blocks
-  the call. File edits are already automatic, so `request` does not cover them.
-- The policy is read from the live `Entry` on every call (`policy: () => sessions.get(id)?.policy ??
-  DEFAULT_SESSION_POLICY`), so `setSessionCollaboration` / `setSessionApproval` apply to the next call
-  without rebinding extensions. Each setter publishes a state record; the policy itself is memory-only
-  and a reopened chat starts from `DEFAULT_SESSION_POLICY`.
-
 ## MCP servers
 
 pi's built-in MCP is the only MCP engine: connections, OAuth, exposure, resources, result truncation and

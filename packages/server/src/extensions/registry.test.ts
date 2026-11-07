@@ -40,11 +40,12 @@ describe("server extension registry", () => {
 			registryInlineExtensions("extensions", undefined, serverExtensions, session).map((inline) =>
 				typeof inline === "function" ? "fn" : inline.name,
 			);
-		expect(names()).toEqual(["visualize", "web-access", "unity"]);
+		expect(names()).toEqual(["web-access", "unity"]);
 		expect(
 			names({
 				expectToolResponse: () => {},
 				awaitToolResponse: () => Promise.resolve({ kind: "deferred" as const }),
+				workspaceFiles: { check: async () => {}, scratchDir: "" },
 			}),
 		).toEqual(["visualize", "ask-user-question", "web-access", "unity"]);
 		expect(

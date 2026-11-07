@@ -144,4 +144,5 @@ export type ResourceIntent = "view" | "diff";
 
 export interface ResourceEnvironment {
 	mobile: boolean;
+	compact?: boolean;
 }

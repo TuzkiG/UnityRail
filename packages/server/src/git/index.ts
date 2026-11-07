@@ -44,6 +44,7 @@ export {
 	gitAsync,
 	gitAsyncBytes,
 	gitAsyncStream,
+	gitRunHook,
 	INDEX_WRITE_TIMEOUT_MS,
 	nonInteractiveGitEnv,
 	SLOW_GIT_TIMEOUT_MS,

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import {
 	DEFAULT_WORKSPACE_NAME,
 	type DiffStats,
@@ -12,6 +12,7 @@ import {
 	type SubagentOverride,
 	type Workspace,
 } from "@thinkrail/contracts";
+import { CodedError } from "@thinkrail/shared/codedError";
 import { WORKSPACE_CONTEXT_DIR } from "@thinkrail/shared/paths";
 import {
 	assertSafeRef,
@@ -22,10 +23,6 @@ import {
 	git,
 	gitAsync,
 	headShaAt,
-	listRemotes,
-	remoteNameOf,
-	remoteRefOid,
-	remoteTrackingRef,
 	resolveDefaultBranch,
 	resolveDiffRange,
 	SLOW_GIT_TIMEOUT_MS,
@@ -34,11 +31,10 @@ import {
 import { logger } from "../log";
 import { dataDir, loadProjects, loadWorkspaces, saveWorkspaces } from "../persistence";
 import { getProjects, listProjects } from "../projects";
+import { creationBranchReserved, creationRecords, repointCreationBases } from "./creationRecords";
+import { gitWorktreeEntries } from "./worktreeRegistry";
 
 const log = logger("workspaces");
-
-const CREATE_NETWORK_BUDGET_MS = 50_000;
-const CREATE_NETWORK_MIN_MS = 5_000;
 
 export type WorkspaceLifecycleEvent =
 	| { kind: "created"; workspace: Workspace }
@@ -87,8 +83,9 @@ function branchExists(repoPath: string, branch: string): boolean {
 
 function nameTaken(project: Project, candidate: string): boolean {
 	return (
+		creationBranchReserved(project.id, candidate) ||
 		branchExists(project.path, candidate) ||
-		existsSync(join(dataDir(), "worktrees", project.slug, candidate))
+		existsSync(managedWorktreePath(project, candidate))
 	);
 }
 
@@ -105,36 +102,18 @@ function nextAutoBranch(project: Project): string {
 	return `workspace-${n}`;
 }
 
+function managedWorktreePath(project: Project, branch: string): string {
+	return join(dataDir(), "worktrees", project.slug, branch);
+}
+
+function creationPaths(): Set<string> {
+	return new Set(creationRecords().map((record) => canonicalPath(record.worktreePath)));
+}
+
 function openProjectById(projectId: string): Project {
 	const project = listProjects().find((candidate) => candidate.id === projectId);
 	if (!project) throw new Error(`Unknown project: ${projectId}`);
 	return project;
-}
-
-interface GitWorktreeEntry {
-	path: string;
-	branch?: string;
-	prunable: boolean;
-}
-
-async function gitWorktreeEntries(repoPath: string): Promise<GitWorktreeEntry[]> {
-	const listed = await gitAsync(repoPath, ["worktree", "list", "--porcelain", "-z"], { raw: true });
-	if (!listed.ok) throw new Error(`git worktree list failed: ${listed.err}`);
-	const entries: GitWorktreeEntry[] = [];
-	for (const record of listed.out.split("\0\0")) {
-		if (!record) continue;
-		let path: string | undefined;
-		let branch: string | undefined;
-		let prunable = false;
-		for (const field of record.split("\0")) {
-			if (field.startsWith("worktree ")) path = field.slice("worktree ".length);
-			else if (field.startsWith("branch refs/heads/")) {
-				branch = field.slice("branch refs/heads/".length);
-			} else if (field === "prunable" || field.startsWith("prunable ")) prunable = true;
-		}
-		if (path) entries.push({ path: resolve(path), prunable, ...(branch ? { branch } : {}) });
-	}
-	return entries;
 }
 
 export async function listExistingWorktrees(
@@ -146,6 +125,7 @@ export async function listExistingWorktrees(
 	const representedPaths = new Set([
 		...loadProjects().map((knownProject) => canonicalPath(knownProject.path)),
 		...loadWorkspaces().map((workspace) => canonicalPath(workspace.worktreePath)),
+		...creationPaths(),
 	]);
 	return entries.flatMap((entry): ExistingWorktreeCandidate[] => {
 		const path = canonicalPath(entry.path);
@@ -165,8 +145,14 @@ export async function openExistingWorktree(
 	const wantedPath = canonicalPath(requestedPath);
 	const projectPath = canonicalPath(project.path);
 	if (wantedPath === projectPath) return ensureDefaultWorkspace(project);
+	const assertNotCreating = () => {
+		if (creationPaths().has(wantedPath))
+			throw new Error("This worktree is still being created by ThinkRail");
+	};
+	assertNotCreating();
 
 	const entries = await gitWorktreeEntries(project.path);
+	assertNotCreating();
 	const entry = entries.find(
 		(candidate) => !candidate.prunable && canonicalPath(candidate.path) === wantedPath,
 	);
@@ -238,22 +224,25 @@ async function diffStats(ws: Workspace): Promise<DiffStats | undefined> {
 	}
 }
 
-export async function createWorkspace(
+export interface ManagedWorkspacePlan {
+	project: Project;
+	name: string;
+	branch: string;
+	worktreePath: string;
+	baseBranch: string;
+	renamed?: true;
+}
+
+export function planManagedWorkspace(
 	projectId: string,
 	name?: string,
 	baseRef?: string,
-): Promise<Workspace> {
+): ManagedWorkspacePlan {
 	const project = openProjectById(projectId);
-	const startedAt = Date.now();
-	const remainingNetworkMs = () =>
-		Math.max(CREATE_NETWORK_MIN_MS, CREATE_NETWORK_BUDGET_MS - (Date.now() - startedAt));
-
 	const displayName = name ? toDisplayName(name) : null;
 	const branch = displayName
 		? uniqueBranch(project, toBranch(displayName))
 		: nextAutoBranch(project);
-	const wsName = displayName ?? branch;
-
 	const base = baseRef?.trim();
 	let baseBranch: string;
 	if (base) baseBranch = base;
@@ -264,67 +253,55 @@ export async function createWorkspace(
 		baseBranch = head.ok ? head.out : "HEAD";
 	}
 	assertSafeRef(baseBranch);
-	const remotes = listRemotes(project.path);
-	const remoteName = remoteNameOf(baseBranch, remotes);
-	const remoteBase = remoteTrackingRef(baseBranch, remotes);
-	const baseMissing = () => remoteRefOid(project.path, baseBranch) === null;
-	if (remoteName && baseMissing()) {
-		const fetched = await gitAsync(
-			project.path,
-			["fetch", remoteName, "--", baseBranch.slice(`${remoteName}/`.length)],
-			{ network: true, timeoutMs: remainingNetworkMs() },
-		);
-		if (baseMissing())
-			throw new Error(
-				fetched.ok
-					? `Could not fetch ${baseBranch}: ${remoteName} does not map it into refs/remotes — check remote.${remoteName}.fetch`
-					: `Could not fetch ${baseBranch}: ${fetched.err || "git wrote no error output"}`,
-			);
-	}
-
-	const worktreePath = join(dataDir(), "worktrees", project.slug, branch);
-	mkdirSync(dirname(worktreePath), { recursive: true });
-	const added = git(
-		project.path,
-		[
-			"worktree",
-			"add",
-			worktreePath,
-			"-b",
-			branch,
-			"--no-track",
-			"--end-of-options",
-			remoteBase ?? baseBranch,
-		],
-		{ timeoutMs: null },
-	);
-	if (!added.ok) throw new Error(`git worktree add failed: ${added.err}`);
-
-	if (existsSync(join(project.path, ".gitmodules"))) {
-		const submodules = await gitAsync(
-			worktreePath,
-			["submodule", "update", "--init", "--recursive"],
-			{ network: true, timeoutMs: remainingNetworkMs() },
-		);
-		if (!submodules.ok) {
-			discardCreatedWorktree(project.path, worktreePath, branch);
-			throw new Error(`Could not initialize submodules: ${submodules.err || "git failed"}`);
-		}
-	}
-
-	const workspace: Workspace = {
-		id: randomUUID(),
-		projectId,
-		name: wsName,
+	return {
+		project,
+		name: displayName ?? branch,
 		branch,
-		worktreePath,
+		worktreePath: managedWorktreePath(project, branch),
 		baseBranch,
+		...(displayName ? { renamed: true as const } : {}),
+	};
+}
+
+export function managedPathOwned(path: string): boolean {
+	const wanted = canonicalPath(path);
+	const within = (candidate: string) => {
+		const rel = relative(wanted, canonicalPath(candidate));
+		return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+	};
+	return (
+		loadWorkspaces().some((workspace) => canonicalPath(workspace.worktreePath) === wanted) ||
+		loadProjects().some((project) => within(project.path))
+	);
+}
+
+export function assertManagedPathFree(path: string): void {
+	if (managedPathOwned(path))
+		throw new CodedError(
+			"WORKSPACE_PATH_TAKEN",
+			`The workspace folder is already open in ThinkRail: ${path}`,
+		);
+}
+
+export function registerManagedWorkspace(
+	entry: Pick<Workspace, "id" | "projectId" | "name" | "branch" | "worktreePath" | "baseBranch"> & {
+		renamed?: true;
+	},
+): Workspace {
+	assertManagedPathFree(entry.worktreePath);
+	const all = loadWorkspaces();
+	const workspace: Workspace = {
+		id: entry.id,
+		projectId: entry.projectId,
+		name: entry.name,
+		branch: entry.branch,
+		worktreePath: entry.worktreePath,
+		baseBranch: entry.baseBranch,
 		initialTerminalPending: true,
 		lastActiveAt: Date.now(),
-		...(displayName ? { renamed: true } : {}),
+		...(entry.renamed ? { renamed: true } : {}),
 	};
 	ensureWorkspaceScratchDir(workspace);
-	const all = loadWorkspaces();
 	all.push(workspace);
 	saveWorkspaces(all);
 	emit({ kind: "created", workspace });
@@ -464,6 +441,7 @@ export function renameWorkspace(
 	if (branchChanged) {
 		const moved = git(project.path, ["branch", "-m", ws.branch, branch], { timeoutMs: null });
 		if (!moved.ok) throw new Error(`git branch -m failed: ${moved.err}`);
+		repointCreationBases(project.id, ws.branch, branch);
 	}
 
 	const all = loadWorkspaces();
@@ -721,20 +699,6 @@ export function forgetWorkspace(id: string): Workspace | null {
 	forgetWorktreeRepos(id);
 	emit({ kind: "removed", projectId: ws.projectId, id: ws.id });
 	return ws;
-}
-
-function discardCreatedWorktree(projectPath: string, worktreePath: string, branch: string): void {
-	const removed = git(projectPath, ["worktree", "remove", "--force", "--force", worktreePath]);
-	if (!removed.ok) {
-		try {
-			rmSync(worktreePath, { recursive: true, force: true });
-		} catch (error) {
-			log.warn(`could not remove an incomplete workspace at ${worktreePath}`, error as Error);
-		}
-	}
-	const deleted = git(projectPath, ["branch", "-D", branch]);
-	if (!deleted.ok) log.warn(`could not delete the failed workspace branch ${branch}`);
-	git(projectPath, ["worktree", "prune"]);
 }
 
 export async function reclaimWorktree(ws: Workspace): Promise<void> {

@@ -8,14 +8,14 @@ const FRAME_HALVES = [
 	"M20 225 V650 A90 90 0 0 0 110 740 H650 A90 90 0 0 0 740 650 V548",
 ] as const;
 
-/** The mark's border rails and spokes: each draws and erases on the shared 3.263s cycle, staggered. The
- *  classes stay whole literals — Tailwind only generates a utility it can read in the source, so composing
- *  `motion-safe:` in a template string silently ships an unanimated badge. */
-const STROKES: ReadonlyArray<{ d: string; className: string }> = [
-	{ d: BRAND_MARK_SEGMENTS.outerRail, className: "motion-safe:animate-loader-t-bar" },
-	{ d: BRAND_MARK_SEGMENTS.innerRail, className: "motion-safe:animate-loader-r-bowl" },
-	{ d: BRAND_MARK_SEGMENTS.spokes, className: "motion-safe:animate-loader-r-tail" },
-];
+/** The mark's border rails and spokes share the frame's linear cycle, so the whole badge draws and erases
+ *  at one uniform speed. The class stays a whole literal — Tailwind only generates a utility it can read in
+ *  the source, so composing `motion-safe:` in a template string silently ships an unanimated badge. */
+const STROKES = [
+	BRAND_MARK_SEGMENTS.outerRail,
+	BRAND_MARK_SEGMENTS.innerRail,
+	BRAND_MARK_SEGMENTS.spokes,
+] as const;
 
 export function RunningIcon({ className }: { className?: string | undefined }) {
 	const t = useT();
@@ -52,14 +52,14 @@ export function RunningIcon({ className }: { className?: string | undefined }) {
 						strokeLinejoin="round"
 						strokeLinecap="round"
 					>
-						{STROKES.map((stroke) => (
+						{STROKES.map((d) => (
 							<path
-								key={stroke.d}
+								key={d}
 								data-testid="running-icon-rail"
-								d={stroke.d}
+								d={d}
 								strokeDasharray="1000 1000"
 								pathLength="1000"
-								className={stroke.className}
+								className="motion-safe:animate-loader-frame"
 							/>
 						))}
 					</g>

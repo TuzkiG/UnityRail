@@ -9,9 +9,8 @@ test("running icon is the store-free, labeled, theme-coloured rail-border cube w
 	expect(markup).toContain('data-testid="running-icon"');
 	expect(markup).toContain('data-running="true"');
 	expect(markup).toContain("size-14 text-primary");
-	for (const cls of ["loader-t-bar", "loader-r-bowl", "loader-r-tail"])
-		expect(markup).toContain(`motion-safe:animate-${cls}`);
-	expect(markup.match(/motion-safe:animate-loader-frame/g)).toHaveLength(2);
+	expect(markup.match(/motion-safe:animate-loader-frame/g)).toHaveLength(5);
+	expect(markup).not.toMatch(/animate-loader-(t-bar|r-bowl|r-tail)/);
 	expect(markup.match(/data-testid="running-icon-rail"/g)).toHaveLength(3);
 	expect(markup.match(/stroke-dasharray="1000 1000"/g)).toHaveLength(5);
 	expect(markup).not.toMatch(/stroke-dashoffset/);

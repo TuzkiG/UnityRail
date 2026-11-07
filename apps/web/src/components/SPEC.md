@@ -55,11 +55,11 @@ primitive. The shared shadcn primitives live in [[module-ui]] (`@thinkrail/ui/*`
   it is present. It is the one marker for both needs-input and unread-result attention.
 - **`RunningIcon.tsx`** — the store-free **“UnityRail is working” badge**: the brand mark, the rail-border cube,
   inside a rounded-square frame, drawn in `currentColor` so it sizes with `size-*` and colours with `text-*`
-  like a Remix icon, with the accessible label “Agent working”. While motion is allowed, one 3.263s cycle
-  (`loader-*` keyframes in `index.css`) keeps the badge busy: the frame halves draw and erase, **both border
-  rails crawl** — a 90/310 dash walked by `stroke-dashoffset`, the inner rail half a cycle behind the outer —
-  and the cube's spokes draw and erase; the motion reads as a train running round the cube. A beat with only
-  the frame showing is part of the design. Every path and its stroke weight come from `BRAND_MARK_SEGMENTS` /
+  like a Remix icon, with the accessible label “Agent working”. While motion is allowed, one 3.263s linear
+  cycle (`loader-frame` keyframes in `index.css`) keeps the badge busy: the two frame halves, both border
+  rails, and the cube's spokes all draw and erase on that single cycle, so the whole badge moves at one
+  uniform speed instead of stepped, staggered strokes. A beat with the mark fully drawn, then fully hidden,
+  is part of the design. Every path and its stroke weight come from `BRAND_MARK_SEGMENTS` /
   `BRAND_RAIL_WIDTH`, the same geometry the shell's logo is built from, so the badge is that mark rather than
   a second copy that could drift. Reduced motion leaves the rails and spokes fully drawn: the static,
   complete mark. This loader replaced a ring with a lapping train and a pulsing monogram; before that the

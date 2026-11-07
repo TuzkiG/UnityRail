@@ -142,14 +142,15 @@ re-opened transcripts provider-valid.
     `edit` / `write` or successful Git write command through `bash` (`add`/`commit`/`merge`/`rebase`/
     `reset`/`cherry-pick`/…). A bash-only Git task never touches `edit` / `write`, so without that
     signal it kept the planner for the whole turn; read-only commands (`status`/`log`/`diff`/`fetch`)
-    and failed commands stay on the planner, because a conflict still needs it. While an **easy** turn
-    is answered and executed by `cheapModel` alone. Difficulty is
+    and failed commands stay on the planner, because a conflict still needs it. An **easy** turn, by
+    contrast, is answered and executed by `cheapModel` alone. Difficulty is
     read from the latest user message only — short, question-shaped, with no code block, path, or failure
     text and no request to change code — because the default must be *hard*: an unfamiliar shape keeps
     the flagship model instead of silently downgrading. Short **Git mechanics** are the one short
     imperative allowed to be easy: a bare `git`, `commit`/`push`/`merge`/`rebase`/`squash` with a
     branch, or 提交/推送/合并/合成 with a branch or repo. Conflict/failure text, paths, code blocks or a
-    long message still keep the planner, and a conflict during the turn escalates on the next message. There is deliberately no classifier call: it would
+    long message still keep the planner, and a conflict during the turn escalates on the next message.
+    There is deliberately no classifier call: it would
     add a round trip before the first token of every turn, and pi's classifier models are not what most
     accounts have connected. Steering a turn re-reads difficulty, so a course correction escalates rather
     than inherits a cheap turn. `retry` and `continuation` stay on the phase's model so prompt caches and

@@ -519,6 +519,14 @@ both message orders. *Rejected:* keeping the modal for non-MCP extensions — ev
   `provider/id` with the level word but no bars (there is no model scale to place it on); the raw
   reference is also its tooltip. The picker's `thinking-selector` test id stays its own. A run
   without `thinkingLevel` shows the model alone; one without `model`, nothing.
+  **Every model call names itself in the transcript.** Each assistant message is one model call, so
+  `deriveRows` stamps its `provider/model` and `thinkingLevel` onto the rows that call produced: the
+  thinking steps carry them; `ActivityGroup` renders the distinct calls of a run in its header
+  (`activity-model`, one `RunModelLabel` per distinct `model`+`level`, in first-seen order and deduped —
+  an Auto turn can plan on the flagship and hand off mid-run), and the assistant text row renders a
+  `model-call` line above the Markdown with `data-model` / `data-level` for tests. The label therefore
+  survives the collapsed state; the nested thinking headers repeat their own call once expanded. Rows
+  from a message without `provider`/`model` (legacy sessions) render no label at all.
 - **Subagent transcript view** (`SubagentTranscriptDialog.tsx` — an integration file, like
   `SkillsDialog`): `SubagentTranscriptPane` renders a hidden child's **read-only** transcript with the
   same primitives (`messagesToRuntime` → `deriveRows` → `ChatTurnView`), fetched via

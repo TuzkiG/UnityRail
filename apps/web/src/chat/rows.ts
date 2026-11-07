@@ -6,6 +6,7 @@ import {
 	type GitFileChange,
 	type ReviewFixDetails,
 	type SubagentCompletionDetails,
+	type ThinkingLevel,
 	type TurnChangeSet,
 	type UserMessage,
 } from "@thinkrail/contracts";
@@ -27,6 +28,9 @@ export interface ToolCallData {
 	tool: ToolResultState | undefined;
 	dead: boolean;
 	streaming: boolean;
+	/** The model call that requested this tool, so a group header can name every call inside it. */
+	model?: string;
+	thinkingLevel?: ThinkingLevel;
 }
 
 export type RoutineToolStep = { kind: "tool"; id: string } & ToolCallData;
@@ -37,6 +41,9 @@ export interface ThinkingStep {
 	text: string;
 	streaming: boolean;
 	tools: RoutineToolStep[];
+	/** The model call this block came from, so the header can name it (`provider/id`). */
+	model?: string;
+	thinkingLevel?: ThinkingLevel;
 }
 
 export type ActivityStep = RoutineToolStep | ThinkingStep;
@@ -60,7 +67,7 @@ export type ChatRow =
 			maxAttempts: number;
 			delayMs: number;
 	  }
-	| { kind: "markdown"; id: string; text: string }
+	| { kind: "markdown"; id: string; text: string; model?: string; thinkingLevel?: ThinkingLevel }
 	| { kind: "backgroundCommandCompletion"; id: string; details: BackgroundCommandCompletionDetails }
 	| { kind: "subagentCompletion"; id: string; details: SubagentCompletionDetails; text: string }
 	| { kind: "reviewFix"; id: string; details: ReviewFixDetails; text: string }
@@ -146,6 +153,18 @@ function roundStartMs(turn: ChatTurn): number | null {
 	return typeof at === "number" && Number.isFinite(at) ? at : null;
 }
 
+/** One assistant message is one model call: Auto may answer two consecutive calls on different models. */
+function modelCall(message: Extract<ChatTurn, { kind: "assistant" }>["message"]): {
+	model?: string;
+	thinkingLevel?: ThinkingLevel;
+} {
+	if (!message.provider || !message.model) return {};
+	return {
+		model: `${message.provider}/${message.model}`,
+		...(message.thinkingLevel ? { thinkingLevel: message.thinkingLevel } : {}),
+	};
+}
+
 export function deriveRows(
 	turns: ChatTurn[],
 	toolResults: Record<string, ToolResultState>,
@@ -175,6 +194,7 @@ export function deriveRows(
 		if (turn.kind === "assistant") {
 			const { message } = turn;
 			const dead = !assistantToolCallsAreExecutable(message.stopReason);
+			const call = modelCall(message);
 			for (let b = 0; b < message.content.length; b++) {
 				const block = message.content[b];
 				if (!block) continue;
@@ -186,11 +206,17 @@ export function deriveRows(
 						text: block.thinking,
 						streaming: turn.streaming,
 						tools: [],
+						...call,
 					});
 				} else if (block.type === "text") {
 					if (block.text.trim().length === 0) continue;
 					flushRun();
-					rows.push({ kind: "markdown", id: `${turn.id}:text:${b}`, text: block.text });
+					rows.push({
+						kind: "markdown",
+						id: `${turn.id}:text:${b}`,
+						text: block.text,
+						...call,
+					});
 				} else if (block.type === "toolCall") {
 					const data: ToolCallData = {
 						toolCallId: block.id,
@@ -199,6 +225,7 @@ export function deriveRows(
 						tool: toolResults[block.id],
 						dead,
 						streaming: turn.streaming,
+						...call,
 					};
 					const pulled = pulledResult(block.name, block.arguments, data.tool);
 					if (pulled && !received.has(pulled.key)) {

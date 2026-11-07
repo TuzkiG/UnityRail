@@ -46,6 +46,8 @@ function assistant(
 		streaming?: boolean;
 		stopReason?: AssistantMessage["stopReason"];
 		timestamp?: number;
+		model?: string;
+		thinkingLevel?: AssistantMessage["thinkingLevel"];
 	} = {},
 ): ChatTurn {
 	return {
@@ -57,6 +59,13 @@ function assistant(
 			content: blocks,
 			stopReason: opts.stopReason ?? "stop",
 			timestamp: opts.timestamp ?? 0,
+			...(opts.model
+				? {
+						provider: "deepseek",
+						model: opts.model,
+						...(opts.thinkingLevel ? { thinkingLevel: opts.thinkingLevel } : {}),
+					}
+				: {}),
 		},
 	} as unknown as ChatTurn;
 }
@@ -183,6 +192,33 @@ describe("deriveRows grouping", () => {
 		if (first?.kind !== "activity" || second?.kind !== "activity") throw new Error("bad rows");
 		expect(first.steps.map((s) => s.id)).toEqual(["t1", "t2"]);
 		expect(second.steps.map((s) => s.id)).toEqual(["t3"]);
+	});
+
+	test("each model call names its model and effort on the thinking block and the answer", () => {
+		const rows = deriveRows(
+			[
+				assistant("a1", [think("plan the work"), tc("t1")], {
+					model: "deepseek-v4-pro",
+					thinkingLevel: "high",
+				}),
+				assistant("a2", [text("done")], { model: "deepseek-flash", thinkingLevel: "low" }),
+			],
+			{},
+			false,
+		);
+
+		const activity = rows[0];
+		if (activity?.kind !== "activity") throw new Error("expected an activity row");
+		expect(activity.steps[0]).toMatchObject({
+			kind: "thinking",
+			model: "deepseek/deepseek-v4-pro",
+			thinkingLevel: "high",
+		});
+		expect(rows[1]).toMatchObject({
+			kind: "markdown",
+			model: "deepseek/deepseek-flash",
+			thinkingLevel: "low",
+		});
 	});
 
 	test("keeps one multi-paragraph assistant text block as one unchanged markdown row", () => {

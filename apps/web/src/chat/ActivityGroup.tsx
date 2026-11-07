@@ -6,6 +6,7 @@ import {
 	RiLoader4Line as Loader2,
 	RiCloseLine as X,
 } from "@remixicon/react";
+import type { ThinkingLevel } from "@thinkrail/contracts";
 import type { ToolRenderProps, ToolStatus } from "@thinkrail/extension-api/web";
 import { type Translator, useT } from "@thinkrail/locales/react";
 import { cn } from "@thinkrail/ui/utils";
@@ -14,9 +15,27 @@ import { firstNonBlankLine } from "@/lib";
 import type { ActivityBreadcrumbKind } from "./activityBreadcrumbs";
 import { PendingExtUiContext, ToolPromptSlot } from "./ExtUiPrompt";
 import { useFold } from "./foldState";
+import { RunModelLabel } from "./ModelEffortLabel";
 import type { ActivityStep, RoutineToolStep, ThinkingStep } from "./rows";
 import { ToolRendererBody } from "./ToolRendererBody";
 import { getToolSummary } from "./toolRegistry";
+
+export interface ModelCall {
+	model: string;
+	thinkingLevel?: ThinkingLevel | undefined;
+}
+
+/** Every distinct model call inside a run, in order — an Auto run can hand off mid-activity. */
+export function modelCallsOf(steps: readonly ActivityStep[]): ModelCall[] {
+	const calls: ModelCall[] = [];
+	const seen = new Set<string>();
+	for (const step of flattenActivitySteps(steps)) {
+		if (!step.model || seen.has(`${step.model}|${step.thinkingLevel ?? ""}`)) continue;
+		seen.add(`${step.model}|${step.thinkingLevel ?? ""}`);
+		calls.push({ model: step.model, thinkingLevel: step.thinkingLevel });
+	}
+	return calls;
+}
 
 export function ActivityGroup({
 	id,
@@ -59,6 +78,7 @@ export function ActivityGroup({
 			live={live}
 			stepCount={flatSteps.length}
 			icon={<Layers className="size-12 shrink-0" />}
+			calls={modelCallsOf(steps)}
 			breadcrumbLabel={breadcrumb.label}
 			breadcrumbMeta={breadcrumb.meta}
 			summary={summary}
@@ -131,6 +151,7 @@ export function ThinkingGroup({
 			stepCount={tools.length}
 			icon={<Brain className="size-12 shrink-0" />}
 			label={t("chat.activity.thinking")}
+			calls={modelCallsOf([thought])}
 			headline={extractThinkingHeading(thought.text)}
 			breadcrumbLabel={t("chat.activity.thinking")}
 			breadcrumbMeta={summary}
@@ -176,6 +197,7 @@ function GroupDisclosure({
 	breadcrumbLabel,
 	breadcrumbMeta,
 	summary,
+	calls,
 	awaiting,
 	children,
 }: {
@@ -191,6 +213,8 @@ function GroupDisclosure({
 	breadcrumbLabel: string;
 	breadcrumbMeta: string;
 	summary: string;
+	/** Every model call behind this node, in order — collapsed, this is the only place they show. */
+	calls: readonly ModelCall[];
 	awaiting: React.ReactNode;
 	children: React.ReactNode;
 }) {
@@ -243,6 +267,17 @@ function GroupDisclosure({
 				<span className="min-w-0 truncate" title={summary}>
 					{summary}
 				</span>
+				{calls.length > 0 ? (
+					<span data-testid="activity-model" className="ml-auto flex shrink-0 items-center gap-8">
+						{calls.map((call) => (
+							<RunModelLabel
+								key={`${call.model}|${call.thinkingLevel ?? ""}`}
+								model={call.model}
+								thinkingLevel={call.thinkingLevel}
+							/>
+						))}
+					</span>
+				) : null}
 			</button>
 			{expanded ? <div className="flex flex-col gap-px pl-12">{children}</div> : awaiting}
 		</div>
@@ -303,7 +338,7 @@ function splitSummary(summary: string): { label: string; meta: string } {
 		: { label: summary.slice(0, separator), meta: summary.slice(separator + 3) };
 }
 
-function flattenActivitySteps(steps: ActivityStep[]): ActivityStep[] {
+function flattenActivitySteps(steps: readonly ActivityStep[]): ActivityStep[] {
 	return steps.flatMap((step) => (step.kind === "thinking" ? [step, ...step.tools] : [step]));
 }
 

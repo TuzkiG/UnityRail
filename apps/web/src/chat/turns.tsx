@@ -16,6 +16,7 @@ import type {
 	GitDiffScope,
 	ImageContent,
 	ReviewFixDetails,
+	ThinkingLevel,
 	UserMessage,
 } from "@thinkrail/contracts";
 import type { ToolRenderProps } from "@thinkrail/extension-api/web";
@@ -43,6 +44,7 @@ import { ToolPromptSlot } from "./ExtUiPrompt";
 import { FileChip } from "./FileChip";
 import { useFold, useSelection } from "./foldState";
 import { Markdown } from "./Markdown";
+import { RunModelLabel } from "./ModelEffortLabel";
 import { ReviewPackageComments } from "./ReviewPackageComments";
 import { parseReviewPackage, reviewFixCommentsToItems, reviewPackageLabel } from "./reviewPackage";
 import { type ChatRow, LARGE_USER_MESSAGE, type TurnDividerData } from "./rows";
@@ -129,16 +131,19 @@ function ChatTurnViewImpl({
 				>
 					<div
 						className={cn(
-							"tr-text-reading text-text-default",
+							"flex flex-col gap-4 tr-text-reading text-text-default",
 							isFinalAnswer &&
 								"w-full min-w-0 pl-24 [&>div>*:last-child]:mb-0 [&_ol]:list-inside [&_ul]:list-inside",
 						)}
 					>
-						<AssistantMarkdown
-							text={row.text}
-							workspaceRoot={workspaceRoot}
-							onOpenFile={onOpenFile}
-						/>
+						<ModelCallLine model={row.model} thinkingLevel={row.thinkingLevel} />
+						<div>
+							<AssistantMarkdown
+								text={row.text}
+								workspaceRoot={workspaceRoot}
+								onOpenFile={onOpenFile}
+							/>
+						</div>
 					</div>
 				</MessageWithCopy>
 			);
@@ -241,6 +246,21 @@ function AttachmentChip({ label, img }: { label: string; img: ImageContent }) {
 		</>
 	);
 }
+function ModelCallLine({
+	model,
+	thinkingLevel,
+}: {
+	model: string | undefined;
+	thinkingLevel: ThinkingLevel | undefined;
+}) {
+	if (!model) return null;
+	return (
+		<div data-testid="model-call" data-model={model} data-level={thinkingLevel}>
+			<RunModelLabel model={model} thinkingLevel={thinkingLevel} />
+		</div>
+	);
+}
+
 function MessageWithCopy({
 	messageRole,
 	side,

@@ -79,4 +79,42 @@ describe("activity disclosure summaries", () => {
 		);
 		expect(liveMarkup).toContain('data-activity-node-label="4 steps"');
 	});
+
+	it("names every model call a collapsed run contains, in order and deduped", () => {
+		const markup = renderToStaticMarkup(
+			<ChatTurnView
+				row={{
+					kind: "activity",
+					id: "activity:a",
+					steps: [
+						{ ...tool("a", "read"), model: "deepseek/deepseek-v4-pro", thinkingLevel: "high" },
+						{
+							kind: "thinking",
+							id: "thinking-1",
+							text: "inspect first",
+							streaming: false,
+							tools: [
+								{
+									...tool("b", "edit"),
+									model: "deepseek/deepseek-flash",
+									thinkingLevel: "low",
+								},
+							],
+							model: "deepseek/deepseek-v4-pro",
+							thinkingLevel: "high",
+						},
+					],
+					live: false,
+				}}
+				agentResponded={false}
+				isFinalAnswer={false}
+			/>,
+		);
+
+		const labels = markup.match(/data-testid="model-effort-label"[^>]*title="([^"]+)"/g) ?? [];
+		expect(labels.join(" ")).toContain("deepseek/deepseek-v4-pro");
+		expect(labels.join(" ")).toContain("deepseek/deepseek-flash");
+		// The flagship call appears once even though two of its steps carry it.
+		expect(labels.filter((label) => label.includes("deepseek-v4-pro"))).toHaveLength(1);
+	});
 });

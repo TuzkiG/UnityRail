@@ -1,13 +1,22 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import type { AssistantMessage, StopReason, ToolResultMessage } from "@thinkrail/contracts";
+import type {
+	AssistantMessage,
+	StopReason,
+	ThinkingLevel,
+	ToolResultMessage,
+} from "@thinkrail/contracts";
 
 type FixtureAssistantMessage = {
 	role: "assistant";
 	timestamp: number;
 	stopReason?: StopReason;
 	errorMessage?: string;
+	/** Lets a fixture name the model call the transcript labels (`provider/id` on the wire). */
+	provider?: string;
+	model?: string;
+	thinkingLevel?: ThinkingLevel;
 } & ({ text: string; content?: never } | { text?: never; content: AssistantMessage["content"] });
 
 export type FixtureMessage =
@@ -82,6 +91,13 @@ export function writeFixtureSession(
 					...(m.role === "assistant" && m.stopReason ? { stopReason: m.stopReason } : {}),
 					...(m.role === "assistant" && m.errorMessage !== undefined
 						? { errorMessage: m.errorMessage }
+						: {}),
+					...(m.role === "assistant" && m.model
+						? {
+								provider: m.provider ?? "fixture",
+								model: m.model,
+								...(m.thinkingLevel ? { thinkingLevel: m.thinkingLevel } : {}),
+							}
 						: {}),
 					...(m.role === "toolResult"
 						? {

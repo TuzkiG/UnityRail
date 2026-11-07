@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { availableParallelism, tmpdir } from "node:os";
+import { availableParallelism } from "node:os";
 import { join } from "node:path";
+import { E2E_TMP_ROOT } from "./dataRoot";
 import { REAL_CENTRAL_E2E_ENV } from "./fixtures/centralAgent";
 import { holdE2eIdleSleep } from "./idleSleep";
 import {
@@ -34,8 +35,18 @@ function playwrightCommand(args: string[]): string[] {
 	return [bun, "x", "playwright", "test", "-c", PLAYWRIGHT_CONFIG, ...args];
 }
 
+function e2eTmpRoot(): string {
+	mkdirSync(E2E_TMP_ROOT, { recursive: true });
+	return E2E_TMP_ROOT;
+}
+
 function childEnv(): NodeJS.ProcessEnv {
 	const env: NodeJS.ProcessEnv = { ...process.env, THINKRAIL_E2E_SKIP_BUILD: "1" };
+	if (process.platform === "win32") {
+		const tmpRoot = e2eTmpRoot();
+		env.TMP = tmpRoot;
+		env.TEMP = tmpRoot;
+	}
 	delete env.THINKRAIL_E2E_LANE;
 	delete env.PLAYWRIGHT_BLOB_OUTPUT_FILE;
 	delete env[REAL_CENTRAL_E2E_ENV];
@@ -87,7 +98,7 @@ async function runShards(
 	job: JobShard | undefined,
 ): Promise<number> {
 	const startedAt = performance.now();
-	const reportDir = mkdtempSync(join(tmpdir(), "thinkrail-e2e-blobs-"));
+	const reportDir = mkdtempSync(join(e2eTmpRoot(), "thinkrail-e2e-blobs-"));
 	const children: Promise<number>[] = [];
 
 	console.log(

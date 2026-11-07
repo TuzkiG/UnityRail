@@ -57,7 +57,9 @@ then force-kills those same non-overlapping targets after a bounded grace even i
 profile temp folder: a fixture project must not inherit the machine owner's personal `.agents/skills`
 through the trust walk (the host's hermetic HOME is the lane's own, so `projectTrust`'s personal-dir
 exclusion cannot see the real profile), and a "plain folder" fixture must stay outside any git
-repository. Windows
+repository. Windows lanes keep their temp output under the same root (`.e2e-data/tmp`, injected as
+`TMP`/`TEMP`), so shard artifacts and the browser temp files they spawn stay out of the profile temp
+folder too. Windows
 first snapshots and retains
 descendant PIDs through PowerShell's `Get-CimInstance Win32_Process`, gracefully falls back when unavailable,
 and uses `taskkill /T` before a root fallback; force targets every retained PID with `taskkill /T /F`. Managed

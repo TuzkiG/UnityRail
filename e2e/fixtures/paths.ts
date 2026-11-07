@@ -3,6 +3,7 @@ import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { E2E_DATA_ROOT } from "../dataRoot";
 import { MAX_E2E_SHARDS } from "../shardPlan";
 import { claimPortBlock, PORT_BLOCK_SLOTS, PORT_BLOCK_STRIDE } from "./portBlock";
 
@@ -52,13 +53,6 @@ export const E2E_PORT = PORT_BASE;
 export const E2E_BINARY_PORT = PORT_BASE + 2;
 
 export const E2E_RESTART_PORT = PORT_BASE + 4;
-
-// Windows places per-user temp folders under the user profile, where a fixture project inherits the
-// machine owner's personal `.agents/skills` through the trust walk (the host's hermetic HOME is the
-// lane's own). The data root therefore sits next to the repository — outside the profile for that walk
-// and outside the repository itself so a "plain folder" fixture stays genuinely non-git.
-const E2E_DATA_ROOT =
-	process.platform === "win32" ? join(dirname(repoRoot), ".e2e-data") : tmpdir();
 
 export const E2E_DATA_DIR = join(E2E_DATA_ROOT, `thinkrail-e2e-${E2E_STATE_KEY}`);
 

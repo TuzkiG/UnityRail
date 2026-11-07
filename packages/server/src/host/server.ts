@@ -761,7 +761,7 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 	interruptWorkspaceCreations();
 	setProjectPathGuard((path) => {
 		if (creationOwnsPath(path))
-			throw new Error("This folder belongs to a workspace ThinkRail is still creating");
+			throw new Error("This folder belongs to a workspace UnityRail is still creating");
 	});
 	setWorkspaceCreationHandoff(workspaceCreationHandoff);
 	void replayPendingHandoffs().catch((err) => log.warn("replaying workspace handoffs failed", err));

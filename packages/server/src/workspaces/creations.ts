@@ -220,7 +220,7 @@ async function cleanupCreation(
 	const untouched = { clean: true, removed: false };
 	const taken = () => {
 		if (!managedPathOwned(record.worktreePath)) return false;
-		log.warn(`left ${record.worktreePath} alone: ThinkRail has it open now`);
+		log.warn(`left ${record.worktreePath} alone: UnityRail has it open now`);
 		return true;
 	};
 	if (taken()) return untouched;
@@ -568,7 +568,7 @@ export function retryWorkspaceCreation(id: string): WorkspaceCreation {
 	if (record.state === "running") return creationView(record);
 	if (discarding.has(id)) throw new Error("This workspace creation is being dismissed");
 	if (record.failure?.code === "WORKSPACE_PATH_TAKEN")
-		throw new Error("The workspace folder is now open elsewhere in ThinkRail; use Edit & retry");
+		throw new Error("The workspace folder is now open elsewhere in UnityRail; use Edit & retry");
 	const updated = updateCreation(id, (r) => {
 		r.state = "running";
 		r.phase = "preparing";

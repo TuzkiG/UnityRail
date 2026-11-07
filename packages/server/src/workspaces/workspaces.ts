@@ -147,7 +147,7 @@ export async function openExistingWorktree(
 	if (wantedPath === projectPath) return ensureDefaultWorkspace(project);
 	const assertNotCreating = () => {
 		if (creationPaths().has(wantedPath))
-			throw new Error("This worktree is still being created by ThinkRail");
+			throw new Error("This worktree is still being created by UnityRail");
 	};
 	assertNotCreating();
 
@@ -279,7 +279,7 @@ export function assertManagedPathFree(path: string): void {
 	if (managedPathOwned(path))
 		throw new CodedError(
 			"WORKSPACE_PATH_TAKEN",
-			`The workspace folder is already open in ThinkRail: ${path}`,
+			`The workspace folder is already open in UnityRail: ${path}`,
 		);
 }
 

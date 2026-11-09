@@ -78,6 +78,42 @@ test.each([
 	expect(parsed?.thinking).toBe(thinking);
 });
 
+test("resultSchema accepts inline JSON and a relative .json file, and is dropped when broken", () => {
+	const root = mkdtempSync(join(tmpdir(), "pi-subagents-schema-"));
+	try {
+		const schema = {
+			type: "object",
+			required: ["summary"],
+			properties: { summary: { type: "string" } },
+		};
+		writeFileSync(join(root, "result.json"), JSON.stringify(schema));
+		const inline = parseAgentDefinition(
+			definitionFile("inline", 'resultSchema: {"type":"object","required":["summary"]}\n'),
+			"personal",
+		);
+		expect(inline?.resultSchema).toEqual({ type: "object", required: ["summary"] });
+		const fromFile = parseAgentDefinition(
+			definitionFile("from-file", "resultSchema: result.json\n"),
+			"personal",
+			join(root, "from-file.md"),
+		);
+		expect(fromFile?.resultSchema).toEqual(schema);
+		const missing = parseAgentDefinition(
+			definitionFile("missing", "resultSchema: missing.json\n"),
+			"personal",
+			join(root, "missing.md"),
+		);
+		expect(missing?.resultSchema).toBeUndefined();
+		const invalid = parseAgentDefinition(
+			definitionFile("invalid", "resultSchema: {not json}\n"),
+			"personal",
+		);
+		expect(invalid?.resultSchema).toBeUndefined();
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
 test("malformed definitions are skipped, never fatal", () => {
 	expect(parseAgentDefinition("just a body", "personal")).toBeUndefined();
 	expect(parseAgentDefinition("---\nname: x\n---\nbody", "personal")).toBeUndefined();

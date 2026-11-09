@@ -20,6 +20,7 @@ import {
 import { Type } from "typebox";
 import { type AgentDefinition, discoverAgentDefinitions } from "./definitions";
 import { RECURSION_GUARD_TOOLS, toSpawnMapping } from "./mapping";
+import { structureResult } from "./structured";
 import { THINKING_LEVELS } from "./thinking";
 
 export const SUBAGENT_COMPLETION_MESSAGE = "subagent-completion";
@@ -35,6 +36,7 @@ export interface SubagentsExtensionOptions {
 	delegationRoot?: string;
 	scope?: string;
 	isEnabled?: () => boolean;
+	isStructuredResults?: () => boolean;
 	canDeliverCompletion?: () => boolean;
 }
 
@@ -101,6 +103,7 @@ interface HeldCompletion {
 	roleName: string;
 	child: ChildHandle;
 	stopped: boolean;
+	resultSchema?: AgentDefinition["resultSchema"];
 }
 
 type DeliveryMode = { idle: true } | { idle: false; runContinues: boolean };
@@ -129,6 +132,7 @@ function createOwner(options: SubagentsExtensionOptions, retained: boolean): Sub
 	let turnEnd: { runContinues: boolean } | undefined;
 	let owedWake = false;
 	const pending = new Set<HeldCompletion>();
+	const structuredResults = () => options.isStructuredResults?.() ?? false;
 
 	function dispose(): void {
 		closed = true;
@@ -160,14 +164,21 @@ function createOwner(options: SubagentsExtensionOptions, retained: boolean): Sub
 				if (closed || !sender) break;
 				const delivery = deliveryOf(mode, batchWakes, index);
 				const { outcome, roleName, child } = completion;
+				const report = structuredResults()
+					? structureResult(completion.resultSchema, outcome.finalText, boundedText(outcome))
+					: { text: boundedText(outcome) };
 				pending.delete(completion);
 				try {
 					sender.send(
 						{
 							customType: SUBAGENT_COMPLETION_MESSAGE,
-							content: `Subagent "${roleName}" (${child.sessionId}) ${outcome.status}:\n\n${boundedText(outcome)}`,
+							content: `Subagent "${roleName}" (${child.sessionId}) ${outcome.status}:\n\n${report.text}`,
 							display: true,
-							details: { ...outcome.details, delivery } satisfies SubagentCompletionDetails,
+							details: {
+								...outcome.details,
+								...(report.structured !== undefined ? { structured: report.structured } : {}),
+								delivery,
+							} satisfies SubagentCompletionDetails,
 						},
 						{ triggerTurn: completion === carrier },
 					);
@@ -364,7 +375,13 @@ ${known}`,
 						run
 							.then((outcome) => {
 								if (closed) return;
-								pending.add({ outcome, roleName: definition.name, child, stopped: false });
+								pending.add({
+									outcome,
+									roleName: definition.name,
+									child,
+									stopped: false,
+									resultSchema: definition.resultSchema,
+								});
 								flushCompletions();
 							})
 							.catch(() => {});
@@ -390,9 +407,15 @@ ${known}`,
 							`Subagent "${definition.name}" (${child.sessionId}) failed: ${boundedText(outcome)}`,
 						);
 					}
+					const report = structuredResults()
+						? structureResult(definition.resultSchema, outcome.finalText, boundedText(outcome))
+						: { text: boundedText(outcome) };
 					return {
-						content: [{ type: "text", text: boundedText(outcome) }],
-						details: outcome.details,
+						content: [{ type: "text", text: report.text }],
+						details: {
+							...outcome.details,
+							...(report.structured !== undefined ? { structured: report.structured } : {}),
+						},
 					};
 				},
 			});
@@ -459,9 +482,22 @@ ${known}`,
 							details: snapshot.details,
 						};
 					}
+					const roleName = child.record.info.roleName;
+					const definition =
+						roleName === undefined
+							? undefined
+							: discoverFor(ctx).find((entry) => entry.name === roleName);
+					const fallback = pulledReport({ ...snapshot, status });
+					const report =
+						structuredResults() && definition !== undefined
+							? structureResult(definition.resultSchema, snapshot.finalText, fallback)
+							: { text: fallback };
 					return {
-						content: [{ type: "text", text: pulledReport({ ...snapshot, status }) }],
-						details: snapshot.details,
+						content: [{ type: "text", text: report.text }],
+						details: {
+							...snapshot.details,
+							...(report.structured !== undefined ? { structured: report.structured } : {}),
+						},
 					};
 				},
 			});

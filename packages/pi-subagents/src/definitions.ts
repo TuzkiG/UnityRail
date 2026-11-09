@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
+import type { TSchema } from "typebox";
 import { BUILTIN_AGENTS } from "./builtins";
 import { isThinkingLevel } from "./thinking";
 
@@ -17,6 +18,7 @@ export interface AgentDefinition {
 	inheritProjectContext?: boolean;
 	skills?: string[];
 	extensions?: boolean;
+	resultSchema?: TSchema;
 	systemPrompt: string;
 }
 
@@ -33,6 +35,25 @@ function parseNameList(value: string): string[] {
 		.split(",")
 		.map((name) => name.trim().replace(/^["']|["']$/g, ""))
 		.filter((name) => name.length > 0);
+}
+
+function parseResultSchema(
+	value: string | undefined,
+	filePath: string | undefined,
+): TSchema | undefined {
+	if (!value) return undefined;
+	try {
+		const source = value.trim().startsWith("{")
+			? value
+			: filePath === undefined
+				? undefined
+				: readFileSync(resolve(dirname(filePath), value.trim()), "utf8");
+		if (source === undefined) return undefined;
+		const parsed: unknown = JSON.parse(source);
+		return typeof parsed === "object" && parsed !== null ? (parsed as TSchema) : undefined;
+	} catch {
+		return undefined;
+	}
 }
 
 export function parseAgentDefinition(
@@ -61,6 +82,10 @@ export function parseAgentDefinition(
 	const tools = fields.get("tools");
 	const skills = fields.get("skills");
 	const model = fields.get("model");
+	const resultSchema = parseResultSchema(
+		fields.get("resultSchema") ?? fields.get("result_schema"),
+		filePath,
+	);
 	return {
 		name,
 		description,
@@ -73,6 +98,7 @@ export function parseAgentDefinition(
 		...(fields.get("inherit_project_context") === "true" ? { inheritProjectContext: true } : {}),
 		...(skills !== undefined ? { skills: parseNameList(skills) } : {}),
 		...(fields.get("extensions") === "true" ? { extensions: true } : {}),
+		...(resultSchema !== undefined ? { resultSchema } : {}),
 		systemPrompt,
 	};
 }

@@ -30,7 +30,11 @@ import {
 	scheduleSessionStatePublish,
 } from "./agentSessionManager";
 import { archiveSubagentRun, publishSessionResourcesChanged } from "./chatResources";
-import { childBaseExtensionFactories, childExtensionFactories } from "./extensions";
+import {
+	childBaseExtensionFactories,
+	childExtensionFactories,
+	extensionSettings,
+} from "./extensions";
 import { getPiRuntime } from "./piRuntime";
 import { isHostResourceId, isPiSessionId } from "./resourceIdentity";
 import {
@@ -136,6 +140,7 @@ export function subagentsFor(
 		delegationRoot: delegationRootDir(),
 		scope: workspaceId,
 		isEnabled,
+		isStructuredResults: () => extensionSettings()["oh-my-pi"]?.structuredResults === true,
 		canDeliverCompletion,
 	});
 }

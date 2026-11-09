@@ -45,6 +45,13 @@ choice was settled: the decision log below.
   delivery, clear pending claims and ignore future outcomes; rebinding cannot reopen it. Embedders must
   explicitly dispose the owner because Pi's `AgentSession.dispose()` emits no extension shutdown event.
   The foreground error-details stash remains runner-local.
+- `isStructuredResults` (host-gated by the `oh-my-pi` extension's `structuredResults` toggle) turns the
+  definition's optional `resultSchema` into a result contract: a final text that parses as JSON (a
+  single fenced block is unwrapped) and validates against the schema is returned as pretty-printed JSON
+  plus `details.structured`; a mismatch appends the validation errors to the bounded text and leaves
+  `details.structured` absent, so a failed contract is visible to the parent instead of silently
+  passing as prose. Foreground, background completion and `get_subagent_result` all apply the same
+  shaping; the pulled path resolves the definition from `record.info.roleName` at pull time.
 - `isEnabled` controls tool availability and launch, independently of completion delivery. It defaults
   to enabled, removes both tools from the active set at `session_start` when false and is rechecked before
   child assembly and after asynchronous setup, immediately before `runQueued`. A late disable disposes
@@ -125,7 +132,9 @@ self-commit fragments the parent's history and detaches the work from whatever t
 UnityRail, the per-plan-step commit map); the parent/host owns
 committing, git-read stays open. User-authored definitions keep the community `.md` + frontmatter convention
 (`name`, `description`, `tools`, `model`, `thinking`, `max_turns`, `inherit_project_context`,
-`skills`, `extensions`; body = system prompt). Malformed files are skipped, never fatal. All four
+`skills`, `extensions`, `result_schema` (alias `resultSchema`) — inline JSON object or a path relative to
+the definition file; body = system prompt). Malformed files are skipped, never fatal, and a schema that
+is not a JSON object is dropped rather than failing the definition. All four
 builtins set `extensions: true` (the embedder's curated child set — inert under pure-pi
 zero-config) with the spec READ tools (`spec_grep`/`spec_get`/`spec_graph`) allowlisted for the
 read-only roles and web tools (`web_search`/`fetch_content`) for the scout. The reviewer alone opts

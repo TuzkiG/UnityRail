@@ -22,6 +22,7 @@ import { LanguageSettings } from "./LanguageSettings";
 import { McpSettings } from "./McpSettings";
 import { ModelsSettings } from "./ModelsSettings";
 import { NotificationsSettings } from "./NotificationsSettings";
+import { OhMyPiSettings } from "./OhMyPiSettings";
 import { PrivacySettings } from "./PrivacySettings";
 import { ProvidersSettings } from "./ProvidersSettings";
 import { SettingsDialogContainer } from "./settingsDialogContainer";
@@ -144,6 +145,8 @@ export function SettingsDialog({
 								<EnvironmentSettings />
 							) : selectedSection === SettingsSection.Extensions ? (
 								<ExtensionsSettings />
+							) : selectedSection === SettingsSection.OhMyPi ? (
+								<OhMyPiSettings />
 							) : selectedSection === SettingsSection.Chat ? (
 								<ChatSettings />
 							) : selectedSection === SettingsSection.Appearance ? (

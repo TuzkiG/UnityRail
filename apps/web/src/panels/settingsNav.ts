@@ -4,6 +4,7 @@ import {
 	RiBrainLine,
 	RiChat2Line,
 	RiDownloadCloud2Line,
+	RiFlashlightLine,
 	RiFolderSettingsLine,
 	RiGitRepositoryLine,
 	RiKeyboardLine,
@@ -21,6 +22,7 @@ import {
 import {
 	DEFAULT_MODEL_PROTOCOL_VERSION,
 	EXTENSION_CATALOG_PROTOCOL_VERSION,
+	EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION,
 	HOST_ENVIRONMENT_PROTOCOL_VERSION,
 	LOCALES_PROTOCOL_VERSION,
 	MCP_PROTOCOL_VERSION,
@@ -94,6 +96,12 @@ const NAV_GROUPS: SettingsNavGroup[] = [
 				requiresProtocolVersion: WORKSPACE_SETTLE_PROTOCOL_VERSION,
 			},
 			{ id: SettingsSection.Github, label: "settings.nav.github", icon: RiApps2Line },
+			{
+				id: SettingsSection.OhMyPi,
+				label: "settings.nav.ohMyPi",
+				icon: RiFlashlightLine,
+				requiresProtocolVersion: EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION,
+			},
 			{
 				id: SettingsSection.Extensions,
 				label: "settings.nav.extensions",

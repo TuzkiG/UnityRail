@@ -3,6 +3,7 @@ import { RiBrainLine } from "@remixicon/react";
 import {
 	DEFAULT_MODEL_PROTOCOL_VERSION,
 	EXTENSION_CATALOG_PROTOCOL_VERSION,
+	EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION,
 	MCP_PROTOCOL_VERSION,
 	WORKSPACE_SETTLE_PROTOCOL_VERSION,
 } from "@thinkrail/contracts";
@@ -25,6 +26,7 @@ const GATED = [
 	SettingsSection.Models,
 	SettingsSection.Mcp,
 	SettingsSection.Extensions,
+	SettingsSection.OhMyPi,
 	SettingsSection.Workspaces,
 ];
 
@@ -83,6 +85,7 @@ describe("settingsNavGroups", () => {
 			[SettingsSection.Models, DEFAULT_MODEL_PROTOCOL_VERSION],
 			[SettingsSection.Mcp, MCP_PROTOCOL_VERSION],
 			[SettingsSection.Extensions, EXTENSION_CATALOG_PROTOCOL_VERSION],
+			[SettingsSection.OhMyPi, EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION],
 			[SettingsSection.Workspaces, WORKSPACE_SETTLE_PROTOCOL_VERSION],
 		] as const;
 		for (const [id, version] of gates) {

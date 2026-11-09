@@ -67,6 +67,7 @@
         "@shikijs/langs": "4.5.0",
         "@thinkrail/contracts": "workspace:*",
         "@thinkrail/ext-ask-user-question": "workspace:*",
+        "@thinkrail/ext-oh-my-pi": "workspace:*",
         "@thinkrail/ext-unity": "workspace:*",
         "@thinkrail/ext-visualize": "workspace:*",
         "@thinkrail/extension-api": "workspace:*",
@@ -343,6 +344,7 @@
         "@stroncium/procfs": "1.2.1",
         "@thinkrail/contracts": "workspace:*",
         "@thinkrail/ext-ask-user-question": "workspace:*",
+        "@thinkrail/ext-oh-my-pi": "workspace:*",
         "@thinkrail/ext-unity": "workspace:*",
         "@thinkrail/ext-visualize": "workspace:*",
         "@thinkrail/ext-web-access": "workspace:*",
@@ -502,6 +504,23 @@
         "@types/react-dom": "catalog:",
         "react-dom": "catalog:",
         "typescript": "catalog:",
+      },
+    },
+    "thinkrail-extensions/oh-my-pi": {
+      "name": "@thinkrail/ext-oh-my-pi",
+      "version": "0.0.0",
+      "dependencies": {
+        "@thinkrail/extension-api": "workspace:*",
+        "@thinkrail/locales": "workspace:*",
+        "typebox": "catalog:",
+      },
+      "devDependencies": {
+        "@earendil-works/pi-coding-agent": "catalog:",
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
+      },
+      "peerDependencies": {
+        "@earendil-works/pi-coding-agent": "*",
       },
     },
     "thinkrail-extensions/unity": {
@@ -1303,6 +1322,8 @@
     "@thinkrail/desktop": ["@thinkrail/desktop@workspace:apps/desktop"],
 
     "@thinkrail/ext-ask-user-question": ["@thinkrail/ext-ask-user-question@workspace:thinkrail-extensions/ask-user-question"],
+
+    "@thinkrail/ext-oh-my-pi": ["@thinkrail/ext-oh-my-pi@workspace:thinkrail-extensions/oh-my-pi"],
 
     "@thinkrail/ext-unity": ["@thinkrail/ext-unity@workspace:thinkrail-extensions/unity"],
 

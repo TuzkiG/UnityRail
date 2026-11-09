@@ -1215,7 +1215,20 @@ a project picker, the prompt hero, and the reused
   `MessageKey` map — a setting without copy is not shown), valued from **`store.extensionSettings`** else the
   declared default, disabled while the extension is off, and written one key at a time through
   `settings.update { extensionSettings: { name: { key: value } } }` (the host merges); they appear only
-  while `supportsExtensionSettings(protocolVersion)` holds. **Installed** and **pi built-in**
+  while `supportsExtensionSettings(protocolVersion)` holds. **String settings** are not rendered there — the
+  generic page has copy only for the booleans it knows — so an extension that declares one edits it on its
+  own page (`OhMyPiSettings` below); the host rejects a value whose type disagrees with the descriptor.
+
+  **`OhMyPiSettings`** (the **Oh my pi** section, nav `settings-nav-oh-my-pi`, listed only at
+  `protocolVersion >= EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION`) is one `SettingsGroup` per switch of
+  `@thinkrail/ext-oh-my-pi`, rendered by iterating the extension's own key lists (`OH_MY_PI_TOGGLES`,
+  `OH_MY_PI_FIELDS`) with its total `MessageKey` copy maps, so a key added to the extension appears here or
+  fails the typecheck. Each group holds the switch (`oh-my-pi-toggle-<key>`, valued from
+  `store.extensionSettings["oh-my-pi"]`) and its text rows (`oh-my-pi-input-<key>`, `useSettingsDraft` +
+  `saveSettings`, so a rejected write reverts); both write
+  `settings.update { extensionSettings: { "oh-my-pi": { key } } }` and converge on the broadcast. Against an
+  older host the page renders only its description and disabled controls. The six capabilities behind the
+  switches are the extension's business, not the panel's. **Installed** and **pi built-in**
   (`PiPackagesSettings.tsx`, props-driven; every `packages.*` request and the row state live in the
   **`usePiPackages`** hook, `usePiPackages.ts`, so the page component only composes) exist only while
   `supportsPiPackages(protocolVersion)` holds — against an older host the page is the bundled group
@@ -1299,7 +1312,7 @@ a project picker, the prompt hero, and the reused
   live in `panels/environmentDraft.ts`; the props-driven `EnvironmentForm` is what tests render. No folder
   picker: `dialog.selectDirectory` is the project-setup picker and records setup analytics.
   `ProvidersSettings`/`McpSettings`/`AppearanceSettings`/`LineWidthControl`/`ChatSettings`/`TemplatesSettings`/
-  `WorkspacesSettings`/`PrivacySettings`/`ModelsSettings`/`FeedbackSettings`/`ExtensionsSettings`/`EnvironmentSettings`, the onboarding
+  `WorkspacesSettings`/`PrivacySettings`/`ModelsSettings`/`FeedbackSettings`/`ExtensionsSettings`/`OhMyPiSettings`/`EnvironmentSettings`, the onboarding
   `ConnectProviderDialog`/`CreateProjectDialog`/`OnboardingWizard`, and the app-wide **`SurveyInvitationDialog`** /
   **`SurveyWindow`** are the panels-owned **integration pieces** (store + transport).
   `SettingsDialog` receives the Layout section from the

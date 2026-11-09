@@ -171,6 +171,7 @@ import {
 	openProject,
 	renameProject,
 	setProjectGroupEnabled,
+	setProjectNewWorkspaceTarget,
 	setProjectSkillEnabled,
 	setProjectTrust,
 	startProjectClone,
@@ -1323,6 +1324,9 @@ const handlers: WsHandlers = {
 	},
 	"project.setGroupEnabled": (p) => {
 		return setProjectGroupEnabled(p.id, p.group, p.enabled);
+	},
+	"project.setNewWorkspaceTarget": (p) => {
+		return setProjectNewWorkspaceTarget(p.id, p.target);
 	},
 	"project.skills": (params) => {
 		const { projectId } = params;

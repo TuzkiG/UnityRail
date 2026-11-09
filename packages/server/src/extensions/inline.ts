@@ -3,13 +3,20 @@ import type {
 	InlineExtension,
 	LoadExtensionsResult,
 } from "@earendil-works/pi-coding-agent";
-import type { ExtensionSessionServices, ServerExtension } from "@thinkrail/extension-api/server";
+import type {
+	ExtensionSessionServices,
+	ExtensionSetting,
+	ServerExtension,
+} from "@thinkrail/extension-api/server";
 import { type ServerExtensionEntry, serverExtensions } from "./registry";
 
 export type RegistryExtensionKind = "extensions" | "childExtensions";
 export type ExtensionDisabled = (name: string) => boolean;
-export type HostSessionServices = Omit<ExtensionSessionServices, "setting">;
-export type ExtensionSettingValue = (extension: string, key: string) => boolean | undefined;
+export type HostSessionServices = Omit<ExtensionSessionServices, "setting" | "stringSetting">;
+export type ExtensionSettingValue = (
+	extension: string,
+	key: string,
+) => boolean | string | undefined;
 
 const never: ExtensionDisabled = () => false;
 const noValues: ExtensionSettingValue = () => undefined;
@@ -19,12 +26,28 @@ export function extensionSessionServices(
 	host: HostSessionServices,
 	settingValue: ExtensionSettingValue = noValues,
 ): ExtensionSessionServices {
+	const declared = (key: string): ExtensionSetting => {
+		const setting = extension.settings?.[key];
+		if (!setting) throw new Error(`extension ${extension.name} has no setting "${key}"`);
+		return setting;
+	};
 	return {
 		...host,
 		setting: (key) => {
-			const declared = extension.settings?.[key];
-			if (!declared) throw new Error(`extension ${extension.name} has no setting "${key}"`);
-			return settingValue(extension.name, key) ?? declared.default;
+			const setting = declared(key);
+			if (setting.type !== "boolean") {
+				throw new Error(`extension ${extension.name} setting "${key}" is not a boolean`);
+			}
+			const value = settingValue(extension.name, key);
+			return typeof value === "boolean" ? value : setting.default;
+		},
+		stringSetting: (key) => {
+			const setting = declared(key);
+			if (setting.type !== "string") {
+				throw new Error(`extension ${extension.name} setting "${key}" is not a string`);
+			}
+			const value = settingValue(extension.name, key);
+			return typeof value === "string" ? value : setting.default;
 		},
 	};
 }

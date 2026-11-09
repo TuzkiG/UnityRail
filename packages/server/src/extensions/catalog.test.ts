@@ -28,7 +28,7 @@ describe("listExtensionCatalog", () => {
 				enabled: true,
 				tools: ["ask_user_question"],
 				hasChildExtensions: false,
-				settings: [{ key: "richPreviews", default: true }],
+				settings: [{ key: "richPreviews", type: "boolean", default: true }],
 			},
 			{
 				name: "web-access",
@@ -54,14 +54,40 @@ describe("listExtensionCatalog", () => {
 					"unity_screenshot",
 					"unity_tests",
 					"unity_verify",
+					"unity_edit_scene",
+					"unity_project_action",
 					"unity_status",
 					"unity_hierarchy",
 					"unity_inspect",
 					"unity_find",
 					"unity_open",
 					"unity_select",
+					"unity_editor_tool",
 				],
 				hasChildExtensions: false,
+			},
+			{
+				name: "oh-my-pi",
+				title: "Oh my pi",
+				description: expect.any(String),
+				enabled: true,
+				tools: [],
+				hasChildExtensions: false,
+				settings: [
+					{ key: "advisor", type: "boolean", default: false },
+					{ key: "hashline", type: "boolean", default: false },
+					{ key: "lspDiagnostics", type: "boolean", default: false },
+					{ key: "modelRouting", type: "boolean", default: false },
+					{ key: "rules", type: "boolean", default: false },
+					{ key: "structuredResults", type: "boolean", default: false },
+					{ key: "advisorModel", type: "string", default: "" },
+					{ key: "apiKeys", type: "string", default: "" },
+					{ key: "lspCommands", type: "string", default: "" },
+					{ key: "routerDefault", type: "string", default: "" },
+					{ key: "routerFallback", type: "string", default: "" },
+					{ key: "routerFast", type: "string", default: "" },
+					{ key: "rulesDir", type: "string", default: "" },
+				],
 			},
 		]);
 		const [visualize, ask] = await listExtensionCatalog(new Set(["visualize", "retired"]));
@@ -89,7 +115,7 @@ describe("listExtensionCatalog", () => {
 		];
 		const [entry] = await listExtensionCatalog(new Set(), entries);
 		expect(entry?.tools).toEqual(["demo"]);
-		expect(entry?.settings).toEqual([{ key: "rich", default: false }]);
+		expect(entry?.settings).toEqual([{ key: "rich", type: "boolean", default: false }]);
 		expect(read).toEqual([false]);
 	});
 

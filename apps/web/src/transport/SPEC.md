@@ -182,7 +182,9 @@ The browser never scrubs or holds a vendor client: the host is the only sanitize
   is the one binary upload — a `PUT` of the raw file to the host's `/fonts/` route with the upload guard
   header, answered by that file's `UserFontFile` entry — while `hostUrl` resolves a host-relative path
   (custom face URLs) against the endpoint; `supportsExtensionSettings` (v105) lets `ExtensionsSettings`
-  offer per-extension setting switches only to a host that stores `extensionSettings`; `supportsPlanReview` is exported
+  offer per-extension setting switches only to a host that stores `extensionSettings`, while
+  `supportsExtensionStringSettings` (v111) gates `OhMyPiSettings` and its text fields — a v105-v110 host
+  stored booleans only and rejects a string write; `supportsPlanReview` is exported
   because a sibling panel (`PlanPane`) gates the plan-review UI on it — an older host serves no
   `todo.startReview`/`reviewAll`, so the client must not offer them; `supportsPlanSummaryGeneration` (v69) is
   exported because `chat/useChatTodos` gates the auto-summary `todo.generateSummary` request on it — an older

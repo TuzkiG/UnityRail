@@ -389,10 +389,11 @@ function storedExtensionSettings(value: unknown): ExtensionSettingValues {
 	const result: ExtensionSettingValues = {};
 	for (const [name, settings] of Object.entries(value)) {
 		if (!settings || typeof settings !== "object" || Array.isArray(settings)) continue;
-		const flags = Object.entries(settings).filter(
-			(entry): entry is [string, boolean] => typeof entry[1] === "boolean",
+		const values = Object.entries(settings).filter(
+			(entry): entry is [string, boolean | string] =>
+				typeof entry[1] === "boolean" || typeof entry[1] === "string",
 		);
-		if (flags.length > 0) result[name] = Object.fromEntries(flags);
+		if (values.length > 0) result[name] = Object.fromEntries(values);
 	}
 	return result;
 }

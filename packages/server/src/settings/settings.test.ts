@@ -471,10 +471,10 @@ test("extension settings merge per extension and key, persist, and drop non-bool
 		other: true,
 	});
 
-	for (const value of [null, [], { x: true }, { x: { flag: "yes" } }, { "": { flag: true } }]) {
+	for (const value of [null, [], { x: true }, { x: { flag: 1 } }, { "": { flag: true } }]) {
 		const invalid = { extensionSettings: value } as unknown as AppConfigUpdate;
 		expect(() => updateConfig(invalid)).toThrow(
-			"extensionSettings must map extension names to boolean settings",
+			"extensionSettings must map extension names to boolean or string settings",
 		);
 	}
 
@@ -483,7 +483,7 @@ test("extension settings merge per extension and key, persist, and drop non-bool
 		JSON.stringify({ extensionSettings: { a: { on: true, bad: "x" }, b: "nope", c: { bad: 1 } } }),
 	);
 	resetConfigCache();
-	expect(getConfig().extensionSettings).toEqual({ a: { on: true } });
+	expect(getConfig().extensionSettings).toEqual({ a: { on: true, bad: "x" } });
 });
 
 test("disabled packages default empty, round-trip deduped, and reject a malformed list", () => {

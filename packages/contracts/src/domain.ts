@@ -57,6 +57,9 @@ export function firstPromptOfTexts(texts: Iterable<string>): string | undefined 
 	return undefined;
 }
 
+/** What a project's New-Workspace dialog preselects; absent reads as `"worktree"` (isolation stays the app default). */
+export type NewWorkspaceTarget = "worktree" | "default";
+
 export interface Project {
 	id: string;
 	name: string;
@@ -65,6 +68,8 @@ export interface Project {
 	lastOpened: number;
 	closed?: true;
 	trusted?: boolean;
+	/** Preselects the dialog's target only — never forces it, so a user can still switch per creation. */
+	newWorkspaceTarget?: NewWorkspaceTarget;
 	acknowledgedSkills?: string[];
 	disabledSkills?: string[];
 	disabledGroups?: string[];
@@ -1551,11 +1556,15 @@ export interface AppConfig extends ThemePreference {
 	fontWeightOffset: number;
 }
 
-export type ExtensionSettingValues = Record<string, Record<string, boolean>>;
+export type ExtensionSettingValue = boolean | string;
+
+export type ExtensionSettingValues = Record<string, Record<string, ExtensionSettingValue>>;
 
 export interface ExtensionSettingDescriptor {
 	key: string;
-	default: boolean;
+	/** Absent on hosts that predate string settings; such a descriptor is a boolean. */
+	type?: "boolean" | "string";
+	default: ExtensionSettingValue;
 }
 
 export interface ExtensionCatalogEntry {

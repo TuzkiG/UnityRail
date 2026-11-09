@@ -53,6 +53,7 @@ describe("defineServerExtension", () => {
 			expectToolResponse: () => {},
 			awaitToolResponse: async () => ({ kind: "deferred" }),
 			setting: () => false,
+			stringSetting: () => "",
 			workspaceFiles: { check: async () => {}, scratchDir: "" },
 		};
 		expect(extension.sessionExtensions?.(session)).toEqual([sessionFactory]);

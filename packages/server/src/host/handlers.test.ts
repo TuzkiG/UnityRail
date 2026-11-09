@@ -633,10 +633,10 @@ test("settings.update merges extension settings per key and rejects a malformed 
 	await expect(
 		handleRequest(
 			"settings.update",
-			{ config: { extensionSettings: { "ask-user-question": { richPreviews: "no" } } } } as never,
+			{ config: { extensionSettings: { "ask-user-question": { richPreviews: 1 } } } } as never,
 			CTX,
 		),
-	).rejects.toThrow("extensionSettings must map extension names to boolean settings");
+	).rejects.toThrow("extensionSettings must map extension names to boolean or string settings");
 });
 
 test("extension.list reflects disabledExtensions written through settings.update", async () => {
@@ -656,7 +656,7 @@ test("extension.list reflects disabledExtensions written through settings.update
 			enabled: true,
 			tools: ["ask_user_question"],
 			hasChildExtensions: false,
-			settings: [{ key: "richPreviews", default: true }],
+			settings: [{ key: "richPreviews", type: "boolean", default: true }],
 		},
 		{
 			name: "web-access",
@@ -694,6 +694,29 @@ test("extension.list reflects disabledExtensions written through settings.update
 			],
 			hasChildExtensions: false,
 		},
+		{
+			name: "oh-my-pi",
+			title: "Oh my pi",
+			description: expect.any(String),
+			enabled: true,
+			tools: [],
+			hasChildExtensions: false,
+			settings: [
+				{ key: "advisor", type: "boolean", default: false },
+				{ key: "hashline", type: "boolean", default: false },
+				{ key: "lspDiagnostics", type: "boolean", default: false },
+				{ key: "modelRouting", type: "boolean", default: false },
+				{ key: "rules", type: "boolean", default: false },
+				{ key: "structuredResults", type: "boolean", default: false },
+				{ key: "advisorModel", type: "string", default: "" },
+				{ key: "apiKeys", type: "string", default: "" },
+				{ key: "lspCommands", type: "string", default: "" },
+				{ key: "routerDefault", type: "string", default: "" },
+				{ key: "routerFallback", type: "string", default: "" },
+				{ key: "routerFast", type: "string", default: "" },
+				{ key: "rulesDir", type: "string", default: "" },
+			],
+		},
 	]);
 	await handleRequest(
 		"settings.update",
@@ -705,6 +728,7 @@ test("extension.list reflects disabledExtensions written through settings.update
 		{ name: "ask-user-question", enabled: true },
 		{ name: "web-access", enabled: false },
 		{ name: "unity", enabled: true },
+		{ name: "oh-my-pi", enabled: true },
 	]);
 	await handleRequest("settings.update", { config: { disabledExtensions: [] } }, CTX);
 	expect(await handleRequest("extension.list", {}, CTX)).toMatchObject([
@@ -712,6 +736,7 @@ test("extension.list reflects disabledExtensions written through settings.update
 		{ name: "ask-user-question", enabled: true },
 		{ name: "web-access", enabled: true },
 		{ name: "unity", enabled: true },
+		{ name: "oh-my-pi", enabled: true },
 	]);
 });
 

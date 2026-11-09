@@ -383,7 +383,7 @@ export async function buildResourceLoader(
 	let disabledAtReload = disabledExtensions();
 	const isDisabledAtReload = (name: string): boolean => disabledAtReload.has(name);
 	let settingsAtReload = extensionSettings();
-	const settingAtReload = (extension: string, key: string): boolean | undefined =>
+	const settingAtReload = (extension: string, key: string): boolean | string | undefined =>
 		settingsAtReload[extension]?.[key];
 	const sharedFactories: InlineExtension[] = [
 		...registryInlineExtensions(

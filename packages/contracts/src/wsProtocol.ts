@@ -40,6 +40,7 @@ import type {
 	McpStatusSnapshot,
 	MergeMethod,
 	MergePrResult,
+	NewWorkspaceTarget,
 	OpenBranchReview,
 	OpenPrResult,
 	PiPackageResourceType,
@@ -171,7 +172,9 @@ export type TemplateReadLocation =
 	| { projectId: string; workspaceId?: never }
 	| { workspaceId?: never; projectId?: never };
 
-export const PROTOCOL_VERSION = 109;
+export const PROTOCOL_VERSION = 111;
+export const PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION = 110;
+export const EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION = 111;
 export const AUTO_MODEL_SETTING_PROTOCOL_VERSION = 107;
 export const AUTO_REASONING_PROTOCOL_VERSION = 109;
 export const UNITY_PROTOCOL_VERSION = 105;
@@ -317,6 +320,7 @@ export const WS_METHODS = {
 	projectAliasSkills: "project.aliasSkills",
 	projectTrustSummary: "project.trustSummary",
 	projectSetGroupEnabled: "project.setGroupEnabled",
+	projectSetNewWorkspaceTarget: "project.setNewWorkspaceTarget",
 	projectSkills: "project.skills",
 	workspaceCreate: "workspace.create",
 	workspaceStartCreate: "workspace.startCreate",
@@ -848,6 +852,10 @@ export interface WsMethodMap {
 	"project.trustSummary": { params: { projectId: string }; result: ProjectTrustSummary };
 	"project.setGroupEnabled": {
 		params: { id: string; group: string; enabled: boolean };
+		result: Project;
+	};
+	"project.setNewWorkspaceTarget": {
+		params: { id: string; target: NewWorkspaceTarget };
 		result: Project;
 	};
 	"project.skills": { params: { projectId: string }; result: SkillCatalogEntry[] };

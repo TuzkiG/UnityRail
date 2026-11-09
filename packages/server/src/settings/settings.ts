@@ -111,18 +111,20 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function validateExtensionSettings(value: unknown): ExtensionSettingValues {
-	const invalid = () => new Error("extensionSettings must map extension names to boolean settings");
+	const invalid = () =>
+		new Error("extensionSettings must map extension names to boolean or string settings");
 	if (!isPlainObject(value)) throw invalid();
 	const result: ExtensionSettingValues = {};
 	for (const [name, settings] of Object.entries(value)) {
 		if (name.trim().length === 0 || !isPlainObject(settings)) throw invalid();
 		const entries = Object.entries(settings);
-		const flags = entries.filter(
-			(entry): entry is [string, boolean] =>
-				entry[0].trim().length > 0 && typeof entry[1] === "boolean",
+		const values = entries.filter(
+			(entry): entry is [string, boolean | string] =>
+				entry[0].trim().length > 0 &&
+				(typeof entry[1] === "boolean" || typeof entry[1] === "string"),
 		);
-		if (flags.length !== entries.length) throw invalid();
-		result[name] = Object.fromEntries(flags);
+		if (values.length !== entries.length) throw invalid();
+		result[name] = Object.fromEntries(values);
 	}
 	return result;
 }

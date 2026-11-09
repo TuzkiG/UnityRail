@@ -52,6 +52,7 @@ function compose(
 			if (key !== "richPreviews") throw new Error(`unexpected setting ${key}`);
 			return richPreviews();
 		},
+		stringSetting: () => "",
 		workspaceFiles: { check, scratchDir: ".thinkrail/context/mockups/" },
 	};
 	const factories = askUserQuestion.sessionExtensions?.(session) ?? [];

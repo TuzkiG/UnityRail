@@ -45,6 +45,7 @@ async function describeEntry(entry: ServerExtensionEntry): Promise<ExtensionDesc
 	const tools = (await Promise.all(factories.map(recordToolNames))).flat();
 	const settings = Object.entries(extension.settings ?? {}).map(([key, setting]) => ({
 		key,
+		type: setting.type,
 		default: setting.default,
 	}));
 	return {

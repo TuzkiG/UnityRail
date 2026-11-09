@@ -1,6 +1,7 @@
 import type {
 	ExtensionCatalogEntry,
 	ExtensionSettingDescriptor,
+	ExtensionSettingValue,
 	ExtensionSettingValues,
 } from "@thinkrail/contracts";
 import type { MessageKey } from "@thinkrail/locales";
@@ -48,7 +49,7 @@ function ExtensionSettingRow({
 }: {
 	entry: ExtensionCatalogEntry;
 	setting: ExtensionSettingDescriptor;
-	value: boolean;
+	value: ExtensionSettingValue;
 	onChange: (value: boolean) => void;
 }) {
 	const t = useT();
@@ -70,7 +71,7 @@ function ExtensionSettingRow({
 				<span className="text-text-muted tr-text-metadata">{t(copy.description)}</span>
 			</div>
 			<Switch
-				checked={value}
+				checked={value === true}
 				disabled={!entry.enabled}
 				label={t(copy.title)}
 				testId={`extension-setting-toggle-${entry.name}-${setting.key}`}
@@ -147,15 +148,17 @@ export function ExtensionsCatalog({
 							/>
 						</div>
 						{onSetting
-							? (entry.settings ?? []).map((setting) => (
-									<ExtensionSettingRow
-										key={setting.key}
-										entry={{ ...entry, enabled }}
-										setting={setting}
-										value={settings[entry.name]?.[setting.key] ?? setting.default}
-										onChange={(value) => onSetting(entry.name, setting.key, value)}
-									/>
-								))
+							? (entry.settings ?? [])
+									.filter((setting) => setting.type !== "string")
+									.map((setting) => (
+										<ExtensionSettingRow
+											key={setting.key}
+											entry={{ ...entry, enabled }}
+											setting={setting}
+											value={settings[entry.name]?.[setting.key] ?? setting.default}
+											onChange={(value) => onSetting(entry.name, setting.key, value)}
+										/>
+									))
 							: null}
 					</li>
 				);

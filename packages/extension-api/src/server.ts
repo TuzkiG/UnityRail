@@ -14,6 +14,8 @@ export interface ExtensionSessionServices {
 	expectToolResponse(toolCallId: string): void;
 	awaitToolResponse(toolCallId: string, signal: AbortSignal | undefined): Promise<ToolResponse>;
 	setting(key: string): boolean;
+	/** A setting declared as `{ type: "string" }`; throws when the key is unknown or is a boolean. */
+	stringSetting(key: string): string;
 	workspaceFiles: WorkspaceFiles;
 }
 
@@ -22,7 +24,12 @@ export interface ExtensionBooleanSetting {
 	default: boolean;
 }
 
-export type ExtensionSetting = ExtensionBooleanSetting;
+export interface ExtensionStringSetting {
+	type: "string";
+	default: string;
+}
+
+export type ExtensionSetting = ExtensionBooleanSetting | ExtensionStringSetting;
 
 export interface InteractiveTool {
 	describeResponse?: (args: unknown, response: unknown) => string | undefined;

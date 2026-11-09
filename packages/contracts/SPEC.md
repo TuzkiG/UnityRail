@@ -186,8 +186,10 @@ the palette ranks with — kept here so host-side search can rank with the same 
   - **`ExtensionCatalogEntry`** (`{ name, title, description?, enabled, tools, hasChildExtensions, settings? }`) — one
     host-registry UnityRail extension as `extension.list` reports it; `name` is the identity the
     `AppConfig.disabledExtensions` list keys on, `tools` the names its parent factories register, and
-    `settings` (`ExtensionSettingDescriptor[]`, `{ key, default: boolean }`, absent below
-    `EXTENSION_SETTINGS_PROTOCOL_VERSION` = v105) the boolean settings the extension declares.
+    `settings` (`ExtensionSettingDescriptor[]`, `{ key, type?: "boolean" | "string", default }`, absent below
+    `EXTENSION_SETTINGS_PROTOCOL_VERSION` = v105) the settings the extension declares; a `string`
+    descriptor also needs `EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION` = v111, and only the owning
+    extension's own settings page edits strings (the generic catalog page shows boolean rows only).
     `ASK_DISCUSS_PROTOCOL_VERSION` (v105) is the host version that renders `ask_user_question`
     `kind: "discuss"` answers; the card withholds Discuss below it.
   - **`SessionSummary`** — a chat session as the host reports it for hydration (read side); `live`
@@ -501,8 +503,10 @@ the palette ranks with — kept here so host-side search can rank with the same 
   from `EXTENSION_CATALOG_PROTOCOL_VERSION` = v82) names the host-registry extensions the user switched off —
   unknown names are kept and ignored, and the host applies it to new and open sessions (see
   [[submodule-server-extensions]]); `extensionSettings` (`ExtensionSettingValues`, default `{}`, on the wire from
-  `EXTENSION_SETTINGS_PROTOCOL_VERSION` = v105) maps extension name → setting key → boolean for the settings
-  an `ExtensionCatalogEntry` declares — an absent key means the descriptor's `default`, and
+  `EXTENSION_SETTINGS_PROTOCOL_VERSION` = v105) maps extension name → setting key → `boolean | string` for the
+  settings an `ExtensionCatalogEntry` declares — an absent key means the descriptor's `default`, a value
+  whose type does not match `descriptor.type` is rejected, string values travel only from
+  `EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION` = v111, and
   `settings.update { extensionSettings }` merges per key; `customLayoutPresets` is the bounded
   resource-free catalog and is the **only** layout value synchronized by the host; current/default preset
   and group limits are web-local); `analyticsEnabled` is the additional-data preference and host gate,

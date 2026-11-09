@@ -31,6 +31,8 @@ test("a reload mid-stream does not duplicate the streaming assistant message", {
 	await expect(activeWorkspace).toHaveAttribute("data-running", "true");
 	const runningIcon = activeWorkspace.getByTestId("running-icon");
 	await expect(runningIcon).toHaveAttribute("aria-label", "Agent working");
+	const chatTab = page.locator('[data-testid="editor-tab"][data-kind="chat"]').first();
+	await expect(chatTab.getByTestId("running-icon")).toHaveAttribute("aria-label", "Agent working");
 	const frame = runningIcon.getByTestId("running-icon-frame").first();
 	await expect(frame).toHaveCSS("animation-name", "loader-frame");
 	await page.emulateMedia({ reducedMotion: "reduce" });

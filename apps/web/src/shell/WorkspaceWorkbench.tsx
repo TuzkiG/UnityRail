@@ -64,6 +64,7 @@ import {
 	workspaceName,
 } from "../store";
 import { errorText, getTransport } from "../transport";
+import { ChatTabRunningMark } from "./ChatTabRunningMark";
 import {
 	currentChatDestination,
 	hydrateChatResource,
@@ -728,6 +729,8 @@ export function WorkspaceWorkbench({ workspaceId }: { workspaceId: string }) {
 
 	const renderTabAdornment = useCallback(
 		(tab: LayoutTab): ReactNode => {
+			if (tab.kind === "chat")
+				return <ChatTabRunningMark workspaceId={workspaceId} sessionId={tab.sessionId} />;
 			if (tab.kind === "tool" && tab.tool === "review" && reviewDraftCount > 0) {
 				return (
 					<span

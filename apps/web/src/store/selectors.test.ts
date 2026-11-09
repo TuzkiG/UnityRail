@@ -41,6 +41,7 @@ import {
 	selectProjectIsRunning,
 	selectProjectNeedsAttention,
 	selectReadyCompletionAck,
+	selectSessionIsWorking,
 	selectSkillsStale,
 	selectSupportsModelPicker,
 	selectUnnamedChatFirstPrompts,
@@ -125,6 +126,38 @@ test("normalized rail flags keep attention binary and working orthogonal", () =>
 	expect(selectProjectIsRunning(state, "p2")).toBe(false);
 	expect(selectWorkspaceIsRunning(state, "w4")).toBe(true);
 	expect(selectProjectIsRunning(state, "p3")).toBe(true);
+});
+
+test("a chat tab is working while the host reports a running execution or background work", () => {
+	const record = (sessionId: string, state: SessionStateRecord["state"]): SessionStateRecord => ({
+		sessionId,
+		projectId: "p1",
+		workspaceId: "w1",
+		state,
+	});
+	const quiet = {
+		execution: "idle" as const,
+		runId: null,
+		needsInput: null,
+		completion: null,
+		completionUnread: false,
+		queuedCount: 0,
+		backgroundWork: false,
+	};
+	const state = {
+		sessionStateByWorkspace: {
+			w1: {
+				running: record("running", { ...quiet, execution: "running" as const }),
+				delegating: record("delegating", { ...quiet, backgroundWork: true }),
+				idle: record("idle", quiet),
+			},
+		},
+	};
+	expect(selectSessionIsWorking(state, "w1", "running")).toBe(true);
+	expect(selectSessionIsWorking(state, "w1", "delegating")).toBe(true);
+	expect(selectSessionIsWorking(state, "w1", "idle")).toBe(false);
+	expect(selectSessionIsWorking(state, "w1", "missing")).toBe(false);
+	expect(selectSessionIsWorking(state, "w2", "running")).toBe(false);
 });
 
 test("the workspace read action offers read over unread and hides with nothing to relight", () => {

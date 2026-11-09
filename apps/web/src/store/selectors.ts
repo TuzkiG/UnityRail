@@ -358,6 +358,16 @@ export function selectSessionState(
 	return state.sessionStateByWorkspace[workspaceId]?.[sessionId]?.state ?? null;
 }
 
+/** The host's own "working" verdict for one chat: `execution: running` or background work. */
+export function selectSessionIsWorking(
+	state: SessionStateProjection,
+	workspaceId: string,
+	sessionId: string,
+): boolean {
+	const sessionState = selectSessionState(state, workspaceId, sessionId);
+	return sessionState !== null && isSessionWorking(sessionState);
+}
+
 export type WorkspaceOrder = "created" | "recent";
 
 export function supportsWorkspaceSettling(protocolVersion: number | null): boolean {

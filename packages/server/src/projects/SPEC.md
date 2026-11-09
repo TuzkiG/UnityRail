@@ -99,7 +99,10 @@ bootstrap it into one so it can be opened.
   `trusted: true` sets the alias grant and sets `piResourceTrust: "granted"` only with `resources: true`,
   leaving it untouched otherwise; `trusted: false` revokes both. A trust change persists and publishes the
   record, so every client shows the persisted trust even when the host request that made it then fails
-  (an open chat could not reload).
+  (an open chat could not reload). `setProjectNewWorkspaceTarget(id, target)` persists the project's
+  preselected New-Workspace dialog target (`"worktree" | "default"`, rejecting anything else) and
+  publishes it like a rename — an unchanged value is a no-op, and it only preselects the dialog, never
+  forces a creation mode.
 ## Repository cloning
 
 `inspectCloneDestination` returns the validated absolute destination for the UI preview without reserving
@@ -125,7 +128,7 @@ and truncating first can separate a secret suffix from the URL prefix needed to 
 - **Public surface (barrel):** `cloneProject`, `inspectCloneDestination`, `startProjectClone`, `cancelProjectClone`, `openProject`, `listProjects`, `listRecentProjects`,
   `refreshRecentProjectFolders`, `closeProject`, `renameProject`,
   `getProjects`, `setProjectPublisher`, `setProjectPathGuard`, `inspectProjectPath`, `initProject`, `createProject`, `setProjectTrust`,
-  `setProjectSkillEnabled`, `setProjectGroupEnabled`, `acknowledgeProjectSkills`,
+  `setProjectSkillEnabled`, `setProjectGroupEnabled`, `setProjectNewWorkspaceTarget`, `acknowledgeProjectSkills`,
   `approveProjectMcpServer`, `setProjectMcpOverride`, `grantProjectMcpTool`, `revokeProjectMcpTool`,
   `setPiTrustSeed`.
 - **Allowed deps:** `persistence`; the `git` sub-module (shared `git()` runner, which now owns the

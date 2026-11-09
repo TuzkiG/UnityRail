@@ -25,6 +25,7 @@ import {
 import { useOpenProject } from "./useOpenProject";
 import { useHasProvider } from "./useProviderStatus";
 import { Card, CardSkeleton } from "./WelcomeCard";
+import { projectWorkspaceTarget } from "./workspaceTarget";
 
 export function WelcomePanel() {
 	const t = useT();
@@ -92,8 +93,9 @@ export function WelcomePanel() {
 		if (wizard === "shown" && !noProjects) setWizard("hidden");
 	}, [wizard, noProjects, setWizard]);
 
-	const projectFolderCard = (projectId: string) => (
+	const projectFolderCard = (projectId: string, primary: boolean) => (
 		<Card
+			{...(primary ? { cta: true, primary: true } : {})}
 			icon={House}
 			title={t("panels.welcome.projectFolderTitle")}
 			subtitle={t("panels.welcome.projectFolderSubtitle")}
@@ -101,6 +103,38 @@ export function WelcomePanel() {
 			className="motion-safe:animate-reveal"
 		/>
 	);
+
+	const startBuildingCard = (projectId: string, primary: boolean) => (
+		<Card
+			{...(primary ? { cta: true, primary: true } : {})}
+			icon={Rocket}
+			title={t("panels.welcome.startBuildingTitle")}
+			subtitle={t(
+				primary
+					? "panels.welcome.startBuildingSubtitle"
+					: "panels.welcome.startBuildingSecondarySubtitle",
+			)}
+			onClick={() => setDialog({ projectId, prompt: "" })}
+			className="motion-safe:animate-reveal"
+		/>
+	);
+
+	const folderFirst = project ? projectWorkspaceTarget(project) === "default" : false;
+	const workModeCards = (projectId: string, startPrimary: boolean) => {
+		const start = startBuildingCard(projectId, startPrimary && !folderFirst);
+		const folder = projectFolderCard(projectId, startPrimary && folderFirst);
+		return folderFirst ? (
+			<>
+				{folder}
+				{start}
+			</>
+		) : (
+			<>
+				{start}
+				{folder}
+			</>
+		);
+	};
 
 	const openProjectCard = (primary: boolean) => (
 		<AddProjectMenu
@@ -198,18 +232,7 @@ export function WelcomePanel() {
 								<CardSkeleton />
 							</>
 						) : hasSpecs ? (
-							<>
-								<Card
-									cta
-									primary
-									icon={Rocket}
-									title={t("panels.welcome.startBuildingTitle")}
-									subtitle={t("panels.welcome.startBuildingSubtitle")}
-									onClick={() => setDialog({ projectId: project.id, prompt: "" })}
-									className="motion-safe:animate-reveal"
-								/>
-								{projectFolderCard(project.id)}
-							</>
+							workModeCards(project.id, true)
 						) : (
 							<>
 								<Card
@@ -222,14 +245,7 @@ export function WelcomePanel() {
 									onClick={() => setDialog(setupDialogRequest(project.id))}
 									className="motion-safe:animate-reveal"
 								/>
-								<Card
-									icon={Rocket}
-									title={t("panels.welcome.startBuildingTitle")}
-									subtitle={t("panels.welcome.startBuildingSecondarySubtitle")}
-									onClick={() => setDialog({ projectId: project.id, prompt: "" })}
-									className="motion-safe:animate-reveal"
-								/>
-								{projectFolderCard(project.id)}
+								{workModeCards(project.id, false)}
 							</>
 						)}
 					</div>

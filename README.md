@@ -38,7 +38,8 @@ create the tools it needs based on how you actually work.
   each with its own branch and working directory. Agents work in parallel without touching your
   checkout; merge the good branch, delete the rest. New worktrees initialize their submodules, and
   Changes/Review follow edits inside nested repositories at any depth, including a business checkout mounted by a directory link. You can also attach existing worktrees or explicitly
-  work in the project folder itself. Finished and dormant workspaces settle onto a per-project shelf on
+  work in the project folder itself, and each project can preset which of the two its New-Workspace dialog
+  opens in. Finished and dormant workspaces settle onto a per-project shelf on
   their own — when their pull request merges or closes, or after a quiet week — and come back the moment
   you work in them. The topbar shows where the active branch stands against `origin` and its pull request,
   with the next step one click away: publish, push, or open a PR described from the plan, the commits,

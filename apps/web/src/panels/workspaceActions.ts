@@ -1,6 +1,7 @@
 import {
 	type EditorInfo,
 	PROJECT_RENAME_PROTOCOL_VERSION,
+	PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION,
 	type Project,
 	WORKSPACE_RENAME_PROTOCOL_VERSION,
 	type Workspace,
@@ -292,6 +293,10 @@ export function revealWorkspace(workspace: Workspace): void {
 
 export function canRenameProject(protocolVersion: number | null): boolean {
 	return protocolVersion !== null && protocolVersion >= PROJECT_RENAME_PROTOCOL_VERSION;
+}
+
+export function canEditProjectSettings(protocolVersion: number | null): boolean {
+	return protocolVersion !== null && protocolVersion >= PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION;
 }
 
 export function renameProject(project: Project, name: string): void {

@@ -22,6 +22,7 @@ export {
 	setPiTrustSeed,
 	setProjectGroupEnabled,
 	setProjectMcpOverride,
+	setProjectNewWorkspaceTarget,
 	setProjectPathGuard,
 	setProjectPublisher,
 	setProjectSkillEnabled,

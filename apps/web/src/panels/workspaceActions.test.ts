@@ -1,6 +1,11 @@
 import { expect, test } from "bun:test";
-import { WORKSPACE_RENAME_PROTOCOL_VERSION, type Workspace } from "@thinkrail/contracts";
 import {
+	PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION,
+	WORKSPACE_RENAME_PROTOCOL_VERSION,
+	type Workspace,
+} from "@thinkrail/contracts";
+import {
+	canEditProjectSettings,
 	canRenameWorkspace,
 	createRenameController,
 	workspaceRenameValue,
@@ -23,6 +28,13 @@ test("manual rename requires its introducing host protocol and a UnityRail-manag
 	expect(canRenameWorkspace(55, { ...managed, kind: "default" })).toBe(false);
 	expect(canRenameWorkspace(55, { ...managed, kind: "external" })).toBe(false);
 	expect(canRenameWorkspace(null, managed)).toBe(false);
+});
+
+test("project settings require their introducing host protocol", () => {
+	expect(PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION).toBe(110);
+	expect(canEditProjectSettings(109)).toBe(false);
+	expect(canEditProjectSettings(110)).toBe(true);
+	expect(canEditProjectSettings(null)).toBe(false);
 });
 
 test("inline rename submits only a changed nonblank label", () => {

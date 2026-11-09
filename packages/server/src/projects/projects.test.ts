@@ -31,6 +31,7 @@ import {
 	revokeProjectMcpTool,
 	setPiTrustSeed,
 	setProjectMcpOverride,
+	setProjectNewWorkspaceTarget,
 	setProjectPublisher,
 	setProjectTrust,
 } from "./projects";
@@ -588,6 +589,30 @@ test("setProjectTrust: persists a revocable, fail-closed trust decision", () => 
 	expect(() => setProjectTrust("nope", true)).toThrow();
 });
 
+test("setProjectNewWorkspaceTarget: persists the dialog default and publishes only a change", () => {
+	const repo = join(dataDir, "repo");
+	makeRepo(repo);
+	const project = initProject(repo);
+	const published: Array<Project["newWorkspaceTarget"]> = [];
+	setProjectPublisher((record) => published.push(record.newWorkspaceTarget));
+
+	expect(project.newWorkspaceTarget).toBeUndefined();
+	setProjectNewWorkspaceTarget(project.id, "default");
+	expect(storedProjects().find((stored) => stored.id === project.id)?.newWorkspaceTarget).toBe(
+		"default",
+	);
+	setProjectNewWorkspaceTarget(project.id, "default");
+	expect(published).toEqual(["default"]);
+
+	setProjectNewWorkspaceTarget(project.id, "worktree");
+	expect(storedProjects().find((stored) => stored.id === project.id)?.newWorkspaceTarget).toBe(
+		"worktree",
+	);
+	expect(() => setProjectNewWorkspaceTarget("missing", "worktree")).toThrow(
+		"Unknown project: missing",
+	);
+});
+
 test("setProjectTrust: pi-level resource trust needs its own explicit grant, and a revoke clears both", () => {
 	const repo = join(dataDir, "repo");
 	makeRepo(repo);
@@ -629,7 +654,11 @@ function writeProjects(records: object[]): void {
 }
 
 function storedProjects(): Array<
-	Pick<Project, "mcpToolGrants"> & { id: string; piResourceTrust?: string; trusted?: boolean }
+	Pick<Project, "mcpToolGrants" | "newWorkspaceTarget"> & {
+		id: string;
+		piResourceTrust?: string;
+		trusted?: boolean;
+	}
 > {
 	return JSON.parse(readFileSync(join(dataDir, "projects.json"), "utf8"));
 }

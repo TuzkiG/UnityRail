@@ -19,6 +19,7 @@ import {
 	RiFolderOpenFill,
 	RiGitBranchFill,
 	RiHome2Fill,
+	RiSettings3Line as Settings,
 	RiDeleteBin6Line as Trash2,
 	RiCloseLine as X,
 } from "@remixicon/react";
@@ -77,6 +78,7 @@ import { AddProjectMenu } from "./AddProjectMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ExistingWorktreeDialog } from "./ExistingWorktreeDialog";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
+import { ProjectSettingsDialog } from "./ProjectSettingsDialog";
 import { RemoveWorkspaceDialog } from "./RemoveWorkspaceDialog";
 import {
 	announceSettledShelf,
@@ -87,6 +89,7 @@ import { startProjectSetupChat } from "./setupPrompt";
 import { useOpenProject } from "./useOpenProject";
 import { WorkspaceCreationRow } from "./WorkspaceCreation";
 import {
+	canEditProjectSettings,
 	canRenameProject,
 	canRenameWorkspace,
 	canSettleWorkspace,
@@ -142,11 +145,13 @@ export function ProjectTree() {
 	const expandedProjectIds = useAppStore((s) => s.expandedProjectIds);
 	const [dialogProjectId, setDialogProjectId] = useState<string | null>(null);
 	const [existingDialogProjectId, setExistingDialogProjectId] = useState<string | null>(null);
+	const [settingsDialogProjectId, setSettingsDialogProjectId] = useState<string | null>(null);
 	const addProjectButtonRef = useRef<HTMLButtonElement>(null);
 	const projectNameButtonsRef = useRef(new Map<string, HTMLButtonElement>());
 	const pendingCloseFocusProjectIdRef = useRef<string | null>(null);
 	const workspaceDialogReturnFocusIdRef = useRef<string | null>(null);
 	const existingDialogReturnFocusIdRef = useRef<string | null>(null);
+	const settingsDialogReturnFocusIdRef = useRef<string | null>(null);
 
 	const registerProjectNameButton = useCallback(
 		(projectId: string, element: HTMLButtonElement | null) => {
@@ -281,6 +286,11 @@ export function ProjectTree() {
 		setExistingDialogProjectId(projectId);
 	};
 
+	const openSettingsDialog = (projectId: string) => {
+		settingsDialogReturnFocusIdRef.current = projectId;
+		setSettingsDialogProjectId(projectId);
+	};
+
 	return (
 		<nav data-testid="project-tree" className="flex flex-col gap-4">
 			<header className="flex h-panel-row items-center justify-between pr-4 pl-8">
@@ -324,6 +334,8 @@ export function ProjectTree() {
 								onSelect={() => void selectProject(project.id)}
 								canRename={canRenameProject(protocolVersion)}
 								onRename={(name) => renameProject(project, name)}
+								canEditSettings={canEditProjectSettings(protocolVersion)}
+								onOpenSettings={() => openSettingsDialog(project.id)}
 								onClose={() => closeProject(project)}
 								onAddWorkspace={() => openWorkspaceDialog(project.id, false)}
 								onAddWorkspaceFromMenu={() => openWorkspaceDialog(project.id, true)}
@@ -399,6 +411,20 @@ export function ProjectTree() {
 						setDialogProjectId(null);
 						const returnFocusId = workspaceDialogReturnFocusIdRef.current;
 						workspaceDialogReturnFocusIdRef.current = null;
+						if (returnFocusId) focusProjectNameOrAdd(returnFocusId);
+					}}
+				/>
+			) : null}
+
+			{settingsDialogProjectId !== null ? (
+				<ProjectSettingsDialog
+					open
+					projectId={settingsDialogProjectId}
+					onOpenChange={(isOpen) => {
+						if (isOpen) return;
+						setSettingsDialogProjectId(null);
+						const returnFocusId = settingsDialogReturnFocusIdRef.current;
+						settingsDialogReturnFocusIdRef.current = null;
 						if (returnFocusId) focusProjectNameOrAdd(returnFocusId);
 					}}
 				/>
@@ -519,6 +545,8 @@ function ProjectRow({
 	onSelect,
 	canRename,
 	onRename,
+	canEditSettings,
+	onOpenSettings,
 	onClose,
 	onAddWorkspace,
 	onAddWorkspaceFromMenu,
@@ -536,6 +564,8 @@ function ProjectRow({
 	onSelect: () => void;
 	canRename: boolean;
 	onRename: (name: string) => void;
+	canEditSettings: boolean;
+	onOpenSettings: () => void;
 	onClose: () => void;
 	onAddWorkspace: () => void;
 	onAddWorkspaceFromMenu: () => void;
@@ -695,6 +725,18 @@ function ProjectRow({
 						{t("panels.projectTree.openExistingWorktree")}
 					</ContextMenuItem>
 					<ContextMenuSeparator />
+					{canEditSettings ? (
+						<ContextMenuItem
+							data-testid="project-menu-settings"
+							onSelect={(event) => {
+								event.preventDefault();
+								openDialogAfterMenu(onOpenSettings);
+							}}
+						>
+							<Settings />
+							{t("panels.projectTree.projectSettings")}
+						</ContextMenuItem>
+					) : null}
 					{canRename ? (
 						<ContextMenuItem
 							data-testid="project-menu-rename"

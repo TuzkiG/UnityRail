@@ -361,23 +361,28 @@ test("project context actions stay compact and close/reopen is lossless across c
 
 	const createFromMenu = page.getByTestId("project-menu-create-workspace");
 	const openExistingFromMenu = page.getByTestId("project-menu-open-existing-worktree");
+	const settingsFromMenu = page.getByTestId("project-menu-settings");
 	const renameFromMenu = page.getByTestId("project-menu-rename");
 	const closeFromMenu = page.getByTestId("project-menu-close");
 	const menuParts = projectActions.locator('[role="menuitem"], [role="separator"]');
-	await expect(menuParts).toHaveCount(5);
+	await expect(menuParts).toHaveCount(6);
 	await expect(menuParts.nth(0)).toHaveText("Create workspace");
 	await expect(menuParts.nth(1)).toHaveText("Open existing worktree…");
 	await expect(menuParts.nth(2)).toHaveAttribute("role", "separator");
-	await expect(menuParts.nth(3)).toHaveText("Rename");
-	await expect(menuParts.nth(4)).toHaveText("Close project");
+	await expect(menuParts.nth(3)).toHaveText("Project settings…");
+	await expect(menuParts.nth(4)).toHaveText("Rename");
+	await expect(menuParts.nth(5)).toHaveText("Close project");
 	await expect(createFromMenu.locator("svg.remixicon")).toHaveCount(1);
 	await expect(openExistingFromMenu.locator("svg.remixicon")).toHaveCount(1);
+	await expect(settingsFromMenu.locator("svg.remixicon")).toHaveCount(1);
 	await expect(renameFromMenu.locator("svg.remixicon")).toHaveCount(1);
 	await expect(closeFromMenu.locator("svg.remixicon")).toHaveCount(1);
 	await page.keyboard.press("ArrowDown");
 	await expect(createFromMenu).toBeFocused();
 	await page.keyboard.press("ArrowDown");
 	await expect(openExistingFromMenu).toBeFocused();
+	await page.keyboard.press("ArrowDown");
+	await expect(settingsFromMenu).toBeFocused();
 	await page.keyboard.press("ArrowDown");
 	await expect(renameFromMenu).toBeFocused();
 	await page.keyboard.press("ArrowDown");
@@ -524,4 +529,41 @@ test("project context actions stay compact and close/reopen is lossless across c
 	await expect(worktreeRows(page).filter({ hasText: workspace.name })).toBeVisible();
 
 	await openAppFresh(page);
+});
+
+test("project settings preselect the project folder for new workspaces", async ({ page }) => {
+	await openFixtureProject(page);
+	const row = page.getByTestId("project-tree").getByTestId("project-item").first();
+
+	const menu = await openProjectActions(page, row);
+	await menu.getByTestId("project-menu-settings").click();
+	const settings = page.getByTestId("project-settings");
+	await expect(settings).toBeVisible();
+	await expect(settings.getByTestId("project-settings-target-worktree")).toHaveAttribute(
+		"data-active",
+		"true",
+	);
+
+	await settings.getByTestId("project-settings-target-default").click();
+	await expect(settings.getByTestId("project-settings-target-default")).toHaveAttribute(
+		"data-active",
+		"true",
+	);
+	await settings.getByRole("button", { name: "Done" }).click();
+	await expect(settings).toHaveCount(0);
+
+	await expect(page.getByTestId("welcome-cta")).toContainText("Work in project folder");
+
+	await page.getByTestId("add-workspace").first().click();
+	const create = page.getByTestId("new-workspace-dialog");
+	await expect(create).toBeVisible();
+	await expect(create.getByTestId("ws-target-default")).toHaveAttribute("data-active", "true");
+	await expect(create.getByRole("heading", { name: "Work in project folder" })).toBeVisible();
+	await create.getByTestId("ws-target-worktree").click();
+	await expect(create.getByTestId("ws-target-worktree")).toHaveAttribute("data-active", "true");
+	await page.keyboard.press("Escape");
+	await expect(create).toHaveCount(0);
+
+	await page.reload();
+	await expect(page.getByTestId("welcome-cta")).toContainText("Work in project folder");
 });

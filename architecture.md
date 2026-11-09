@@ -115,7 +115,8 @@ dependency. This keeps test process drivers outside both launchers and the serve
    whose cwd is the project folder itself (git's *main working tree*) — non-removable, non-renamable,
    and entered explicitly from the project's Welcome fork ("Work in project folder"), never
    auto-entered — the "just work in my project folder" anchor for users lost in the
-   worktree model. The one exception is a project UnityRail just created empty with the spec-drafting
+   worktree model. A project's `newWorkspaceTarget` setting only preselects the New-Workspace dialog (and
+   which Welcome mode card is primary); the user still submits, so isolation stays the app default. The one exception is a project UnityRail just created empty with the spec-drafting
    switch on: it enters Default for that setup chat, because a fresh repo has nothing to isolate yet
    ([[submodule-web-panels]]); and an **existing worktree** the user explicitly attaches in place
    (`kind: "external"`), which UnityRail may forget but never mutates (see

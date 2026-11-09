@@ -9,6 +9,7 @@ import {
 } from "@remixicon/react";
 import {
 	type ModelDefault,
+	type NewWorkspaceTarget,
 	PROJECT_TEMPLATE_PREVIEW_PROTOCOL_VERSION,
 	type SlashCommandInfo,
 	type TemplateInfo,
@@ -87,8 +88,7 @@ import { createSessionWithSkillBaseline, errorText, getTransport } from "@/trans
 import { BranchPicker } from "./BranchPicker";
 import { useBranchList } from "./branches";
 import { enterDefaultWorkspace } from "./defaultWorkspace";
-
-type WorkspaceTarget = "worktree" | "default";
+import { projectWorkspaceTarget } from "./workspaceTarget";
 
 export function reconcileModel(
 	models: readonly WireModel[],
@@ -129,7 +129,7 @@ export function NewWorkspaceDialog({
 	const protocolVersion = useAppStore((s) => s.protocolVersion);
 
 	const [selectedProjectId, setSelectedProjectId] = useState(projectId);
-	const [target, setTarget] = useState<WorkspaceTarget>("worktree");
+	const [target, setTarget] = useState<NewWorkspaceTarget>("worktree");
 	const [baseRef, setBaseRef] = useState<string>("");
 	const [prompt, setPrompt] = useState("");
 	const [skillCommands, setSkillCommands] = useState<SlashCommandInfo[]>([]);
@@ -214,7 +214,13 @@ export function NewWorkspaceDialog({
 		if (!open) return;
 		setSelectedProjectId(projectId);
 		updatePromptDraft(retryDraft?.kickoff?.text ?? initialPrompt ?? "", null);
-		setTarget("worktree");
+		setTarget(
+			retryDraft
+				? "worktree"
+				: projectWorkspaceTarget(
+						useAppStore.getState().projects.find((project) => project.id === projectId),
+					),
+		);
 		setCreating(false);
 		attachedImages.reset();
 		const retryImages = retryDraft?.kickoff?.images ?? [];

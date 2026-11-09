@@ -47,8 +47,16 @@ treatment.
   ~700ms long press is its touch equivalent. With a project-name button focused, the standard Context Menu
   key or Shift+F10 opens the same menu for keyboard-only use; arrow/activate/Escape keys work normally.
   The menu is neutral: **Plus Create workspace**, **FolderOpen Open existing worktree…**, separator,
-  **Pencil Rename** (only when the host's protocol is at least `PROJECT_RENAME_PROTOCOL_VERSION`), **X Close
-  project**. Rename swaps the project name for the same inline input as workspace rename (Enter/blur
+  **Settings Project settings…** (only when the host's protocol is at least
+  `PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION`; opens `ProjectSettingsDialog`), **Pencil Rename** (only when
+  the host's protocol is at least `PROJECT_RENAME_PROTOCOL_VERSION`), **X Close
+  project**. **`ProjectSettingsDialog`** is the per-project settings surface: a neutral dialog whose one
+  setting is the **New workspace opens in** radio pair (**Isolated workspace** / **Project folder**, the
+  shared `SettingsRadioCards`), saved on selection through `project.setNewWorkspaceTarget` with no
+  optimistic state — the `project.updated` response folds back through `applyProjectUpdated`; a rejection
+  toasts and leaves the previous choice, and the source project's name regains focus on close. The
+  setting only preselects the New-Workspace dialog (also its pitch: the hint says the choice stays
+  switchable there); it never locks a mode or moves existing work. Rename swaps the project name for the same inline input as workspace rename (Enter/blur
   commits a changed trimmed name via `project.rename`, Escape cancels) and waits for the `project.updated`
   push — no optimistic label; rejection raises an error toast. Create is exactly the direct `+` flow. Open existing worktree opens the
   `ExistingWorktreeDialog` chooser fed by `workspace.listExisting` (branch + absolute path per row;
@@ -381,11 +389,13 @@ otherwise** — the marketing paragraph was removed as unread; the screen is hea
 label + explainer bottom-left; the primary is a filled-primary card carrying the stable `welcome-cta`
 hook, others quiet `welcome-action`s). Welcome is **the mode fork**: with a project shown it always pairs
 **"Start building"** (isolated worktree) with **"Work in project folder"** (the Default workspace) so the
-two working modes are a visible choice, not a hidden default. The cards by state: **no projects** →
+two working modes are a visible choice, not a hidden default. A project whose
+`newWorkspaceTarget` is `"default"` swaps which of the two is the filled primary card (and its order) —
+the same preselection `ProjectSettingsDialog` writes; absent keeps Start building primary. The cards by state: **no projects** →
 **"Start a new project"** (primary, `welcome-cta`) + **"Open project"** — or "Open project" alone as the
-primary against a host below `ONBOARDING_PROTOCOL_VERSION`; **project + `hasSpecs`** → **"Start building"** (primary) + "Work in
-project folder"; **project + no specs** → a spec-first **"Set up project"** (primary) + "Start building"
-+ "Work in project folder". **"Open project" appears only in the no-projects state** — where, with
+primary against a host below `ONBOARDING_PROTOCOL_VERSION`; **project + `hasSpecs`** → the two mode cards, **"Start building"** primary
+(the folder card takes that slot under a `"default"` default); **project + no specs** → a spec-first
+**"Set up project"** (primary) + the same two mode cards, neither primary. **"Open project" appears only in the no-projects state** — where, with
 "Start a new project", it's the only possible action; once a project is shown, opening another is the projects-rail **"+"** (the same
 dropdown), so Welcome stays the *work-in-this-project* surface. That card hangs the shared
 **`AddProjectMenu`** dropdown off it (same menu as the projects-rail "+": Start a new project… (when the
@@ -573,7 +583,10 @@ hears one mutually-exclusive choice — both always visible: the two-mode model 
 **mode-aware** so it always names the operation truthfully: **Isolated workspace** → title **“Create
 workspace”**, description **“A separate checkout on its own new branch. Files, chats, changes, and
 terminals stay scoped to it.”**; **Project folder** → title **“Work in project folder”**, description
-**“Runs directly in your project folder — no isolation. Changes land on the current branch.”** In folder
+**“Runs directly in your project folder — no isolation. Changes land on the current branch.”** Opening
+seeds the target from the project's persisted `newWorkspaceTarget` (absent = worktree); a `retryDraft`
+opens on worktree regardless, since only a worktree creation can fail. The seed is a starting point
+only — switching it in the dialog never writes the project setting. In folder
 mode the base-branch picker and the naming hint are hidden (nothing is created — submit **enters** the
 project's Default workspace via the shared **`enterDefaultWorkspace`** helper (`defaultWorkspace.ts`:
 `workspace.list` → fold into the store → activate the `kind === "default"` row, one atomic entry — the

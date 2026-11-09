@@ -6,6 +6,7 @@ import { basename, isAbsolute, join, resolve } from "node:path";
 import type {
 	McpProjectOverride,
 	McpToolGrant,
+	NewWorkspaceTarget,
 	Project,
 	ProjectPathStatus,
 } from "@thinkrail/contracts";
@@ -365,6 +366,19 @@ export function setProjectGroupEnabled(id: string, group: string, enabled: boole
 	else groups.add(group);
 	project.disabledGroups = [...groups];
 	saveProjects(projects);
+	return project;
+}
+
+export function setProjectNewWorkspaceTarget(id: string, target: NewWorkspaceTarget): Project {
+	if (target !== "worktree" && target !== "default")
+		throw new Error(`Invalid new-workspace target: ${target}`);
+	const projects = getProjects();
+	const project = projects.find((p) => p.id === id);
+	if (!project) throw new Error(`Unknown project: ${id}`);
+	if (project.newWorkspaceTarget === target) return project;
+	project.newWorkspaceTarget = target;
+	saveProjects(projects);
+	emit(project);
 	return project;
 }
 

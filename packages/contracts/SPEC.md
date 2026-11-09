@@ -789,7 +789,9 @@ the palette ranks with — kept here so host-side search can rank with the same 
   session is authoritative) / the **Skills-manager set** — **`project.aliasSkills`** (present committed alias
   names, for the presence-gated notice's count) / **`project.acknowledgeSkills`** (confirm skills that
   appeared after trust) / **`project.setSkillEnabled`** (project baseline) / **`project.setGroupEnabled`**
-  (turn a plugin / source tier / `@plugins` on/off at the baseline) / **`workspace.setSkillOverride`**
+  (turn a plugin / source tier / `@plugins` on/off at the baseline) / **`project.setNewWorkspaceTarget`**
+  (v110, `{ id, target }` → the updated `Project`; persists the dialog's preselected target and broadcasts
+  `project.updated` — it preselects only, so no creation is forced) / **`workspace.setSkillOverride`**
   (per-workspace on/off/clear → the `Workspace`) / **`workspace.setSubagentsOverride`**
   (`"on"` / `"off"` / `null`-to-inherit → the updated `Workspace`) /
   **`workspace.setSubagentMaxConcurrent`** (a `SUBAGENT_MAX_CONCURRENT` number / `null`-to-inherit → the

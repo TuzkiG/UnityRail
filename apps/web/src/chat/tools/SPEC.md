@@ -19,13 +19,21 @@ renderers are registered by the host's `extensions/registry.ts`. Unregistered to
 
 ## What's here
 
-- **Core pi tools** — `BashCard` (terminal block), `ReadCard`/`WriteCard` (project-relative path +
-  highlighted textual file), `EditCard` (path + removed/added line diff). All **routine**. A settled `read`
+- **Core pi tools** — `BashCard` (terminal block: the command is highlighted as `shellscript` and the
+  output keeps its ANSI foreground colors, mapped to the theme's `--ansi-*` palette), `ReadCard`/`WriteCard` (project-relative path +
+  highlighted textual file), `EditCard` (path + removed/added line diff; when the call carries `ops` it
+  renders one block per line range, removed rows from `details.removed`, then inserted rows; each row is a
+  single shiki-highlighted line, so the diff keeps the file's syntax colors inside the red/green rows). All
+  **routine**. A settled `read`
   (success or error) and a successful `write`/`edit` use the shared structured file-link primitive when the
   path belongs to the active worktree, opening the shell's preview slot; a running/failed mutation or foreign
   path stays text. Image content
   returned by `read` is previewed by the parent chat module's common result-content layer, the same path as
   every other image-producing tool; `ReadCard` does not special-case image payloads.
+
+  The hashline override ([[module-ext-oh-my-pi]]) reuses both cards under the same tool names: its read
+  returns numbered lines plus a trailing `File tag:`, and its edit sends `ops` with `details.removed`,
+  which `EditCard` renders per line range — removed rows first, then inserted rows.
 - **`ResolveCommentCard`** — the compact receipt for the host-owned `resolve_comment` review tool
   (capability: the server's `agent` module + `reviews` seam; see [[submodule-server-reviews]]): a ✓ +
   the resolved comment id/note. **Routine** — the review sidebar is where resolution state lives; the
@@ -61,9 +69,11 @@ renderers are registered by the host's `extensions/registry.ts`. Unregistered to
 - **Shared pieces** — `CodeBlock` (shiki), `Collapsible` ("Show all N lines" fold for long output;
   callers supply a stable tool-call-derived id so state and geometry anchoring survive virtualization),
   `ToolFileLink` + exact-reference linked text backed by the parent chat module's shared
-  `workspaceFileTarget` + `lib`'s `projectRelativePath`. Pure `toolHelpers` (arg readers, `resultText`,
-  `languageFromPath`) and canonical `toolResultContent` parsing live in `@thinkrail/extension-api/web`,
+  `workspaceFileTarget` + `lib`'s `projectRelativePath`. Pure `toolHelpers` (arg readers, `resultText`)
+  and canonical `toolResultContent` parsing live in `@thinkrail/extension-api/web`,
   so extension text extraction and chat's common image layer cannot disagree about valid content.
+  A card's language comes from `lib`'s `shikiLanguageForPath` — one path→language table, the Shiki
+  catalog's own extensions and filenames, so a `.cs` read is C# and not plain text.
 
 ## Boundary
 

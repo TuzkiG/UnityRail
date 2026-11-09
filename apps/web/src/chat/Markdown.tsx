@@ -2,6 +2,7 @@ import { MermaidView } from "@thinkrail/ext-visualize/web";
 import { type ComponentProps, memo, type ReactNode, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { guessFenceLanguage } from "@/lib/guessLanguage";
 import { useHighlightedCode } from "@/lib/highlightCode";
 import { createMarkdownSplitter } from "./markdownBlocks";
 
@@ -111,13 +112,18 @@ function CodeBlock({
 	className?: string | undefined;
 	children?: ReactNode;
 }) {
-	const lang = fenceLanguage(className);
+	const declared = fenceLanguage(className);
 	const code = String(children ?? "").replace(/\n$/, "");
-	if (lang === "mermaid") return <MermaidBlock code={code} />;
+	if (declared === "mermaid") return <MermaidBlock code={code} />;
+	if (!declared && !code.includes("\n")) {
+		return (
+			<code className="chat-inline-code rounded-xs bg-container-elevated-bg px-4 py-2">
+				{children}
+			</code>
+		);
+	}
+	const lang = declared ?? guessFenceLanguage(code);
 	if (!lang) {
-		if (!code.includes("\n")) {
-			return <code className="rounded-xs bg-container-elevated-bg px-4 py-2">{children}</code>;
-		}
 		return <pre className="overflow-auto rounded-sm bg-container-elevated-bg p-8">{code}</pre>;
 	}
 	return <ShikiBlock code={code} lang={lang} />;

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { languageFromPath, numArg, resultText, strArg } from "@thinkrail/extension-api/web";
+import { numArg, resultText, strArg } from "@thinkrail/extension-api/web";
 
 test("resultText joins the text blocks of an AgentToolResult-shaped value", () => {
 	expect(
@@ -54,14 +54,4 @@ test("numArg returns the number value, or null when missing / wrong-typed", () =
 	expect(numArg({ offset: 0 }, "offset")).toBe(0);
 	expect(numArg({}, "offset")).toBeNull();
 	expect(numArg({ offset: "10" }, "offset")).toBeNull();
-});
-
-test("languageFromPath maps known extensions and falls back to ''", () => {
-	expect(languageFromPath("src/App.tsx")).toBe("tsx");
-	expect(languageFromPath("index.ts")).toBe("typescript");
-	expect(languageFromPath("script.py")).toBe("python");
-	expect(languageFromPath("run.sh")).toBe("bash");
-	expect(languageFromPath("data.YAML")).toBe("yaml");
-	expect(languageFromPath("notes.unknown")).toBe("");
-	expect(languageFromPath("Makefile")).toBe("");
 });

@@ -62,6 +62,12 @@ export const SHIKI_FILE_LANGUAGES: readonly ShikiFileLanguage[] = [
 		load: () => import("@shikijs/langs/bash"),
 	},
 	{
+		id: "powershell",
+		extensions: [".ps1", ".psm1", ".psd1"],
+		aliases: ["PowerShell", "powershell", "pwsh", "ps1"],
+		load: () => import("@shikijs/langs/powershell"),
+	},
+	{
 		id: "python",
 		extensions: [".py", ".pyw", ".pyi"],
 		aliases: ["Python", "py"],
@@ -250,6 +256,23 @@ const SHIKI_LANGUAGE_BY_ID = new Map(
 
 export function shikiLanguageId(value: string): string | null {
 	return SHIKI_LANGUAGE_BY_ALIAS.get(value.trim().toLowerCase()) ?? null;
+}
+
+const SHIKI_LANGUAGE_BY_FILENAME = new Map(
+	SHIKI_FILE_LANGUAGES.flatMap((language) =>
+		(language.filenames ?? []).map((name) => [name.toLowerCase(), language.id] as const),
+	),
+);
+const SHIKI_LANGUAGES_BY_EXTENSION = SHIKI_FILE_LANGUAGES.flatMap((language) =>
+	language.extensions.map((extension) => ({ extension, id: language.id })),
+).sort((a, b) => b.extension.length - a.extension.length);
+
+/** The catalog language for a file path: exact filename first, then the longest extension. */
+export function shikiLanguageForPath(path: string): string | null {
+	const name = path.split(/[\\/]/).at(-1)?.toLowerCase() ?? "";
+	const byName = SHIKI_LANGUAGE_BY_FILENAME.get(name);
+	if (byName) return byName;
+	return SHIKI_LANGUAGES_BY_EXTENSION.find(({ extension }) => name.endsWith(extension))?.id ?? null;
 }
 
 export function createChatHighlighter(engine: () => RegexEngine | Promise<RegexEngine>) {

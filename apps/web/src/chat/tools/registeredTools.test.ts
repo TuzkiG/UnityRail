@@ -266,3 +266,37 @@ describe("intentional bundled tool renderers", () => {
 		}
 	});
 });
+
+describe("hashline edit card", () => {
+	it("renders removed rows before inserted rows for each op range", () => {
+		const html = renderTool(
+			"edit",
+			{
+				path: "src/a.ts",
+				ops: [
+					{ from: 2, to: 2, text: "TWO" },
+					{ from: 4, to: 4, text: "" },
+				],
+			},
+			{
+				content: [{ type: "text", text: "Successfully applied 2 op(s)" }],
+				details: { removed: [["two"], ["four"]] },
+			},
+		);
+		expect(html).toContain("2–2");
+		expect(html).toContain("4–4");
+		expect(html.indexOf("two")).toBeLessThan(html.indexOf("TWO"));
+		expect(html).toContain("four");
+	});
+
+	it("renders inserted rows when details carry no removed lines", () => {
+		const html = renderTool(
+			"edit",
+			{ path: "src/a.ts", ops: [{ from: 4, to: 3, text: "fresh" }] },
+			{ content: [{ type: "text", text: "Successfully applied 1 op(s)" }] },
+		);
+		expect(html).toContain("fresh");
+		expect(html).toContain("4");
+		expect(html).not.toContain("−");
+	});
+});

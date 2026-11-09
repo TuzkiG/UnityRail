@@ -1,12 +1,7 @@
 import { RiFileTextLine as FileText } from "@remixicon/react";
-import {
-	languageFromPath,
-	numArg,
-	resultText,
-	strArg,
-	type ToolRenderProps,
-} from "@thinkrail/extension-api/web";
+import { numArg, resultText, strArg, type ToolRenderProps } from "@thinkrail/extension-api/web";
 import { useT } from "@thinkrail/locales/react";
+import { shikiLanguageForPath } from "@/lib/highlighter";
 import { CodeBlock } from "./CodeBlock";
 import { Collapsible, countLines } from "./Collapsible";
 import { ToolFileLink } from "./ToolFileLink";
@@ -24,7 +19,7 @@ export function ReadCard({
 	const offset = numArg(args, "offset");
 	const limit = numArg(args, "limit");
 	const output = resultText(result);
-	const lang = languageFromPath(path);
+	const lang = shikiLanguageForPath(path) ?? "";
 
 	let range = "";
 	if (offset != null && offset > 1) {

@@ -81,7 +81,12 @@ not this module; the theme-aware highlighter remains app-local.
   `highlighter.ts` owns the curated grammar/id/file-association catalog shared by chat and the desktop
   Monaco renderer (both load a grammar on its language's first use), plus
   `createChatHighlighter(engine)`: `themes`' one generic CSS-variable registration and each catalog grammar
-  loaded on first use. Chat code is highlighted off the main thread:
+  loaded on first use. Fence tags resolve through `shikiLanguageId`; a tool card's file path resolves
+  through `shikiLanguageForPath` (exact catalog filename first, then its longest extension), so the read
+  and write cards never carry a second path→language table. A fence with no info string goes through
+  `guessLanguage.ts`, a deliberately conservative content guess (diff, JSON, C#, PowerShell, Python, SQL,
+  HTML, TypeScript, YAML, shell); an ASCII tree or plain prose stays uncolored instead of guessing. Chat
+  code is highlighted off the main thread:
   `highlightCode.ts` resolves the language alias (unknown and `mermaid` answer `null` with no worker),
   then posts to one lazy `highlighter.worker.ts` per page, which uses the Oniguruma WASM engine. Per
   caller key at most one request is in flight; a newer call replaces the waiting one, which resolves

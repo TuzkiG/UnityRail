@@ -135,6 +135,60 @@
 	font-variant-ligatures: none;
 }
 
+/* Inline code in prose wears the theme's code palette; terminal output in a tool card keeps the ANSI
+   colors the command emitted. Both palettes are theme-owned CSS variables, never a literal color. */
+.chat-inline-code {
+	color: var(--code-string);
+}
+[data-ansi="black"] {
+	color: var(--ansi-black);
+}
+[data-ansi="red"] {
+	color: var(--ansi-red);
+}
+[data-ansi="green"] {
+	color: var(--ansi-green);
+}
+[data-ansi="yellow"] {
+	color: var(--ansi-yellow);
+}
+[data-ansi="blue"] {
+	color: var(--ansi-blue);
+}
+[data-ansi="magenta"] {
+	color: var(--ansi-magenta);
+}
+[data-ansi="cyan"] {
+	color: var(--ansi-cyan);
+}
+[data-ansi="white"] {
+	color: var(--ansi-white);
+}
+[data-ansi="brightBlack"] {
+	color: var(--ansi-bright-black);
+}
+[data-ansi="brightRed"] {
+	color: var(--ansi-bright-red);
+}
+[data-ansi="brightGreen"] {
+	color: var(--ansi-bright-green);
+}
+[data-ansi="brightYellow"] {
+	color: var(--ansi-bright-yellow);
+}
+[data-ansi="brightBlue"] {
+	color: var(--ansi-bright-blue);
+}
+[data-ansi="brightMagenta"] {
+	color: var(--ansi-bright-magenta);
+}
+[data-ansi="brightCyan"] {
+	color: var(--ansi-bright-cyan);
+}
+[data-ansi="brightWhite"] {
+	color: var(--ansi-bright-white);
+}
+
 .pierre-code-surface {
 	color-scheme: inherit;
 	--diffs-font-family: var(--tr-font-family-code);

@@ -1,7 +1,12 @@
 import { expect, test } from "bun:test";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import { createOnigurumaEngine } from "shiki/engine/oniguruma";
-import { createChatHighlighter, SHIKI_FILE_LANGUAGES, shikiLanguageId } from "./highlighter";
+import {
+	createChatHighlighter,
+	SHIKI_FILE_LANGUAGES,
+	shikiLanguageForPath,
+	shikiLanguageId,
+} from "./highlighter";
 
 test("the Monaco Shiki language registration list has no duplicate ids", () => {
 	const ids = SHIKI_FILE_LANGUAGES.map((language) => language.id);
@@ -19,6 +24,24 @@ const tokenColors = (html: string | null) => new Set(html?.match(/color:[^;"]+/g
 test("Java chat fences resolve by id and name", () => {
 	expect(shikiLanguageId("java")).toBe("java");
 	expect(shikiLanguageId("Java")).toBe("java");
+});
+
+test("PowerShell fences resolve by id, name and pwsh", () => {
+	expect(shikiLanguageId("powershell")).toBe("powershell");
+	expect(shikiLanguageId("PowerShell")).toBe("powershell");
+	expect(shikiLanguageId("pwsh")).toBe("powershell");
+});
+
+test("a tool card's file path resolves through the catalog's filenames and extensions", () => {
+	expect(shikiLanguageForPath("Assets/Game/Script/Editor/Test/WFY_FundPrefabFix.cs")).toBe(
+		"csharp",
+	);
+	expect(shikiLanguageForPath("C:\\repo\\apps\\web\\src\\App.tsx")).toBe("tsx");
+	expect(shikiLanguageForPath("scripts/build.ps1")).toBe("powershell");
+	expect(shikiLanguageForPath("Dockerfile")).toBe("docker");
+	expect(shikiLanguageForPath("settings/code.code-workspace")).toBe("jsonc");
+	expect(shikiLanguageForPath("notes.unknown")).toBeNull();
+	expect(shikiLanguageForPath("Makefile")).toBeNull();
 });
 
 const JAVA_FENCE = 'public class Greeting { private String message = "hello"; }';

@@ -2,7 +2,9 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
+import { VERSION } from "@earendil-works/pi-coding-agent";
 import { applyHostEnvironment, hostEnvironmentStatus, updateHostEnvironment } from "./index";
+import { EMBEDDED_PI_VERSION } from "./piVersion";
 
 const originalDataDir = process.env.THINKRAIL_DATA_DIR;
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -102,6 +104,8 @@ test("a saved update is private on disk, drops blank rows and requires a restart
 });
 
 test("the status reports the pi build this host embeds", () => {
+	// The constant mirrors the installed pi: bundlers rewrite pi's `VERSION` to the app manifest.
+	expect(EMBEDDED_PI_VERSION).toBe(VERSION);
 	const status = hostEnvironmentStatus();
 	expect(status.piVersion).toMatch(/^\d+\.\d+\.\d+/);
 	expect(status.piPackageDir).toContain("pi-coding-agent");

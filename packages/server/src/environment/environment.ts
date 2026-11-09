@@ -1,7 +1,7 @@
 import { statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { getAgentDir, getPackageDir, VERSION } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, getPackageDir } from "@earendil-works/pi-coding-agent";
 import type {
 	HostEnvironment,
 	HostEnvironmentIssue,
@@ -11,6 +11,7 @@ import type {
 import { launchEnvKeys } from "@thinkrail/shared/shellEnv";
 import { logger } from "../log";
 import { loadHostEnvironment, saveHostEnvironment } from "../persistence";
+import { EMBEDDED_PI_VERSION } from "./piVersion";
 
 const AGENT_DIR_VAR = "PI_CODING_AGENT_DIR";
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -134,7 +135,7 @@ export function hostEnvironmentStatus(): HostEnvironmentStatus {
 		restartRequired: !sameEnvironment(stored, applied),
 		launchOverridden: launchOverridden(stored),
 		effectiveAgentDir: getAgentDir(),
-		piVersion: VERSION,
+		piVersion: EMBEDDED_PI_VERSION,
 		piPackageDir: getPackageDir(),
 	};
 }

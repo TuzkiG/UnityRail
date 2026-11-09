@@ -57,11 +57,14 @@ UnityRail terminal uses the same config folder.
   falls back to pi's default, which the status' `effectiveAgentDir` makes visible.
 - **Storage:** `<dataDir>/environment.json`, atomically replaced with mode `0600`; fetched only by
   `environment.get`, never broadcast.
-- **The status also names the embedded pi.** `piVersion` (pi's `VERSION`) and `piPackageDir`
-  (`getPackageDir()`) are additive status fields, so Settings can show which pi build this host runs without
-  inventing a "pi path" setting: pi is a library the host imports in-process, and its folder is the app's
-  bundle, not a user choice. An older host omits both, and the client renders the block only when they
-  arrive — a real absence, unlike a list defaulting to `[]`.
+- **The status also names the embedded pi.** `piVersion` (the constant in `piVersion.ts`) and
+  `piPackageDir` (`getPackageDir()`) are additive status fields, so Settings can show which pi build this host
+  runs without inventing a "pi path" setting: pi is a library the host imports in-process, and its folder is
+  the app's bundle, not a user choice. **Not** pi's `VERSION`: pi reads it from the nearest `package.json` at
+  import time, and a bundled host resolves that to its own manifest, which reports `0.0.0`. The constant
+  mirrors the root catalog's `@earendil-works/pi-coding-agent` pin, and `environment.test.ts` fails when the
+  installed pi disagrees with it. An older host omits both fields, and the client renders the block only when
+  they arrive — a real absence, unlike a list defaulting to `[]`.
 - **One setup per host, not per project.** Per-project was rejected: `process.env` is process-global with pi
   in-process, so provider key lookups and extension code cannot see a per-project value, and third-party
   extensions read the global `getAgentDir()` regardless of a per-session `agentDir`. Revisit only if pi

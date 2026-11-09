@@ -294,7 +294,10 @@ the palette ranks with — kept here so host-side search can rank with the same 
   changes the project's id or deletes its workspace associations — plus the skill-trust fields **`trusted`**
   (the per-project grant), **`acknowledgedSkills`** (re-confirm-new — which committed aliases are OK'd) and
   **`disabledSkills`** / **`disabledGroups`** (project-baseline per-skill and per-group off — a group is a
-  plugin, a source tier, or the special `@plugins`), which gate what its skills contribute; a workspace layers
+  plugin, a source tier, or the special `@plugins`), which gate what its skills contribute; optional
+  **`newWorkspaceTarget`** (`"worktree" | "default"`, absent = the app default `"worktree"`) is the
+  project's preselected New-Workspace dialog target — a default, never a lock (v110,
+  `PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION`); a workspace layers
   **`Workspace.skillOverrides`** (per-skill on/off) over that baseline;
   **`SubagentOverride`** (`"on" | "off"`) + optional **`Workspace.subagentsOverride`** let a workspace
   force subagents on/off, while absence inherits the host's `AppConfig.subagentsEnabled` default;

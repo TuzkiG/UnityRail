@@ -27,6 +27,14 @@ Memory's own source of truth.
   and writes bounded to 1 MB, path-contained to the root, writes only over existing notes (the
   manager edits, it never creates). The status shapes are contracts' `MemoryEngineStatus` /
   `MemoryNotesSnapshot`.
+- **Two scopes, one tree.** The root holds the **user-level** notes plus one folder per project
+  (`memoryProjectDirName(project)` — its slug, filesystem-safe — under `projectMemoryDir(project)`). Every
+  notes call takes an optional `dir`: omitted is the user scope (root, with each open project's folder
+  excluded so the user list never mixes project notes in), present is that project's scope with
+  `engineProject` echoed back. `registerProjectMemory(project)` lazily runs
+  `basic-memory project add <name> <dir>` once per process on the project scope's first read, creating the
+  folder first; it is best-effort — Markdown is read from disk either way, so a missing engine only costs
+  MCP searchability, never the panel. The `memory.*` wire methods carry `projectId` for the project scope.
 - **Public surface (barrel):** the five functions above; wire methods `memory.status` /
   `memory.install` / `memory.listNotes` / `memory.readNote` / `memory.saveNote` live in
   [[submodule-server-host]] like every other request.

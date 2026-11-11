@@ -1,7 +1,7 @@
 import type { MemoryNotesSnapshot } from "@thinkrail/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { useAppStore } from "../store";
-import { getTransport, supportsMemoryNotes } from "../transport";
+import { getTransport, supportsMemoryNotes, supportsMemoryProjectNotes } from "../transport";
 
 export interface MemoryNotesState {
 	supported: boolean;
@@ -12,10 +12,15 @@ export interface MemoryNotesState {
 	saveNote: (path: string, content: string) => Promise<void>;
 }
 
-/** Loads the Basic Memory notes snapshot and reads/saves one note at a time. */
-export function useMemoryNotes(): MemoryNotesState {
+/**
+ * Loads one Basic Memory notes snapshot — the shared user-level tree when `projectId` is unset, that
+ * project's own folder under it otherwise — and reads/saves one note at a time inside the same scope.
+ */
+export function useMemoryNotes(projectId?: string): MemoryNotesState {
 	const protocolVersion = useAppStore((state) => state.protocolVersion);
-	const supported = supportsMemoryNotes(protocolVersion);
+	const supported = projectId
+		? supportsMemoryProjectNotes(protocolVersion)
+		: supportsMemoryNotes(protocolVersion);
 	const [snapshot, setSnapshot] = useState<MemoryNotesSnapshot | null>(null);
 	const [loading, setLoading] = useState(false);
 
@@ -23,27 +28,36 @@ export function useMemoryNotes(): MemoryNotesState {
 		if (!supported) return;
 		setLoading(true);
 		getTransport()
-			.request("memory.listNotes", {})
+			.request("memory.listNotes", projectId ? { projectId } : {})
 			.then(setSnapshot)
 			.catch(() => setSnapshot(null))
 			.finally(() => setLoading(false));
-	}, [supported]);
+	}, [projectId, supported]);
 
 	useEffect(() => {
 		reload();
 	}, [reload]);
 
-	const readNote = useCallback(async (path: string): Promise<string> => {
-		const result = await getTransport().request("memory.readNote", { path });
-		return result.content;
-	}, []);
+	const readNote = useCallback(
+		async (path: string): Promise<string> => {
+			const result = await getTransport().request(
+				"memory.readNote",
+				projectId ? { path, projectId } : { path },
+			);
+			return result.content;
+		},
+		[projectId],
+	);
 
 	const saveNote = useCallback(
 		async (path: string, content: string): Promise<void> => {
-			await getTransport().request("memory.saveNote", { path, content });
+			await getTransport().request(
+				"memory.saveNote",
+				projectId ? { path, content, projectId } : { path, content },
+			);
 			reload();
 		},
-		[reload],
+		[projectId, reload],
 	);
 
 	return { supported, snapshot, loading, reload, readNote, saveNote };

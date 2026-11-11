@@ -3,7 +3,13 @@ import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CodedError } from "@thinkrail/shared/codedError";
-import { listMemoryNotes, readMemoryNote, saveMemoryNote } from "./notes";
+import {
+	listMemoryNotes,
+	memoryProjectDirName,
+	projectMemoryDir,
+	readMemoryNote,
+	saveMemoryNote,
+} from "./notes";
 
 const savedDir = process.env.BASIC_MEMORY_DIR;
 let root: string;
@@ -72,5 +78,41 @@ describe("memory notes", () => {
 
 	test("rejects saving a note that does not exist", () => {
 		expect(() => saveMemoryNote("home/nope.md", "# new")).toThrow(CodedError);
+	});
+});
+
+describe("memory notes > project scope", () => {
+	test("a project scope reads its own folder and the user scope skips it", () => {
+		writeNote("shared.md", "shared note");
+		writeNote("demo/project.md", "project note");
+
+		const dir = projectMemoryDir({ slug: "demo", name: "Demo" });
+		const project = listMemoryNotes({ dir, engineProject: "demo" });
+		expect(project.scope).toBe("project");
+		expect(project.engineProject).toBe("demo");
+		expect(project.notes.map((note) => note.path)).toEqual(["project.md"]);
+
+		const user = listMemoryNotes({ excludeDirs: [memoryProjectDirName({ name: "Demo" })] });
+		expect(user.scope).toBe("user");
+		expect(user.notes.map((note) => note.path)).toEqual(["shared.md"]);
+	});
+
+	test("note paths resolve inside their own scope, never across folders", () => {
+		writeNote("demo/project.md", "project note");
+		const dir = projectMemoryDir({ slug: "demo", name: "Demo" });
+		expect(readMemoryNote("project.md", { dir }).content).toBe("project note");
+		expect(() => readMemoryNote("../shared.md", { dir })).toThrow(CodedError);
+		saveMemoryNote("project.md", "edited", { dir });
+		expect(readMemoryNote("project.md", { dir }).content).toBe("edited");
+	});
+
+	test("a missing project folder reports itself absent instead of throwing", () => {
+		const snapshot = listMemoryNotes({ dir: join(root, "never-created") });
+		expect(snapshot).toMatchObject({ scope: "project", exists: false, notes: [] });
+	});
+
+	test("a slug becomes a filesystem-safe folder name", () => {
+		expect(memoryProjectDirName({ slug: "My Project!", name: "x" })).toBe("my-project");
+		expect(memoryProjectDirName({ name: "  " })).toBe("project");
 	});
 });

@@ -256,7 +256,15 @@ export interface PlanTab {
 	name: string;
 	sessionId: string;
 }
-export type EditorTab = FileTab | ChatTab | DocTab | DiffTab | ChangesTab | PlanTab;
+/** A workspace tab editing one project's memory notes plus the shared user-level ones. */
+export interface MemoryTab {
+	kind: "memory";
+	id: string;
+	workspaceId: string;
+	name: string;
+	projectId: string;
+}
+export type EditorTab = FileTab | ChatTab | DocTab | DiffTab | ChangesTab | PlanTab | MemoryTab;
 
 export function chatTabId(workspaceId: string, sessionId: string): string {
 	return tupleKey("chat", workspaceId, sessionId);
@@ -289,6 +297,9 @@ function editorResourceIdentity(tab: EditorTab): string {
 	}
 	if (tab.kind === "plan") {
 		return tupleKey("layout-resource", "document", "todo-plan", tab.sessionId);
+	}
+	if (tab.kind === "memory") {
+		return tupleKey("layout-resource", "document", "memory", tab.projectId);
 	}
 	return layoutResourceIdentity(tab);
 }
@@ -1222,7 +1233,7 @@ interface AppState {
 		syncLayout?: boolean,
 		options?: LayoutOpenOptions,
 	) => void;
-	openDoc: (tab: DocTab | PlanTab) => void;
+	openDoc: (tab: DocTab | PlanTab | MemoryTab) => void;
 	closeTab: (
 		id: string,
 		syncLayout?: boolean,

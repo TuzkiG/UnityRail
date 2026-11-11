@@ -1,5 +1,6 @@
 import {
 	RiArrowGoBackLine as ArrowGoBack,
+	RiBrainLine as Brain,
 	RiCheckLine as Check,
 	RiArrowDownSLine as ChevronDown,
 	RiArrowRightSLine as ChevronRight,
@@ -106,6 +107,7 @@ import {
 	loadProjectWorkspaces,
 	markWorkspaceRead,
 	markWorkspaceUnread,
+	openProjectMemory,
 	openWorkspaceIn,
 	projectFilesWorkspace,
 	renameProject,
@@ -383,6 +385,7 @@ export function ProjectTree() {
 								onAddWorkspaceFromMenu={() => openWorkspaceDialog(project.id, true)}
 								onOpenExistingWorktree={() => openExistingWorktreeDialog(project.id)}
 								onBrowseFiles={() => void browseProjectFiles(project.id)}
+								onOpenMemory={() => openProjectMemory(project.id, project.name)}
 								onRegisterNameButton={(element) => registerProjectNameButton(project.id, element)}
 								onRestoreFocus={() => focusProjectNameOrAdd(project.id)}
 							/>
@@ -595,6 +598,7 @@ function ProjectRow({
 	onAddWorkspaceFromMenu,
 	onOpenExistingWorktree,
 	onBrowseFiles,
+	onOpenMemory,
 	onRegisterNameButton,
 	onRestoreFocus,
 }: {
@@ -615,6 +619,7 @@ function ProjectRow({
 	onAddWorkspaceFromMenu: () => void;
 	onOpenExistingWorktree: () => void;
 	onBrowseFiles: () => void;
+	onOpenMemory: () => void;
 	onRegisterNameButton: (element: HTMLButtonElement | null) => void;
 	onRestoreFocus: () => void;
 }) {
@@ -772,6 +777,10 @@ function ProjectRow({
 					<ContextMenuItem data-testid="project-menu-browse-files" onSelect={() => onBrowseFiles()}>
 						<Tree />
 						{t("panels.projectTree.browseFiles")}
+					</ContextMenuItem>
+					<ContextMenuItem data-testid="project-menu-memory" onSelect={() => onOpenMemory()}>
+						<Brain />
+						{t("panels.projectTree.memory")}
 					</ContextMenuItem>
 					<ContextMenuSeparator />
 					{canEditSettings ? (

@@ -53,7 +53,9 @@ treatment.
   The menu is neutral: **Plus Create workspace**, **FolderOpen Open existing worktree…**, **NodeTree
   Browse project files** (expands the project, resolves its **default** workspace — that workspace's
   worktree *is* the project folder — activates it, and reveals the `files` tool, so the project's own
-  directory opens as the usual file tree without creating a workspace), separator,
+  directory opens as the usual file tree without creating a workspace), **Brain Project memory** (opens
+  `MemoryPane` — a center-tab document listing the project's Basic Memory notes beside the shared
+  user-level ones, each editable in place and saved straight to Markdown), separator,
   **Settings Project settings…** (only when the host's protocol is at least
   `PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION`; opens `ProjectSettingsDialog`), **Pencil Rename** (only when
   the host's protocol is at least `PROJECT_RENAME_PROTOCOL_VERSION`), **X Close
@@ -1289,7 +1291,12 @@ a project picker, the prompt hero, and the reused
   `memory.listNotes` (newest first, bounded) and shows the resolved notes root; a note opens in
   `MemoryNoteDialog` (`memory-note-dialog`) with **Preview** (the shared `chat/Markdown` renderer)
   and **Edit** (a plain textarea) modes, saving through `memory.saveNote` — the file is Basic
-  Memory's source of truth, so the agent sees the change immediately. **Skills** (only at
+  Memory's source of truth, so the agent sees the change immediately. That group edits the **user
+  level** tree only; a project's own notes open from the project menu as **`MemoryPane`**, a center-tab
+  document (`documentKind: "memory"`) that lists the project's folder and the shared user-level notes
+  side by side and saves each one in place through the same `memory.readNote`/`memory.saveNote` pair
+  scoped by `projectId` (a host without `MEMORY_PROJECT_NOTES_PROTOCOL_VERSION` shows the project section
+  empty rather than failing). **Skills** (only at
   `protocolVersion >= OTHER_AGENT_SKILLS_PROTOCOL_VERSION`) is one switch, `other-agent-skills-toggle`, over
   `store.otherAgentSkills`, writing `settings.update { otherAgentSkills }`; per-project choices made in the
   Skills dialog still win over it. **Installed** and **pi built-in**

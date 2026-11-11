@@ -178,7 +178,7 @@ export type TemplateReadLocation =
 	| { projectId: string; workspaceId?: never }
 	| { workspaceId?: never; projectId?: never };
 
-export const PROTOCOL_VERSION = 113;
+export const PROTOCOL_VERSION = 114;
 export const PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION = 110;
 export const EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION = 111;
 export const AUTO_MODEL_SETTING_PROTOCOL_VERSION = 107;
@@ -189,6 +189,8 @@ export const SPEECH_PROTOCOL_VERSION = 107;
 export const SEARCH_PROTOCOL_VERSION = 106;
 export const MEMORY_ENGINE_PROTOCOL_VERSION = 112;
 export const MEMORY_NOTES_PROTOCOL_VERSION = 113;
+/** A project-scoped notes tree under the shared root, registered as a Basic Memory project. */
+export const MEMORY_PROJECT_NOTES_PROTOCOL_VERSION = 114;
 export const WORKSPACE_CREATION_PROTOCOL_VERSION = 104;
 export const EXTENSION_SETTINGS_PROTOCOL_VERSION = 105;
 export const ASK_DISCUSS_PROTOCOL_VERSION = 105;
@@ -1138,9 +1140,12 @@ export interface WsMethodMap {
 	"fonts.reveal": { params: Record<string, never>; result: Ack };
 	"memory.status": { params: Record<string, never>; result: MemoryEngineStatus };
 	"memory.install": { params: Record<string, never>; result: Ack };
-	"memory.listNotes": { params: Record<string, never>; result: MemoryNotesSnapshot };
-	"memory.readNote": { params: { path: string }; result: { content: string } };
-	"memory.saveNote": { params: { path: string; content: string }; result: Ack };
+	"memory.listNotes": { params: { projectId?: string }; result: MemoryNotesSnapshot };
+	"memory.readNote": { params: { path: string; projectId?: string }; result: { content: string } };
+	"memory.saveNote": {
+		params: { path: string; content: string; projectId?: string };
+		result: Ack;
+	};
 	"speech.install": { params: { model: SpeechModel }; result: Ack };
 	"speech.cancelInstall": { params: Record<string, never>; result: Ack };
 	"speech.remove": { params: Record<string, never>; result: Ack };

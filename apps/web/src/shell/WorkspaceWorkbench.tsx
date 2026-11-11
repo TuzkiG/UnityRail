@@ -114,6 +114,7 @@ function PlanSummaryAutoDraft({
 
 const ChatView = preloadedLazy(() => import("../chat/ChatView"));
 const PlanPane = lazy(() => import("../panels/PlanPane"));
+const MemoryPane = lazy(() => import("../panels/MemoryPane"));
 const ChangesReviewPane = lazy(() =>
 	import("../panels/ChangesReviewPane").then((module) => ({ default: module.ChangesReviewPane })),
 );
@@ -128,6 +129,8 @@ const RESTORING_LABEL = {
 	editor: "shell.workbench.restoring.editor",
 	chat: "shell.workbench.restoring.chat",
 	plan: "shell.workbench.restoring.plan",
+	document: "shell.workbench.restoring.plan",
+	memory: "shell.workbench.restoring.memory",
 	terminal: "shell.workbench.restoring.terminal",
 } satisfies Record<string, MessageKey>;
 
@@ -625,6 +628,20 @@ export function WorkspaceWorkbench({ workspaceId }: { workspaceId: string }) {
 				return <ChatResourceBody workspaceId={workspaceId} tab={tab} onOpenFile={openToolFile} />;
 			}
 			if (tab.kind === "document") {
+				if (tab.documentKind === "memory") {
+					const projectId = tab.sourceId;
+					return (
+						<ErrorBoundary
+							label={t("shell.workbench.panel.memory")}
+							reportId="memory"
+							resetKeys={[workspaceId, tab.id]}
+						>
+							<Suspense fallback={<MissingResource kind="memory" />}>
+								<MemoryPane projectId={projectId} />
+							</Suspense>
+						</ErrorBoundary>
+					);
+				}
 				if (deletedSessions?.[tab.sourceId]) return <MissingResource kind="plan" />;
 				return (
 					<ErrorBoundary

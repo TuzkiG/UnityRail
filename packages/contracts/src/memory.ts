@@ -22,6 +22,13 @@ export interface MemoryNotesSnapshot {
 	/** The resolved notes root (absolute), whether it exists yet or not. */
 	root: string;
 	exists: boolean;
+	/**
+	 * Which tree this is: `user` for the shared root (project folders excluded) or `project` for one
+	 * project's own folder under it.
+	 */
+	scope: "user" | "project";
+	/** The Basic Memory project this folder is registered as, for a `project` scope. */
+	engineProject?: string;
 	/** Newest first; bounded to the most recent files. */
 	notes: MemoryNoteSummary[];
 }

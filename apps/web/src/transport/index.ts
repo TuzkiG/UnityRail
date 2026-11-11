@@ -29,6 +29,7 @@ export {
 	supportsHostUpdateRun,
 	supportsMemoryEngine,
 	supportsMemoryNotes,
+	supportsMemoryProjectNotes,
 	supportsPiPackages,
 	supportsPlanReview,
 	supportsPlanSummaryGeneration,

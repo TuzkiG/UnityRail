@@ -15,6 +15,18 @@ export function memoryNotesDir(): string {
 	return override || join(homedir(), "basic-memory");
 }
 
+/** One project's folder name inside the shared root: its slug, filesystem-safe. */
+export function memoryProjectDirName(project: { slug?: string; name: string }): string {
+	const raw = (project.slug || project.name).trim().toLowerCase();
+	const safe = raw.replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+	return safe || "project";
+}
+
+/** Absolute folder holding one project's notes. */
+export function projectMemoryDir(project: { slug?: string; name: string }): string {
+	return join(memoryNotesDir(), memoryProjectDirName(project));
+}
+
 function notePath(root: string, requested: string): string {
 	if (typeof requested !== "string" || requested.trim().length === 0) {
 		throw new CodedError("MEMORY_NOTE_NOT_FOUND", "a note path is required");
@@ -44,6 +56,7 @@ function collectNotes(
 	directory: string,
 	limit: number,
 	accumulator: MemoryNoteSummary[],
+	excludeDirs: ReadonlySet<string>,
 ): void {
 	if (accumulator.length >= limit) return;
 	let entries: Dirent[];
@@ -57,7 +70,8 @@ function collectNotes(
 		if (entry.name.startsWith(".")) continue;
 		const abs = join(directory, entry.name);
 		if (entry.isDirectory()) {
-			collectNotes(root, abs, limit, accumulator);
+			if (directory === root && excludeDirs.has(entry.name)) continue;
+			collectNotes(root, abs, limit, accumulator, excludeDirs);
 			continue;
 		}
 		if (!entry.isFile() || !entry.name.toLowerCase().endsWith(NOTE_EXTENSION)) continue;
@@ -69,19 +83,37 @@ function collectNotes(
 	}
 }
 
+/** Which tree a notes request addresses: the shared root, or one project's folder under it. */
+export interface MemoryNotesScope {
+	/** Absolute folder the note paths are relative to; defaults to the shared root. */
+	dir?: string;
+	/** The Basic Memory project this folder belongs to, echoed back on a project scope. */
+	engineProject?: string;
+	/** Direct child folders of the shared root that belong to a project, so the user scope skips them. */
+	excludeDirs?: readonly string[];
+}
+
 /** Lists the newest Markdown notes under the Basic Memory notes root. */
-export function listMemoryNotes(): MemoryNotesSnapshot {
-	const root = memoryNotesDir();
-	if (!existsSync(root)) return { root, exists: false, notes: [] };
+export function listMemoryNotes(scope: MemoryNotesScope = {}): MemoryNotesSnapshot {
+	const root = scope.dir ?? memoryNotesDir();
+	const base = {
+		root,
+		scope: scope.dir ? ("project" as const) : ("user" as const),
+		...(scope.engineProject ? { engineProject: scope.engineProject } : {}),
+	};
+	if (!existsSync(root)) return { ...base, exists: false, notes: [] };
 	const notes: MemoryNoteSummary[] = [];
-	collectNotes(root, root, MAX_NOTES, notes);
+	collectNotes(root, root, MAX_NOTES, notes, new Set(scope.excludeDirs ?? []));
 	notes.sort((a, b) => b.updatedAt - a.updatedAt);
-	return { root, exists: true, notes: notes.slice(0, MAX_NOTES) };
+	return { ...base, exists: true, notes: notes.slice(0, MAX_NOTES) };
 }
 
 /** Reads one note's Markdown source. */
-export function readMemoryNote(requested: string): { content: string } {
-	const abs = notePath(memoryNotesDir(), requested);
+export function readMemoryNote(
+	requested: string,
+	scope: MemoryNotesScope = {},
+): { content: string } {
+	const abs = notePath(scope.dir ?? memoryNotesDir(), requested);
 	let stat: ReturnType<typeof statSync>;
 	try {
 		stat = statSync(abs);
@@ -96,14 +128,18 @@ export function readMemoryNote(requested: string): { content: string } {
 }
 
 /** Overwrites one note's Markdown source; the MCP server picks the change up from disk. */
-export function saveMemoryNote(requested: string, content: string): { ok: true } {
+export function saveMemoryNote(
+	requested: string,
+	content: string,
+	scope: MemoryNotesScope = {},
+): { ok: true } {
 	if (typeof content !== "string") {
 		throw new CodedError("MEMORY_NOTE_INVALID", "note content must be text");
 	}
 	if (Buffer.byteLength(content, "utf8") > MAX_NOTE_BYTES) {
 		throw new CodedError("MEMORY_NOTE_TOO_LARGE", `note is larger than ${MAX_NOTE_BYTES} bytes`);
 	}
-	const abs = notePath(memoryNotesDir(), requested);
+	const abs = notePath(scope.dir ?? memoryNotesDir(), requested);
 	if (!existsSync(dirname(abs))) {
 		throw new CodedError("MEMORY_NOTE_NOT_FOUND", `note not found: ${requested}`);
 	}

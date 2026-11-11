@@ -1,10 +1,22 @@
 import type { RemixiconComponentType } from "@remixicon/react";
+import type { MatchRange, SearchPreviewTarget } from "@thinkrail/contracts";
 import type { CommandShortcut } from "../commands";
 import type { ChatTitleSource } from "../lib";
 import type { SessionAttention } from "../store";
 import type { SearchScope } from "./query";
 
-export type PaletteItemKind = "command" | "setting" | "project" | "workspace" | "chat" | "more";
+export type PaletteItemKind =
+	| "command"
+	| "setting"
+	| "project"
+	| "workspace"
+	| "chat"
+	| "file"
+	| "spec"
+	| "plan"
+	| "transcript"
+	| "start"
+	| "more";
 
 export type PaletteMore =
 	| { readonly kind: "scope"; readonly scope: SearchScope }
@@ -14,6 +26,18 @@ export interface PalettePreview {
 	readonly title: string;
 	readonly subtitle?: string;
 	readonly fields: readonly (readonly [label: string, value: string])[];
+}
+
+export interface PaletteFile {
+	readonly workspaceId: string;
+	readonly path: string;
+	readonly size?: number;
+}
+
+export interface PaletteMatch {
+	readonly tier: number;
+	readonly score: number;
+	readonly ranges: Readonly<Record<string, readonly MatchRange[]>>;
 }
 
 export interface PaletteItem {
@@ -32,10 +56,22 @@ export interface PaletteItem {
 	readonly badge?: string;
 	readonly shortcut?: CommandShortcut;
 	readonly contextBoost?: number;
+	readonly match?: PaletteMatch;
+	readonly late?: number;
+	readonly previewTarget?: SearchPreviewTarget;
+	readonly file?: PaletteFile;
 	readonly disabledReason?: string;
 	readonly more?: PaletteMore;
 	readonly run?: () => void;
 	readonly preview?: () => PalettePreview | null;
+}
+
+/**
+ * Start work from the typed text: the shell opens its Create-workspace dialog with the text as the prompt,
+ * and returns `false` when a Create dialog already open is kept instead.
+ */
+export interface PaletteStart {
+	readonly openDialog: (text: string) => boolean;
 }
 
 export interface PaletteSection {

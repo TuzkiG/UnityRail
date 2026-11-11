@@ -61,22 +61,17 @@ Body.`,
 	expect(parsed?.tools).toEqual(["read", "grep"]);
 });
 
-test.each([
-	"off",
-	"minimal",
-	"low",
-	"medium",
-	"high",
-	"xhigh",
-	"max",
-] as const)("definition thinking %s is preserved independently of a quoted model suffix", (thinking) => {
-	const parsed = parseAgentDefinition(
-		definitionFile("effort", `model: "openai/gpt-5:xhigh"\nthinking: ${thinking}\n`),
-		"personal",
-	);
-	expect(parsed?.model).toBe("openai/gpt-5:xhigh");
-	expect(parsed?.thinking).toBe(thinking);
-});
+test.each(["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const)(
+	"definition thinking %s is preserved independently of a quoted model suffix",
+	(thinking) => {
+		const parsed = parseAgentDefinition(
+			definitionFile("effort", `model: "openai/gpt-5:xhigh"\nthinking: ${thinking}\n`),
+			"personal",
+		);
+		expect(parsed?.model).toBe("openai/gpt-5:xhigh");
+		expect(parsed?.thinking).toBe(thinking);
+	},
+);
 
 test("resultSchema accepts inline JSON and a relative .json file, and is dropped when broken", () => {
 	const root = mkdtempSync(join(tmpdir(), "pi-subagents-schema-"));

@@ -41,6 +41,7 @@ import {
 	MODEL_PICKER_PROTOCOL_VERSION,
 	normalizeSessionTitle,
 	ONBOARDING_PROTOCOL_VERSION,
+	OTHER_AGENT_SKILLS_PROTOCOL_VERSION,
 	PI_PACKAGES_PROTOCOL_VERSION,
 	PLAN_REVIEW_SUBAGENT_PROTOCOL_VERSION,
 	PLAN_SUMMARY_GENERATION_PROTOCOL_VERSION,
@@ -54,9 +55,11 @@ import {
 	REVIEW_ACTIONS_PROTOCOL_VERSION,
 	REVIEW_RICH_ANCHORS_PROTOCOL_VERSION,
 	readToolResponseMessage,
+	SEARCH_PROTOCOL_VERSION,
 	SESSION_RENAME_PROTOCOL_VERSION,
 	SESSION_STATE_PROTOCOL_VERSION,
 	SESSION_TITLE_MAX_LENGTH,
+	SPEECH_PROTOCOL_VERSION,
 	SUBAGENT_CONCURRENCY_PROTOCOL_VERSION,
 	SUBAGENT_SETTINGS_PROTOCOL_VERSION,
 	SURVEY_TRANSLATIONS_PROTOCOL_VERSION,
@@ -246,6 +249,15 @@ test("tool responses replace the ask-only answer method at v93", () => {
 	expect(WS_METHODS.sessionAnswerQuestion).toBe("session.answerQuestion");
 });
 
+test("voice input is pinned to v107", () => {
+	expect(SPEECH_PROTOCOL_VERSION).toBe(107);
+	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(SPEECH_PROTOCOL_VERSION);
+	expect(WS_METHODS.speechInstall).toBe("speech.install");
+	expect(WS_METHODS.speechCancelInstall).toBe("speech.cancelInstall");
+	expect(WS_METHODS.speechRemove).toBe("speech.remove");
+	expect(WS_CHANNELS.speechChanged).toBe("speech.changed");
+});
+
 test("user-selectable fonts are pinned to v102", () => {
 	expect(FONTS_PROTOCOL_VERSION).toBe(102);
 	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(FONTS_PROTOCOL_VERSION);
@@ -285,6 +297,13 @@ test("client error reports are pinned to v90", () => {
 	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(CLIENT_ERROR_REPORT_PROTOCOL_VERSION);
 	expect(CLIENT_ERROR_REPORT_PROTOCOL_VERSION).toBe(90);
 	expect(WS_METHODS.clientReportError).toBe("client.reportError");
+});
+
+test("host search and its previews are pinned to v106", () => {
+	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(SEARCH_PROTOCOL_VERSION);
+	expect(SEARCH_PROTOCOL_VERSION).toBe(106);
+	expect(WS_METHODS.searchQuery).toBe("search.query");
+	expect(WS_METHODS.searchPreview).toBe("search.preview");
 });
 
 test("project rename is pinned to v85", () => {
@@ -337,6 +356,12 @@ test("the GitHub star ask is pinned to v103", () => {
 	expect(GITHUB_STAR_PROTOCOL_VERSION).toBe(103);
 	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(GITHUB_STAR_PROTOCOL_VERSION);
 	expect(WS_CHANNELS.feedbackGithubStar).toBe("feedback.githubStar");
+});
+
+test("the other agents' skills opt-in is pinned to v108", () => {
+	expect(OTHER_AGENT_SKILLS_PROTOCOL_VERSION).toBe(108);
+	expect(PROTOCOL_VERSION).toBe(108);
+	expect(DEFAULT_CONFIG.otherAgentSkills).toBe(false);
 });
 
 test("in-app surveys are pinned to v97", () => {

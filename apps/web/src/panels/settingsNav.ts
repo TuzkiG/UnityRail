@@ -11,6 +11,7 @@ import {
 	RiKeyLine,
 	RiLayoutGridLine,
 	RiLayoutTop2Line,
+	RiMicLine,
 	RiNotification3Line,
 	RiPaletteLine,
 	RiPlugLine,
@@ -26,6 +27,7 @@ import {
 	HOST_ENVIRONMENT_PROTOCOL_VERSION,
 	LOCALES_PROTOCOL_VERSION,
 	MCP_PROTOCOL_VERSION,
+	SPEECH_PROTOCOL_VERSION,
 	WORKSPACE_SETTLE_PROTOCOL_VERSION,
 } from "@thinkrail/contracts";
 import type { MessageKey } from "@thinkrail/locales";
@@ -83,6 +85,12 @@ const NAV_GROUPS: SettingsNavGroup[] = [
 			},
 			{ id: SettingsSection.Layout, label: "settings.nav.layout", icon: RiLayoutTop2Line },
 			{ id: SettingsSection.Keyboard, label: "settings.nav.keyboard", icon: RiKeyboardLine },
+			{
+				id: SettingsSection.Voice,
+				label: "settings.nav.voice",
+				icon: RiMicLine,
+				requiresProtocolVersion: SPEECH_PROTOCOL_VERSION,
+			},
 			{ id: SettingsSection.Terminal, label: "settings.nav.terminal", icon: RiTerminalBoxLine },
 		],
 	},

@@ -28,6 +28,7 @@ import { createPiSettings } from "./packages";
 import { writeFixturePiPackage } from "./packages/testFixtures";
 import type { SkillAdmissionContext } from "./skillAdmission";
 import { skillCarryover } from "./skillCarryover";
+import { skillCatalog } from "./skillCatalog";
 
 function ctx(trusted: boolean, acknowledged: string[] = []): SkillAdmissionContext {
 	return {
@@ -36,6 +37,8 @@ function ctx(trusted: boolean, acknowledged: string[] = []): SkillAdmissionConte
 		acknowledged,
 		disabled: [],
 		disabledGroups: [],
+		enabledGroups: [],
+		otherAgentSkills: true,
 		overrides: {},
 	};
 }
@@ -245,6 +248,8 @@ describe("listSkillCommands", () => {
 				acknowledged: [],
 				disabled: [],
 				disabledGroups: [],
+				enabledGroups: [],
+				otherAgentSkills: true,
 				overrides: {},
 			});
 			expect(enabled.some((command) => command.name === "skill:personal-widget")).toBe(true);
@@ -255,9 +260,72 @@ describe("listSkillCommands", () => {
 				acknowledged: [],
 				disabled: [],
 				disabledGroups: ["personal"],
+				enabledGroups: [],
+				otherAgentSkills: true,
 				overrides: {},
 			});
 			expect(groupOff.some((command) => command.name === "skill:personal-widget")).toBe(false);
+		} finally {
+			restore();
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	it("a switched-off personal skill never shadows a same-name project alias", async () => {
+		const root = mkdtempSync(join(tmpdir(), "thinkrail-skill-shadow-"));
+		const project = join(root, "project");
+		const home = join(root, "home");
+		const agentDir = join(root, "pi-agent");
+		mkdirSync(project, { recursive: true });
+		mkdirSync(home, { recursive: true });
+		mkdirSync(agentDir, { recursive: true });
+		const restore = stubSkillEnv(home, agentDir);
+		try {
+			writeSkill(join(home, ".claude", "skills"), "deploy", "personal deploy");
+			writeSkill(join(project, ".claude", "skills"), "deploy", "project deploy");
+			const admission: SkillAdmissionContext = {
+				trusted: true,
+				piResourceTrusted: true,
+				acknowledged: ["deploy"],
+				disabled: [],
+				disabledGroups: [],
+				enabledGroups: [],
+				otherAgentSkills: false,
+				overrides: {},
+			};
+			const commands = await listSkillCommands(project, admission);
+			expect(
+				commands.filter((command) => command.name === "skill:deploy").map((c) => c.description),
+			).toEqual(["project deploy"]);
+			const catalog = await listSkillCatalog(project, admission);
+			expect(
+				catalog
+					.filter((entry) => entry.name === "deploy")
+					.map((entry) => [entry.group, entry.decision])
+					.sort(),
+			).toEqual([
+				["personal", "disabled"],
+				["project", "load"],
+			]);
+			const overridden = { ...admission, overrides: { lint: "on" as const } };
+			expect(
+				(await listSkillCommands(project, overridden))
+					.filter((command) => command.name === "skill:deploy")
+					.map((c) => c.description),
+			).toEqual(["project deploy"]);
+			expect(
+				(await listSkillCatalog(project, overridden))
+					.filter((entry) => entry.name === "deploy")
+					.map((entry) => [entry.group, entry.decision])
+					.sort(),
+			).toEqual([
+				["personal", "disabled"],
+				["project", "load"],
+			]);
+			const optedIn = await listSkillCommands(project, { ...admission, otherAgentSkills: true });
+			expect(
+				optedIn.filter((command) => command.name === "skill:deploy").map((c) => c.description),
+			).toEqual(["personal deploy"]);
 		} finally {
 			restore();
 			rmSync(root, { recursive: true, force: true });
@@ -370,6 +438,8 @@ describe("buildResourceLoader", () => {
 				acknowledged: [],
 				disabled: [],
 				disabledGroups: [],
+				enabledGroups: [],
+				otherAgentSkills: true,
 				overrides: {},
 			};
 			const settingsManager = SettingsManager.create(project, agentDir, { projectTrusted: true });
@@ -405,6 +475,8 @@ describe("buildResourceLoader", () => {
 				acknowledged: [],
 				disabled: [],
 				disabledGroups: [],
+				enabledGroups: [],
+				otherAgentSkills: true,
 				overrides: {},
 			};
 			const settingsManager = SettingsManager.create(project, agentDir, { projectTrusted: true });
@@ -439,6 +511,8 @@ describe("buildResourceLoader", () => {
 				acknowledged: [],
 				disabled: [],
 				disabledGroups: [],
+				enabledGroups: [],
+				otherAgentSkills: true,
 				overrides: {},
 			};
 			const settingsManager = SettingsManager.create(project, agentDir, { projectTrusted: true });
@@ -655,13 +729,14 @@ describe("registry extensions", () => {
 
 	it("keeps the curated child set and appends registry children", () => {
 		const children = childExtensionFactories();
-		expect(children).toHaveLength(2 + registryInlineExtensions("childExtensions").length);
+		expect(children).toHaveLength(3 + registryInlineExtensions("childExtensions").length);
 		expect(children[0]).toBe(headlessSearchPolicy);
 		expect(typeof children[1]).toBe("function");
+		expect(children[2]).toBe(skillCatalog);
 		const names = (inlines: typeof children) =>
 			inlines.map((inline) => (typeof inline === "function" ? "fn" : inline.name));
-		expect(names(children.slice(2))).toEqual(names(registryInlineExtensions("childExtensions")));
-		expect(names(children.slice(2))).toEqual(["web-access"]);
+		expect(names(children.slice(3))).toEqual(names(registryInlineExtensions("childExtensions")));
+		expect(names(children.slice(3))).toEqual(["web-access"]);
 	});
 
 	it("loads web access with its skill and drops both while the extension is off", async () => {
@@ -796,10 +871,11 @@ describe("registry extensions", () => {
 		}
 	});
 
-	it("guards every child's images and compacted skills from the base set, not the opt-in curated set", () => {
+	it("guards every child's images and compacted skills from the tool-free base set, and offers the skill catalog only to opted-in children", () => {
 		expect(childBaseExtensionFactories()).toEqual([oversizedImageGuard, skillCarryover]);
 		expect(childExtensionFactories()).not.toContain(oversizedImageGuard);
 		expect(childExtensionFactories()).not.toContain(skillCarryover);
+		expect(childExtensionFactories()).toContain(skillCatalog);
 	});
 });
 

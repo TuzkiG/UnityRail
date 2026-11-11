@@ -61,36 +61,32 @@ afterEach(() => {
 	for (const root of roots.splice(0)) removeTree(root);
 });
 
-test("the public barrel exposes only the desktop locator and ready-document poller", () => {
-	expect(Object.keys(artifactTests).sort()).toEqual(["locateDesktopLauncher", "waitForDocument"]);
+test("the public barrel exposes only the desktop locator, ready-document poller and deadline", () => {
+	expect(Object.keys(artifactTests).sort()).toEqual([
+		"locateDesktopLauncher",
+		"waitForDocument",
+		"within",
+	]);
 	expect(artifactTests.locateDesktopLauncher).toBe(locateDesktopLauncher);
 });
 
-test.each(
-	desktopTargets,
-)("locates the documented dev launcher for $platform $arch, not another bundle", ({
-	platform,
-	arch,
-	launcher,
-	decoy,
-}) => {
-	const root = packageDir(decoy, launcher);
-	expect(locateDesktopLauncher(root, undefined, platform, arch)).toBe(join(root, launcher));
-});
+test.each(desktopTargets)(
+	"locates the documented dev launcher for $platform $arch, not another bundle",
+	({ platform, arch, launcher, decoy }) => {
+		const root = packageDir(decoy, launcher);
+		expect(locateDesktopLauncher(root, undefined, platform, arch)).toBe(join(root, launcher));
+	},
+);
 
-test.each(
-	desktopTargets,
-)("refuses other bundles when the dev launcher is missing for $platform $arch", ({
-	platform,
-	arch,
-	launcher,
-	decoy,
-}) => {
-	const root = packageDir(decoy);
-	expect(() => locateDesktopLauncher(root, undefined, platform, arch)).toThrow(
-		`packaged desktop launcher not found at ${join(root, launcher)}`,
-	);
-});
+test.each(desktopTargets)(
+	"refuses other bundles when the dev launcher is missing for $platform $arch",
+	({ platform, arch, launcher, decoy }) => {
+		const root = packageDir(decoy);
+		expect(() => locateDesktopLauncher(root, undefined, platform, arch)).toThrow(
+			`packaged desktop launcher not found at ${join(root, launcher)}`,
+		);
+	},
+);
 
 test("resolves an explicit desktop launcher relative to the caller, outside the default tree", () => {
 	const root = packageDir("custom-launcher");

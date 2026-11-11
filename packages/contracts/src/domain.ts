@@ -1,3 +1,4 @@
+import type { MatchTier } from "./match";
 import type { SessionState, ThinkingLevel, WireModel } from "./piProtocol";
 
 export interface SessionStateRecord {
@@ -73,6 +74,8 @@ export interface Project {
 	acknowledgedSkills?: string[];
 	disabledSkills?: string[];
 	disabledGroups?: string[];
+	/** Skill groups switched on for this project although `AppConfig.otherAgentSkills` leaves them off. */
+	enabledGroups?: string[];
 	/**
 	 * pi-level trust for the project's native `.pi/` resources, separate from the alias-skill `trusted`
 	 * grant; absent (a record that predates pi-level trust) reads as untrusted. Never enables MCP servers by itself.
@@ -137,6 +140,8 @@ export interface Workspace {
 	baseBranch: string;
 	diffBase?: string;
 	renamed?: boolean;
+	/** Session id of the chat whose `set_title` named the workspace but kept its branch; only that chat may still move it. */
+	branchNamePending?: string;
 	initialTerminalPending?: true;
 	diffStats?: DiffStats;
 	skillOverrides?: Record<string, "on" | "off">;
@@ -1498,6 +1503,8 @@ export interface AppConfig extends ThemePreference {
 	fileLineWidth: number;
 	chatLineWidthBounded: boolean;
 	fileLineWidthBounded: boolean;
+	/** When false, no text field shows the dictation mic and the chord does nothing. */
+	voiceInputEnabled: boolean;
 	customLayoutPresets: LayoutPreset[];
 	/** The model new chats start with; unset uses the first available model. */
 	defaultModel?: WireModel;
@@ -1538,6 +1545,8 @@ export interface AppConfig extends ThemePreference {
 	disabledExtensions: string[];
 	/** Values of settings bundled extensions declare, by extension name then setting key. */
 	extensionSettings: ExtensionSettingValues;
+	/** Load skills from other agents' user directories and Claude plugins in projects that do not decide for themselves. */
+	otherAgentSkills: boolean;
 	/** pi package identities (`PiPackageSummary.identity`) switched off host-wide; pi has no such setting. */
 	disabledPackages: string[];
 	/** UI language: `"system"` (follow the browser) or a BCP-47 tag; an unavailable tag renders English. */
@@ -1583,6 +1592,22 @@ export type AutoReasoningMode = "automatic" | "chat";
 
 /** How many recently chosen models the host remembers. */
 export const RECENT_MODELS_LIMIT = 5;
+
+export const OTHER_AGENT_SKILL_GROUPS: readonly string[] = ["personal", "@plugins"];
+
+/** Bounds of the host's per-request skill listing budget; a larger catalog is listed in part. */
+export const SKILL_LISTING_MIN_TOKENS = 4_000;
+export const SKILL_LISTING_MAX_TOKENS = 8_000;
+
+export function isSkillGroupEnabled(
+	project: { disabledGroups?: readonly string[]; enabledGroups?: readonly string[] } | undefined,
+	group: string,
+	otherAgentSkills: boolean,
+): boolean {
+	if (project?.enabledGroups?.includes(group)) return true;
+	if (project?.disabledGroups?.includes(group)) return false;
+	return otherAgentSkills || !OTHER_AGENT_SKILL_GROUPS.includes(group);
+}
 
 /** The `settings.update` payload: `null` clears an optional override back to unset (⇒ the default). */
 export type AppConfigUpdate = Partial<
@@ -1892,6 +1917,7 @@ export const DEFAULT_CONFIG: AppConfig = {
 	fileLineWidth: LINE_WIDTH_COLUMNS.default,
 	chatLineWidthBounded: true,
 	fileLineWidthBounded: true,
+	voiceInputEnabled: true,
 	customLayoutPresets: [],
 	favoriteModels: [],
 	recentModels: [],
@@ -1904,6 +1930,7 @@ export const DEFAULT_CONFIG: AppConfig = {
 	settleIdleDays: SETTLE_IDLE_DAYS.default,
 	disabledExtensions: [],
 	extensionSettings: {},
+	otherAgentSkills: false,
 	disabledPackages: [],
 	locale: SYSTEM_LOCALE_PREFERENCE,
 	onboardingDismissed: false,
@@ -2024,6 +2051,90 @@ export interface HistorySearchResult {
 	messageTotal: number;
 	indexing: boolean;
 }
+
+export const SEARCH_KINDS = ["transcript", "file", "spec", "plan"] as const;
+
+export type SearchKind = (typeof SEARCH_KINDS)[number];
+
+export const MAX_SEARCH_QUERY_LENGTH = 200;
+
+export const MAX_SEARCH_GROUP_LIMIT = 50;
+
+export const MAX_SEARCH_PREVIEW_BYTES = 2 * 1024 * 1024;
+
+/** Where the palette is: the active workspace, else the context project's folder, is the one root files and specs are searched in. */
+export interface SearchContext {
+	projectId?: string;
+	workspaceId?: string;
+}
+
+export interface SearchHitBase {
+	/** `kind:id[:locator]` — stable across replies so the client can keep a selection. */
+	id: string;
+	title: string;
+	subtitle?: string;
+	/** The shared matcher's tier and score; the client merges host hits with its own by these. */
+	tier: MatchTier;
+	score: number;
+	ranges?: Record<string, [number, number][]>;
+	projectId: string;
+	workspaceId: string;
+}
+
+export type SearchHit =
+	/** A root-relative POSIX `path`; `size` is the bytes on disk when the host could read them. */
+	| (SearchHitBase & { kind: "file"; path: string; size?: number })
+	/** `snippet` is the body line a `content`-tier hit matched. */
+	| (SearchHitBase & { kind: "spec"; path: string; specId: string; size: number; snippet?: string })
+	| (SearchHitBase & { kind: "plan"; sessionId: string })
+	/** `anchorText` re-finds the message when compaction moved `messageIndex`. */
+	| (SearchHitBase & {
+			kind: "transcript";
+			sessionId: string;
+			messageIndex: number;
+			anchorText: string;
+	  });
+
+/** `indexing`: never loaded yet; `refreshing`: a reload runs behind these hits; `failed`: the last load failed (its last good hits stay). */
+export type SearchGroupState = "ready" | "indexing" | "refreshing" | "failed";
+
+/** Why a group may miss hits: the scan ran out of time, or only `fileList` files of the root are listed. */
+export interface SearchGroupCut {
+	time?: true;
+	fileList?: number;
+}
+
+export interface SearchGroup {
+	kind: SearchKind;
+	hits: SearchHit[];
+	total: number;
+	state: SearchGroupState;
+	cut?: SearchGroupCut;
+}
+
+export interface SearchQueryResult {
+	groups: SearchGroup[];
+}
+
+/** The transcript window around a chat hit; files and specs render client-side through `fs.readFile`. */
+export interface SearchPreviewTarget {
+	kind: "chat";
+	sessionId: string;
+	messageIndex?: number;
+	/** The hit's `anchorText`: the focus moves to the message it starts when compaction shifted the index. */
+	anchorText?: string;
+}
+
+export interface SearchPreviewMessage {
+	role: "user" | "assistant";
+	messageIndex: number;
+	text: string;
+	focus: boolean;
+}
+
+export type SearchPreviewResult =
+	| { kind: "transcript"; title: string; messages: SearchPreviewMessage[] }
+	| { kind: "unavailable" };
 
 export type TemplateScope = "global" | "project";
 

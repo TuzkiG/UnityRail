@@ -51,6 +51,7 @@ export {
 	setSyncGitTimeoutForTests,
 	throwOnTimeout,
 } from "./gitExec";
+export { headBranchAt } from "./head";
 export { ignoredPaths } from "./ignored";
 export { assertSafeRef, isSafeRef, remoteNameOf, remoteTrackingRef } from "./refs";
 export {

@@ -10,6 +10,7 @@ import {
 	type SessionStateRecord,
 	type SessionSummary,
 	type SpecGraphNode,
+	type TodoPlan,
 	type WireModel,
 	type Workspace,
 	type WorkspaceFsChangedPayload,
@@ -41,6 +42,8 @@ import {
 	selectActiveFilePath,
 	selectChatAttended,
 	selectCompactionTurnIds,
+	selectComposerFocusRequested,
+	selectComposerFocusRequestStale,
 	selectCurrentRouteChatTarget,
 	selectDiffScope,
 	selectFilesTreeView,
@@ -151,6 +154,7 @@ beforeEach(() => {
 		sessionStateByWorkspace: {},
 		sessionStateClock: 0,
 		sessionStateSnapshotInstalled: false,
+		todoPlansByWorkspace: {},
 		renderedCompletionBySession: {},
 		obscuredChatSessions: {},
 		extUiOrphans: [],
@@ -190,8 +194,8 @@ beforeEach(() => {
 		fileLineWidth: DEFAULT_CONFIG.fileLineWidth,
 		chatLineWidthBounded: DEFAULT_CONFIG.chatLineWidthBounded,
 		fileLineWidthBounded: DEFAULT_CONFIG.fileLineWidthBounded,
+		voiceInputEnabled: DEFAULT_CONFIG.voiceInputEnabled,
 		chatMessageOrder: "oldest-first",
-		streamingResponseMovement: { settle: 75, trigger: 100 },
 		toasts: [],
 	});
 });
@@ -965,7 +969,7 @@ test("auto-retry with no assistant message yet (error before message_start) drop
 	expect(rt("a").turns.some((t) => t.kind === "retry")).toBe(true);
 });
 
-test("a turn that ends in a provider error surfaces the error (not a false ✓ Done)", () => {
+test("a turn that ends in a provider error surfaces the error (not a false Done)", () => {
 	const store = useAppStore.getState();
 	store.openChatSession("ws1", "a", null, "medium");
 
@@ -1025,7 +1029,7 @@ test("a run's closer lands before a mid-run result that woke nobody, as hydratio
 	}
 });
 
-test("a terminal length stop is a visible failure, never a false ✓ Done", () => {
+test("a terminal length stop is a visible failure, never a false Done", () => {
 	const store = useAppStore.getState();
 	store.openChatSession("ws1", "a", null, "medium");
 
@@ -3005,6 +3009,84 @@ test("activateWorkspaceFromRoute atomically stamps exact-chat intent", () => {
 	expect(useAppStore.getState()).toBe(before);
 });
 
+test("a composer focus request targets the attended chat until navigation overtakes it", () => {
+	const workspace = pushedWorkspace();
+	useAppStore.setState({
+		workspaces: { p1: [workspace] },
+		layoutDocumentsByWorkspace: { w1: selectedChatLayout("s1") },
+		layoutAttentionByWorkspace: {
+			w1: {
+				selectedByGroup: { center: "chat:s1" },
+				lastFocusedCenterGroupId: "center",
+				lastFocusedSideGroupId: {},
+				navigationClockByGroup: { center: 0 },
+			},
+		},
+	});
+	const requested = (sessionId = "s1") =>
+		selectComposerFocusRequested(useAppStore.getState(), "w1", sessionId);
+	const store = useAppStore.getState();
+
+	store.activateWorkspaceFromRoute(workspace);
+	expect(requested()).toBe(false);
+	store.requestComposerFocus("w1");
+	expect(requested()).toBe(true);
+	store.clearComposerFocusRequest();
+	expect(requested()).toBe(false);
+
+	store.requestComposerFocus("w1", "s2");
+	expect(requested()).toBe(false);
+	store.requestComposerFocus("w1", "s1");
+	expect(requested()).toBe(true);
+
+	store.noteNavigation("w1");
+	expect(requested()).toBe(false);
+
+	store.requestComposerFocus("w1");
+	store.selectProject("p1");
+	expect(requested()).toBe(false);
+});
+
+test("a composer focus request goes stale once the destination settles on anything but its chat", () => {
+	const workspace = pushedWorkspace();
+	const document = selectedChatLayout("s1");
+	if (document.center.kind !== "group") throw new Error("expected one center group");
+	document.center.tabs.push({ kind: "file", id: "file:a.ts", name: "a.ts", path: "a.ts" });
+	const attention = (selected: string) => ({
+		selectedByGroup: { center: selected },
+		lastFocusedCenterGroupId: "center",
+		lastFocusedSideGroupId: {},
+		navigationClockByGroup: { center: 0 },
+	});
+	const stale = () => selectComposerFocusRequestStale(useAppStore.getState(), "w1");
+	useAppStore.setState({ workspaces: { p1: [workspace] } });
+	const store = useAppStore.getState();
+
+	store.activateWorkspaceFromRoute(workspace);
+	store.requestComposerFocus("w1");
+	expect(stale()).toBe(false);
+
+	useAppStore.setState({
+		layoutDocumentsByWorkspace: { w1: document },
+		layoutAttentionByWorkspace: { w1: attention("chat:s1") },
+	});
+	expect(stale()).toBe(false);
+
+	useAppStore.setState({ layoutAttentionByWorkspace: { w1: attention("file:a.ts") } });
+	expect(stale()).toBe(true);
+
+	store.activateWorkspaceFromRoute(workspace, "s2");
+	store.requestComposerFocus("w1", "s2");
+	expect(stale()).toBe(false);
+	store.clearRouteChatTarget();
+	expect(stale()).toBe(true);
+
+	store.requestComposerFocus("w1");
+	store.noteNavigation("w1");
+	expect(stale()).toBe(true);
+	expect(selectComposerFocusRequestStale(useAppStore.getState(), "w2")).toBe(false);
+});
+
 test("closeChatToHistory keeps a route target for the closed session", () => {
 	const workspace = pushedWorkspace();
 	useAppStore.setState({ workspaces: { p1: [workspace] } });
@@ -4031,6 +4113,15 @@ test("applyConfig defaults absent or malformed line-width fields independently",
 	});
 });
 
+test("applyConfig projects the voice input switch and reads an absent one as on", () => {
+	useAppStore.getState().applyConfig({ ...DEFAULT_CONFIG, voiceInputEnabled: false });
+	expect(useAppStore.getState().voiceInputEnabled).toBe(false);
+	const older = { ...DEFAULT_CONFIG };
+	Reflect.deleteProperty(older, "voiceInputEnabled");
+	useAppStore.getState().applyConfig(older);
+	expect(useAppStore.getState().voiceInputEnabled).toBe(true);
+});
+
 test("applyConfig projects the host-wide subagent default", () => {
 	useAppStore.getState().applyConfig({
 		...DEFAULT_CONFIG,
@@ -4077,15 +4168,12 @@ test("applyConfig projects JetBrains quota display and cadence", () => {
 
 test("chat presentation preferences are client-local and cannot be overwritten by host config", () => {
 	useAppStore.getState().setChatMessageOrder("newest-first");
-	useAppStore.getState().setStreamingResponseMovement({ settle: 60, trigger: 90 });
 	const legacyConfig = {
 		...DEFAULT_CONFIG,
 		chatMessageOrder: "oldest-first",
-		streamingResponseMovement: { settle: 75, trigger: 100 },
 	};
 	useAppStore.getState().applyConfig(legacyConfig);
 	expect(useAppStore.getState().chatMessageOrder).toBe("newest-first");
-	expect(useAppStore.getState().streamingResponseMovement).toEqual({ settle: 60, trigger: 90 });
 });
 
 test("changes tabs: one per scope, preview-eligible, and review progress survives a re-open", () => {
@@ -5061,4 +5149,56 @@ test("openSearch starts a fresh palette session even when the palette is already
 	useAppStore.getState().closeSearch();
 	useAppStore.getState().closeSearch();
 	expect(useAppStore.getState()).toMatchObject({ searchOpen: false, searchSession: 2 });
+});
+
+const todoPlanFor = (title: string): TodoPlan => ({
+	todos: [{ id: "t1", title, status: "pending", origin: "agent", createdAt: "", updatedAt: "" }],
+	groups: [],
+});
+
+test("todo plan cache: installTodoPlan stores per session and skips identical plans without churn", () => {
+	const s = () => useAppStore.getState();
+	s().installTodoPlan("ws1", "a", todoPlanFor("first"));
+	expect(s().todoPlansByWorkspace.ws1?.a?.todos[0]?.title).toBe("first");
+
+	const cached = s().todoPlansByWorkspace;
+	s().installTodoPlan("ws1", "a", todoPlanFor("first"));
+	expect(s().todoPlansByWorkspace).toBe(cached); // identical plan → no store churn
+
+	s().installTodoPlan("ws1", "b", todoPlanFor("second"));
+	expect(s().todoPlansByWorkspace.ws1?.a).toBeDefined();
+	expect(s().todoPlansByWorkspace.ws1?.b?.todos[0]?.title).toBe("second");
+});
+
+test("todo plan cache: deleteChat drops the session's cached plan", () => {
+	const store = useAppStore.getState();
+	useAppStore.setState({ activeWorkspaceId: "ws1" });
+	store.openChatSession("ws1", "a", null, "medium");
+	store.installTodoPlan("ws1", "a", todoPlanFor("first"));
+	store.installTodoPlan("ws1", "b", todoPlanFor("second"));
+	expect(useAppStore.getState().todoPlansByWorkspace.ws1?.a).toBeDefined();
+
+	store.deleteChat("ws1", "a");
+	const state = useAppStore.getState();
+	expect(state.todoPlansByWorkspace.ws1?.a).toBeUndefined();
+	expect(state.todoPlansByWorkspace.ws1?.b).toBeDefined();
+});
+
+test("todo plan cache: applyWorkspaceRemoved drops the workspace's plans and install ignores it after", () => {
+	useAppStore.setState({
+		workspaces: { p1: [pushedWorkspace()] },
+		activeWorkspaceId: "other",
+		toasts: [],
+	});
+	const store = useAppStore.getState();
+	store.installTodoPlan("w1", "a", todoPlanFor("first"));
+	store.installTodoPlan("other", "a", todoPlanFor("kept"));
+
+	useAppStore.getState().applyWorkspaceRemoved("p1", "w1");
+	const state = useAppStore.getState();
+	expect(state.todoPlansByWorkspace.w1).toBeUndefined();
+	expect(state.todoPlansByWorkspace.other?.a).toBeDefined();
+
+	useAppStore.getState().installTodoPlan("w1", "a", todoPlanFor("late"));
+	expect(useAppStore.getState().todoPlansByWorkspace.w1).toBeUndefined();
 });

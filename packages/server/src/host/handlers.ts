@@ -16,6 +16,7 @@ import type {
 import {
 	BRANCH_STATUS_PROTOCOL_VERSION,
 	isControlMessage,
+	isSpeechModel,
 	WORKSPACE_SETTLE_PROTOCOL_VERSION,
 } from "@thinkrail/contracts";
 import { CodedError } from "@thinkrail/shared/codedError";
@@ -105,7 +106,7 @@ import {
 	startProxyJbcentral,
 	updateJbcentral,
 } from "../auth";
-import { findBranchReviewOutcome, providerFromRemoteUrl } from "../branch-review";
+import { providerFromRemoteUrl } from "../branch-review";
 import { forgetWorkspaceChanges, revertChange, undoChange } from "../changes";
 import { selectDirectory } from "../dialog";
 import { listAvailableEditors, openEditor, revealInFileManager } from "../editors";
@@ -194,7 +195,8 @@ import {
 	updateComment,
 } from "../reviews";
 import { getConfig, noteRecentModel, updateConfig } from "../settings";
-import { evictSpecIndex, projectHasSpecs, specGraph } from "../spec";
+import { evictSpecIndex, evictSpecRoot, projectHasSpecs, specGraph } from "../spec";
+import { cancelSpeechInstall, installSpeech, removeSpeech } from "../speech";
 import {
 	deleteTemplate,
 	getTemplate,
@@ -286,7 +288,6 @@ import {
 	openExistingWorktree,
 	reclaimWorktree,
 	recordWorkspaceActivity,
-	refreshUserOwnedWorkspace,
 	renameWorkspace,
 	retryWorkspaceCreation,
 	settleWorkspace,
@@ -349,7 +350,8 @@ import {
 import { startPlanReview } from "./requestReview";
 import { withChangeLock, withReviewLock } from "./reviewLock";
 import { runObservation } from "./runAnalytics";
-import { scheduleLifecyclePass } from "./settledLifecycle";
+import { hostSearch } from "./search";
+import { findWorkspaceReviewOutcome, scheduleLifecyclePass } from "./settledLifecycle";
 import { taskObservation } from "./taskAnalytics";
 import {
 	claimItemFix,
@@ -775,7 +777,7 @@ const handlers: WsHandlers = {
 		);
 	},
 	"workspace.rename": (p) => {
-		return renameWorkspace(p.id, p.name);
+		return renameWorkspace(p.id, p.name).workspace;
 	},
 	"workspace.list": async (p) => {
 		const rows = (
@@ -790,7 +792,7 @@ const handlers: WsHandlers = {
 		const ws = getWorkspace(p.workspaceId);
 		const fresh = shouldRefreshOpenReview(p.allowCached);
 		const [outcome, divergence] = await Promise.all([
-			findBranchReviewOutcome(ws.worktreePath, ws.branch, { fresh }),
+			findWorkspaceReviewOutcome(ws, { fresh }),
 			// Only pay the network fetch on a fresh lookup (focus / explicit refresh), not a cached activation.
 			countPushDivergence(ws.worktreePath, ws.branch, { fetch: fresh }),
 		]);
@@ -822,7 +824,7 @@ const handlers: WsHandlers = {
 			}
 		};
 		const [outcome, measured, aheadOfBase, nested] = await Promise.all([
-			findBranchReviewOutcome(ws.worktreePath, ws.branch, { fresh: false }),
+			findWorkspaceReviewOutcome(ws, { fresh: false }),
 			measure(),
 			commitsAheadOf(ws.worktreePath, ws.baseBranch),
 			listNestedRepoStatuses(ws).catch(() => []),
@@ -838,9 +840,9 @@ const handlers: WsHandlers = {
 					}
 				}
 				try {
-					const refreshed = await findBranchReviewOutcome(ws.worktreePath, ws.branch, {
-						fresh: true,
-					});
+				const refreshed = await findWorkspaceReviewOutcome(ws, {
+					fresh: true,
+				});
 					if (refreshed.reliable) setWorkspaceReview(ws.id, refreshed.value, ws.branch);
 				} catch {}
 				nudgeRepoMeta(p.workspaceId);
@@ -886,6 +888,7 @@ const handlers: WsHandlers = {
 		const ws = forgetWorkspace(id);
 		if (ws) {
 			evictSpecIndex(ws.id);
+			evictSpecRoot(ws.worktreePath);
 			removeWorkspaceReviews(ws.id);
 			forgetWorkspaceChanges(ws.id);
 			forgetWorkspaceTurns(ws.id);
@@ -1058,7 +1061,6 @@ const handlers: WsHandlers = {
 		return { ok: true } as const;
 	},
 	"pr.open": async (p) => {
-		refreshUserOwnedWorkspace(p.workspaceId);
 		recordWorkspaceActivity(p.workspaceId);
 		const { branch, ...result } = await observePrAction(() => openPr(p), p.source ?? "other");
 		if (result.review) {
@@ -1102,7 +1104,11 @@ const handlers: WsHandlers = {
 	},
 	"fs.readFile": (p) => {
 		void ensureWatch(p.workspaceId);
-		return readFile(p.workspaceId, p.path);
+		return readFile(
+			p.workspaceId,
+			p.path,
+			p.maxBytes === undefined ? {} : { maxBytes: p.maxBytes },
+		);
 	},
 	"spec.graph": (p) => {
 		void ensureWatch(p.workspaceId);
@@ -1281,13 +1287,19 @@ const handlers: WsHandlers = {
 		const { projectId } = params;
 		const project = listProjects().find((candidate) => candidate.id === projectId);
 		if (!project) throw new Error(`Unknown project: ${projectId}`);
-		return listSkillCommands(project.path, admissionContextFor(project));
+		return listSkillCommands(
+			project.path,
+			admissionContextFor(project, {}, getConfig().otherAgentSkills),
+		);
 	},
 	"skills.state": (params) => {
 		const { workspaceId } = params;
 		const ws = getWorkspace(workspaceId);
 		const project = listProjects().find((p) => p.id === ws.projectId);
-		return listSkillCatalog(ws.worktreePath, admissionContextFor(project, ws.skillOverrides ?? {}));
+		return listSkillCatalog(
+			ws.worktreePath,
+			admissionContextFor(project, ws.skillOverrides ?? {}, getConfig().otherAgentSkills),
+		);
 	},
 	"extension.list": () => listExtensionCatalog(new Set(getConfig().disabledExtensions)),
 	"packages.list": (p) => packagesList(p),
@@ -1304,6 +1316,19 @@ const handlers: WsHandlers = {
 	"fonts.list": () => readUserFonts(),
 	"fonts.installed": () => listInstalledFonts(),
 	"fonts.reveal": () => revealDataFolder(fontsDir()),
+	"speech.install": (p) => {
+		if (!isSpeechModel(p.model)) throw new Error("unknown voice model");
+		installSpeech(p.model);
+		return { ok: true };
+	},
+	"speech.cancelInstall": () => {
+		cancelSpeechInstall();
+		return { ok: true };
+	},
+	"speech.remove": async () => {
+		await removeSpeech();
+		return { ok: true };
+	},
 	"project.acknowledgeSkills": (p) => {
 		return acknowledgeProjectSkills(p.id, p.names);
 	},
@@ -1332,7 +1357,10 @@ const handlers: WsHandlers = {
 		const { projectId } = params;
 		const project = listProjects().find((p) => p.id === projectId);
 		if (!project) throw new Error(`Unknown project: ${projectId}`);
-		return listSkillCatalog(project.path, admissionContextFor(project));
+		return listSkillCatalog(
+			project.path,
+			admissionContextFor(project, {}, getConfig().otherAgentSkills),
+		);
 	},
 	"workspace.setSkillOverride": (p) => {
 		return setWorkspaceSkillOverride(p.id, p.name, p.override);
@@ -1697,8 +1725,11 @@ const handlers: WsHandlers = {
 		});
 	},
 
+	"search.query": (p) => hostSearch().query(p),
+	"search.preview": (p) => hostSearch().preview(p),
+
 	"review.get": async (p) => {
-		ensureWatch(p.workspaceId);
+		void ensureWatch(p.workspaceId);
 		return markClientStale(await getReviewSnapshot(p.workspaceId), p.workspaceId);
 	},
 	"review.commentAdd": (p) => {

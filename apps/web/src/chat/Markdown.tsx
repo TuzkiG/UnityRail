@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { guessFenceLanguage } from "@/lib/guessLanguage";
 import { useHighlightedCode } from "@/lib/highlightCode";
+import { HighlightedHtml } from "./HighlightedHtml";
 import { createMarkdownSplitter } from "./markdownBlocks";
 
 const CHAT_PROSE =
@@ -126,7 +127,7 @@ function CodeBlock({
 	if (!lang) {
 		return <pre className="overflow-auto rounded-sm bg-container-elevated-bg p-8">{code}</pre>;
 	}
-	return <ShikiBlock code={code} lang={lang} />;
+	return <HighlightBlock code={code} lang={lang} />;
 }
 
 function MermaidBlock({ code }: { code: string }) {
@@ -136,7 +137,7 @@ function MermaidBlock({ code }: { code: string }) {
 		return () => clearTimeout(timer);
 	}, [code]);
 
-	const source = <ShikiBlock code={code} lang="mermaid" />;
+	const source = <HighlightBlock code={code} lang="mermaid" />;
 	if (settled !== code) return source;
 	return (
 		<div className="whitespace-normal">
@@ -145,7 +146,7 @@ function MermaidBlock({ code }: { code: string }) {
 	);
 }
 
-function ShikiBlock({ code, lang }: { code: string; lang: string }) {
+function HighlightBlock({ code, lang }: { code: string; lang: string }) {
 	const html = useHighlightedCode(code, lang);
 
 	if (html === null) {
@@ -156,9 +157,9 @@ function ShikiBlock({ code, lang }: { code: string; lang: string }) {
 		);
 	}
 	return (
-		<div
+		<HighlightedHtml
+			html={html}
 			className="overflow-auto rounded-sm [&_pre]:!m-0 [&_pre]:!bg-container-elevated-bg [&_pre]:p-8"
-			dangerouslySetInnerHTML={{ __html: html }}
 		/>
 	);
 }

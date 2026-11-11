@@ -119,7 +119,15 @@ export interface ChatTodos {
 }
 
 export function useChatTodos(workspaceId: string, sessionId: string): ChatTodos {
-	const [data, setData] = useState<TodoPlan | null>(null);
+	const [data, setData] = useState<TodoPlan | null>(() => {
+		const store = useAppStore.getState();
+		return store.todoPlansByWorkspace[workspaceId]?.[sessionId] ?? null;
+	});
+	// Mirrors `data` for synchronous reads (e.g. merging an optimistic add with the freshest plan).
+	const dataRef = useRef(data);
+	useInsertionEffect(() => {
+		dataRef.current = data;
+	}, [data]);
 	const [failed, setFailed] = useState(false);
 	const status = useAppStore((state) => state.status);
 	const connectionGeneration = useAppStore((state) => state.connectionGeneration);
@@ -150,7 +158,11 @@ export function useChatTodos(workspaceId: string, sessionId: string): ChatTodos 
 		const load = (reset: boolean) => {
 			const mine = ++readGeneration.current;
 			if (reset) {
-				setData(null);
+				// Seed from the last-known plan so a remounted view (tab/window switch) renders instantly;
+				// the fetch below refreshes it in the background.
+				setData(
+					useAppStore.getState().todoPlansByWorkspace[workspaceId]?.[sessionId] ?? null,
+				);
 				setFailed(false);
 			}
 			getTransport()
@@ -163,6 +175,7 @@ export function useChatTodos(workspaceId: string, sessionId: string): ChatTodos 
 						live(effectIdentity)
 					) {
 						setData(plan);
+						useAppStore.getState().installTodoPlan(workspaceId, sessionId, plan);
 						setFailed(false);
 					}
 				})
@@ -239,14 +252,16 @@ export function useChatTodos(workspaceId: string, sessionId: string): ChatTodos 
 		});
 		if (!live(requestIdentity)) return;
 		readGeneration.current += 1;
-		setData((prev) =>
-			prev &&
-			![...prev.todos, ...prev.groups.flatMap((group) => group.todos)].some(
+		const current = dataRef.current;
+		const merged =
+			current &&
+			![...current.todos, ...current.groups.flatMap((group) => group.todos)].some(
 				(candidate) => candidate.id === todo.id,
 			)
-				? { ...prev, todos: [...prev.todos, todo] }
-				: prev,
-		);
+				? { ...current, todos: [...current.todos, todo] }
+				: current;
+		setData(merged);
+		if (merged) useAppStore.getState().installTodoPlan(workspaceId, sessionId, merged);
 		broadcastWrite(requestIdentity);
 		void nudgeAgent(workspaceId, sessionId, title);
 	};
@@ -272,6 +287,7 @@ export function useChatTodos(workspaceId: string, sessionId: string): ChatTodos 
 		}
 		if (readGeneration.current !== mine || !live(requestIdentity)) return false;
 		setData(plan);
+		useAppStore.getState().installTodoPlan(workspaceId, sessionId, plan);
 		return true;
 	};
 

@@ -27,6 +27,7 @@ import {
 	selectCanRenameChat,
 	selectCatalogModel,
 	selectCompactionTurnIds,
+	selectComposerFocusRequested,
 	selectPickerModels,
 	selectSkillsStale,
 	selectSupportsMcp,
@@ -509,7 +510,7 @@ export default function ChatView({
 		const superseded = () => selection !== pairSelection.current;
 		useAppStore.getState().setCurrentModel(sessionId, model);
 		if (level) useAppStore.getState().setThinkingLevel(sessionId, level);
-		getTransport()
+		void getTransport()
 			.request("session.setModel", { sessionId, model })
 			.then(
 				() => (level && !superseded() ? requestLevel(level, previous.level) : undefined),
@@ -736,6 +737,15 @@ export default function ChatView({
 		if (historyOverlayOpen) cycleScope();
 		else composerRef.current?.openHistory();
 	}, [historyOpenRequest, sessionId, historyOverlayOpen, cycleScope]);
+
+	const composerFocusRequested = useAppStore((s) =>
+		selectComposerFocusRequested(s, workspaceId, sessionId),
+	);
+	useEffect(() => {
+		if (!composerFocusRequested) return;
+		useAppStore.getState().clearComposerFocusRequest();
+		composerRef.current?.refocus();
+	}, [composerFocusRequested]);
 
 	const widgetEntries = Object.entries(extUiWidget);
 	const disableNotice = () => {

@@ -19,6 +19,7 @@ import {
 	type ResourceKind,
 	type ResourceRecord,
 	resourceTallyTotal,
+	SEARCH_PROTOCOL_VERSION,
 	SESSION_RENAME_PROTOCOL_VERSION,
 	SESSION_STATE_PROTOCOL_VERSION,
 	type SessionResourceHistory,
@@ -58,6 +59,7 @@ import type {
 import type {
 	ChangesTabSection,
 	ClosedChat,
+	ComposerFocusRequest,
 	EditorTab,
 	FilesTreeView,
 	MarkedUnread,
@@ -116,6 +118,32 @@ export function isConnectedGeneration(
 
 interface ProtocolState {
 	protocolVersion: number | null;
+}
+
+export function selectHostSearchAvailable(state: {
+	welcomeProtocolVersion: number | null;
+}): boolean {
+	return (
+		state.welcomeProtocolVersion !== null && state.welcomeProtocolVersion >= SEARCH_PROTOCOL_VERSION
+	);
+}
+
+export function selectHostReachable(
+	state: ProtocolState & { status: string; welcomeGeneration: number },
+): boolean {
+	return (
+		state.status === "connected" && state.welcomeGeneration > 0 && state.protocolVersion !== null
+	);
+}
+
+export function selectHostSearchReady(
+	state: ProtocolState & { status: string; welcomeGeneration: number },
+): boolean {
+	return (
+		selectHostReachable(state) &&
+		state.protocolVersion !== null &&
+		state.protocolVersion >= SEARCH_PROTOCOL_VERSION
+	);
 }
 
 export function selectCanRenameChat(state: ProtocolState): boolean {
@@ -755,6 +783,53 @@ export function selectChatAttended(
 		return false;
 	const tab = selectAttentionCenterTab(state, workspaceId);
 	return tab?.kind === "chat" && tab.sessionId === sessionId;
+}
+
+export function selectComposerFocusRequested(
+	state: ChatAttentionState & {
+		composerFocusRequest: ComposerFocusRequest | null;
+		navTickByWorkspace: Record<string, number>;
+	},
+	workspaceId: string,
+	sessionId: string,
+): boolean {
+	const request = state.composerFocusRequest;
+	return (
+		request !== null &&
+		request.workspaceId === workspaceId &&
+		(request.sessionId === null || request.sessionId === sessionId) &&
+		selectWorkspaceNavTick(state, workspaceId) === request.navTick &&
+		selectChatAttended(state, workspaceId, sessionId)
+	);
+}
+
+export function selectComposerFocusRequestStale(
+	state: ChatAttentionState & {
+		composerFocusRequest: ComposerFocusRequest | null;
+		navTickByWorkspace: Record<string, number>;
+		routeChatTarget: RouteChatTarget | null;
+	},
+	workspaceId: string,
+): boolean {
+	const request = state.composerFocusRequest;
+	if (!request || request.workspaceId !== workspaceId) return false;
+	if (state.activeWorkspaceId !== workspaceId) return true;
+	if (selectWorkspaceNavTick(state, workspaceId) !== request.navTick) return true;
+	if (
+		!state.layoutDocumentsByWorkspace[workspaceId] ||
+		!state.layoutAttentionByWorkspace[workspaceId]
+	) {
+		return false;
+	}
+	if (request.sessionId && selectCurrentRouteChatTarget(state)?.sessionId === request.sessionId) {
+		return false;
+	}
+	const tab = selectAttentionCenterTab(state, workspaceId);
+	if (!tab) return false;
+	return !(
+		tab.kind === "chat" &&
+		(request.sessionId === null || tab.sessionId === request.sessionId)
+	);
 }
 
 export function selectAttentionCenterResourceCacheKey(

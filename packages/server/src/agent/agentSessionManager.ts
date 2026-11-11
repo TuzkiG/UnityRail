@@ -50,6 +50,7 @@ import {
 	firstPromptOfTexts,
 	isTranscriptMessageRole,
 	normalizeSessionTitle,
+	OTHER_AGENT_SKILL_GROUPS,
 	sameModel,
 	TODO_REVIEW_FIX_CUSTOM_TYPE,
 } from "@thinkrail/contracts";
@@ -100,6 +101,7 @@ import {
 	disabledExtensions,
 	extensionSettingsKey,
 	isLoaderPolicyStale,
+	listSkillCatalog,
 	loadsDisabledExtensionSkills,
 	packagePolicyKey,
 	providerExtensionPaths,
@@ -654,10 +656,7 @@ function markCancelledRun(entry: Entry): void {
 	try {
 		saveSessionLifecycle(next);
 	} catch (error) {
-		log.warn(
-			`session cancellation state was not persisted for ${entry.session.sessionId}`,
-			error as Error,
-		);
+		log.warn(`session cancellation state was not persisted for ${entry.session.sessionId}`, error);
 	}
 }
 
@@ -672,6 +671,8 @@ const defaultSkillAdmission = (): SkillAdmissionContext => ({
 	acknowledged: [],
 	disabled: [],
 	disabledGroups: [],
+	enabledGroups: [],
+	otherAgentSkills: false,
 	overrides: {},
 });
 let skillAdmissionResolver: (workspaceId: string) => SkillAdmissionContext = defaultSkillAdmission;
@@ -813,7 +814,7 @@ function applyExtensionTools(entry: Entry, { allowReload = true } = {}): void {
 	) {
 		void requestSessionReload(session.sessionId).catch((error) => {
 			if (!entry.disposed && !entry.resourcesClosing && !hasFailedMcpReload(session.sessionId)) {
-				log.warn(`extension reload failed for ${session.sessionId}`, error as Error);
+				log.warn(`extension reload failed for ${session.sessionId}`, error);
 			}
 		});
 	}
@@ -869,6 +870,38 @@ export function refreshExtensionTools(): void {
 		else applyExtensionTools(entry);
 		scheduleEntryStatePublish(entry);
 	}
+}
+
+export async function refreshSkillAdmission(): Promise<void> {
+	await Promise.all(
+		[...sessions.values()].map(async (entry) => {
+			if (entry.disposed || entry.resourcesClosing) return;
+			const { session } = entry;
+			try {
+				if (entry.reloadRunning) {
+					await requestSessionReload(session.sessionId);
+					return;
+				}
+				const catalog = await listSkillCatalog(
+					session.sessionManager.getCwd(),
+					skillAdmissionResolver(entry.workspaceId),
+				);
+				const loaded = new Set(
+					session.resourceLoader.getSkills().skills.map((skill) => skill.filePath),
+				);
+				const stale = catalog.some(
+					(skill) =>
+						(skill.plugin !== undefined || OTHER_AGENT_SKILL_GROUPS.includes(skill.group)) &&
+						(skill.decision === "load") !== loaded.has(skill.sourceInfo.path),
+				);
+				if (stale) await requestSessionReload(session.sessionId);
+			} catch (error) {
+				if (!entry.disposed && !entry.resourcesClosing && !hasFailedMcpReload(session.sessionId)) {
+					log.warn(`skill admission reload failed for ${session.sessionId}`, error as Error);
+				}
+			}
+		}),
+	);
 }
 
 function hasDeletionTombstone(sessionId: string): boolean {
@@ -955,7 +988,7 @@ function reconsiderPendingReload(entry: Entry): void {
 			hasFailedMcpReload(sessionId)
 		)
 			return;
-		log.warn(`deferred resource reload failed for ${sessionId}`, error as Error);
+		log.warn(`deferred resource reload failed for ${sessionId}`, error);
 		notifyExtUi(
 			sessionId,
 			`This chat could not reload its resources after a settings change and still runs with the previous ones — close or reload it. ${(error as Error).message ?? String(error)}`,
@@ -1080,7 +1113,7 @@ export async function applyPiResourceTrust(
 			dispositions[sessionId] = await requestSessionReload(sessionId);
 		} catch (error) {
 			if (!entry.disposed && !entry.resourcesClosing && !hasFailedMcpReload(sessionId)) {
-				log.warn(`trust reload failed for ${sessionId}`, error as Error);
+				log.warn(`trust reload failed for ${sessionId}`, error);
 			}
 			dispositions[sessionId] = "failed";
 		}
@@ -1133,7 +1166,7 @@ function resolveWireModel(
 	const available = settledAvailableModels(runtime);
 	const match = available.find((model) => sameModel(model, ref));
 	if (!match) throw new Error(`Unknown or unavailable model: ${ref.provider}/${ref.id}`);
-	return match as unknown as Model<string>;
+	return match;
 }
 
 const RENAMED_PI_PROVIDERS: Readonly<Record<string, string>> = {
@@ -1276,7 +1309,7 @@ async function prepareSessionEntry(
 			try {
 				recordSettlement(entry, terminal);
 			} catch (error) {
-				log.warn(`session state settlement was not persisted for ${sessionId}`, error as Error);
+				log.warn(`session state settlement was not persisted for ${sessionId}`, error);
 			}
 			if (entry.subagentToolsRefreshPending) applySubagentTools(entry);
 			if (entry.reviewToolRefreshPending) applyReviewTool(entry);
@@ -1326,9 +1359,7 @@ async function prepareSessionEntry(
 		entry,
 		result: {
 			sessionId,
-			model: session.model
-				? sessionWireModel(session.model as unknown as Model<string>, generation)
-				: null,
+			model: session.model ? sessionWireModel(session.model, generation) : null,
 			thinkingLevel: session.thinkingLevel,
 		},
 	};
@@ -1478,7 +1509,7 @@ async function createParentSessionInternal(
 			try {
 				mcpToolGrantWriter(workspaceId, server, target, tool);
 			} catch (error) {
-				log.warn(`could not save the MCP grant for ${tool}`, error as Error);
+				log.warn(`could not save the MCP grant for ${tool}`, error);
 			}
 		},
 	});
@@ -1598,9 +1629,7 @@ function summaryOf(sessionId: string, entry: Entry): SessionSummary {
 		workspaceId: entry.workspaceId,
 		title: session.sessionName ?? "",
 		...entryFirstPrompt(entry),
-		model: session.model
-			? sessionWireModel(session.model as unknown as Model<string>, entry.generation)
-			: null,
+		model: session.model ? sessionWireModel(session.model, entry.generation) : null,
 		thinkingLevel: session.thinkingLevel,
 		isStreaming: session.isStreaming,
 		messageCount: session.messages.length,
@@ -2957,7 +2986,7 @@ function reconcileSubagentUsageInBackground(workspaceId: string, sessionId: stri
 	void reconcileSessionSubagentUsage(workspaceId, sessionId, () =>
 		usageWritableEntry(sessionId)?.session.sessionManager.getEntries(),
 	).catch((error: unknown) =>
-		log.warn(`subagent usage was not reconciled for ${sessionId}`, error as Error),
+		log.warn(`subagent usage was not reconciled for ${sessionId}`, error),
 	);
 }
 
@@ -2983,7 +3012,7 @@ function cutTornUsageAppend(
 	try {
 		if (file && size !== undefined && statSync(file).size > size) truncateSync(file, size);
 	} catch (error) {
-		log.warn(`a failed usage append was not cut back for ${sessionId}`, error as Error);
+		log.warn(`a failed usage append was not cut back for ${sessionId}`, error);
 	}
 }
 
@@ -3002,13 +3031,13 @@ export function recordSessionUsage(
 		sessionManager.appendUsage(kind, provider, model, usage, note);
 	} catch (error) {
 		cutTornUsageAppend(sessionId, file, size);
-		log.warn(`${kind} usage was not persisted for ${sessionId}`, error as Error);
+		log.warn(`${kind} usage was not persisted for ${sessionId}`, error);
 		return false;
 	}
 	try {
 		publish({ sessionId, event: { type: "entry_appended", entryType: "usage" } });
 	} catch (error) {
-		log.warn(`usage invalidation was not published for ${sessionId}`, error as Error);
+		log.warn(`usage invalidation was not published for ${sessionId}`, error);
 	}
 	return true;
 }
@@ -3142,7 +3171,7 @@ export async function refreshAvailableModels(force = false): Promise<RefreshedMo
 function readAvailableWireModels(generation: PiRuntimeGeneration): WireModel[] {
 	const authByProvider = new Map<string, WireModelAuth>();
 	return settledAvailableModels(generation.runtime).map((m) => {
-		const model = m as unknown as Model<string>;
+		const model: Model<string> = m;
 		let auth = authByProvider.get(model.provider);
 		if (!auth) {
 			auth = catalogProviderAuth(generation, model.provider);
@@ -3212,7 +3241,7 @@ function settleShutdownStep(entry: Entry, step: () => Promise<unknown>): Promise
 	return running.then(
 		() => {},
 		(error) => {
-			log.debug(`session ${entry.session.sessionId} shutdown handlers failed`, error as Error);
+			log.debug(`session ${entry.session.sessionId} shutdown handlers failed`, error);
 		},
 	);
 }
@@ -3302,7 +3331,7 @@ export function removeSession(sessionId: string): Promise<void> {
 	if (pending) return pending;
 	const entry = sessions.get(sessionId);
 	if (!entry) return Promise.resolve();
-	closeSessionResources(entry);
+	void closeSessionResources(entry);
 	if (entry.session.isStreaming)
 		return abortEntry(entry, true)
 			.catch(() => {})
@@ -3418,7 +3447,7 @@ async function purgeDiskSessions(cwd: string): Promise<void> {
 		try {
 			removeSessionStateMetadata(info.id);
 		} catch (error) {
-			log.warn(`session state metadata was not pruned for ${info.id}`, error as Error);
+			log.warn(`session state metadata was not pruned for ${info.id}`, error);
 		}
 	}
 }
@@ -3491,7 +3520,7 @@ async function runDeleteTransaction(
 	try {
 		removeSessionStateMetadata(sessionId);
 	} catch (error) {
-		log.warn(`session state metadata was not pruned for ${sessionId}`, error as Error);
+		log.warn(`session state metadata was not pruned for ${sessionId}`, error);
 	}
 	publishDeleted({ workspaceId, sessionId });
 }

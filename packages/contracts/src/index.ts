@@ -36,6 +36,7 @@ export {
 	isPlanReviewResult,
 	isRetriedAttempt,
 	isSettleIdleDays,
+	isSkillGroupEnabled,
 	isSubagentMaxConcurrent,
 	isSystemThemePair,
 	isTerminalWindowsShell,
@@ -45,8 +46,12 @@ export {
 	LINE_WIDTH_COLUMNS,
 	MAX_HISTORY_LIMIT,
 	MAX_HISTORY_QUERY_LENGTH,
+	MAX_SEARCH_GROUP_LIMIT,
+	MAX_SEARCH_PREVIEW_BYTES,
+	MAX_SEARCH_QUERY_LENGTH,
 	normalizeFontSettings,
 	normalizeThemePreference,
+	OTHER_AGENT_SKILL_GROUPS,
 	PLAN_REVIEW_VERDICTS,
 	parsePiPackageInput,
 	RECENT_MODELS_LIMIT,
@@ -58,7 +63,10 @@ export {
 	resourceOutcome,
 	resourceRecordId,
 	resourceTallyTotal,
+	SEARCH_KINDS,
 	SETTLE_IDLE_DAYS,
+	SKILL_LISTING_MAX_TOKENS,
+	SKILL_LISTING_MIN_TOKENS,
 	SUBAGENT_MAX_CONCURRENT,
 	SURVEY_OPEN_TEXT_LIMIT,
 	SYSTEM_LOCALE_PREFERENCE,
@@ -73,14 +81,24 @@ export {
 	USER_FONTS_ROUTE,
 } from "./domain";
 export type {
+	ContentMatch,
 	FieldMatch,
 	MatchField,
 	MatchRange,
 	MatchResult,
 	MatchTerm,
 	MatchTier,
+	PreparedContent,
 } from "./match";
-export { MATCH_TIER, matchFields, parseMatchTerms } from "./match";
+export {
+	contentRanges,
+	foldMatchText,
+	MATCH_TIER,
+	matchContent,
+	matchFields,
+	parseMatchTerms,
+	prepareContent,
+} from "./match";
 export type * from "./nativeClient";
 export type * from "./piProtocol";
 export {
@@ -94,4 +112,17 @@ export type { QuitConfirmationDependencies } from "./quitConfirmation";
 export { createQuitConfirmation, QUIT_CONFIRMATION } from "./quitConfirmation";
 export type * from "./unity";
 export type * from "./verification";
+export type { SearchFieldSource } from "./searchFields";
+export { searchHitFields } from "./searchFields";
+export type * from "./speech";
+export {
+	isSpeechErrorCode,
+	isSpeechModel,
+	parseSpeechClientMessage,
+	parseSpeechServerMessage,
+	SPEECH_ERROR_CODES,
+	SPEECH_MODELS,
+	SPEECH_SAMPLE_RATE,
+	SPEECH_SOCKET_ROUTE,
+} from "./speech";
 export * from "./wsProtocol";

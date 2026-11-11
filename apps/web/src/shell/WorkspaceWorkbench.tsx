@@ -69,6 +69,7 @@ import {
 	currentChatDestination,
 	hydrateChatResource,
 	useChatLocationReconciliation,
+	useComposerFocusExpiry,
 	useDeletedChatPlacementReconciliation,
 	useWorkspaceChatCatalogReconciliation,
 } from "./chatReconciliation";
@@ -456,6 +457,7 @@ export function WorkspaceWorkbench({ workspaceId }: { workspaceId: string }) {
 	useWorkspaceChatCatalogReconciliation(workspaceId, commit);
 	const { terminals } = useTerminalPlacementReconciliation(workspaceId, commit);
 	useChatLocationReconciliation(workspaceId, changeAttention);
+	useComposerFocusExpiry(workspaceId);
 
 	useEffect(() => {
 		if (!document || status !== "connected") return;

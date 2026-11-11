@@ -399,7 +399,7 @@ function storedExtensionSettings(value: unknown): ExtensionSettingValues {
 }
 
 export function loadConfig(): AppConfig {
-	const raw = readJson<unknown>("config.json", {});
+	const raw = readJson<unknown>("config.json", null);
 	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return structuredClone(DEFAULT_CONFIG);
 	const value = raw as Record<string, unknown>;
 	const extensions = { ...value };
@@ -440,6 +440,10 @@ export function loadConfig(): AppConfig {
 			typeof value.fileLineWidthBounded === "boolean"
 				? value.fileLineWidthBounded
 				: DEFAULT_CONFIG.fileLineWidthBounded,
+		voiceInputEnabled:
+			typeof value.voiceInputEnabled === "boolean"
+				? value.voiceInputEnabled
+				: DEFAULT_CONFIG.voiceInputEnabled,
 		reviewAutoFix:
 			typeof value.reviewAutoFix === "boolean" ? value.reviewAutoFix : DEFAULT_CONFIG.reviewAutoFix,
 		agentReviewEnabled:
@@ -473,6 +477,7 @@ export function loadConfig(): AppConfig {
 			: DEFAULT_CONFIG.settleIdleDays,
 		disabledExtensions: storedNameList(value.disabledExtensions),
 		extensionSettings: storedExtensionSettings(value.extensionSettings),
+		otherAgentSkills: typeof value.otherAgentSkills === "boolean" ? value.otherAgentSkills : true,
 		disabledPackages: storedNameList(value.disabledPackages),
 		locale: isLocalePreference(value.locale) ? value.locale : DEFAULT_CONFIG.locale,
 		onboardingDismissed: value.onboardingDismissed === true,

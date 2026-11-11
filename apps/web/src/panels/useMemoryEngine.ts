@@ -1,7 +1,7 @@
 import type { MemoryEngineStatus } from "@thinkrail/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { useAppStore } from "../store";
-import { getTransport, supportsMemoryEngine } from "../transport";
+import { getTransport, supportsMemoryProjects } from "../transport";
 
 const POLL_INTERVAL_MS = 3_000;
 const POLL_BUDGET_MS = 60_000;
@@ -17,7 +17,7 @@ export interface MemoryEngineState {
 /** Probes the Memory engine on mount and after a terminal install; the page renders the result. */
 export function useMemoryEngine(): MemoryEngineState {
 	const protocolVersion = useAppStore((state) => state.protocolVersion);
-	const supported = supportsMemoryEngine(protocolVersion);
+	const supported = supportsMemoryProjects(protocolVersion);
 	const [status, setStatus] = useState<MemoryEngineStatus | null>(null);
 	const [checking, setChecking] = useState(false);
 
@@ -28,9 +28,8 @@ export function useMemoryEngine(): MemoryEngineState {
 			setStatus(await getTransport().request("memory.status", {}));
 		} catch {
 			setStatus(null);
-		} finally {
-			setChecking(false);
 		}
+		setChecking(false);
 	}, [supported]);
 
 	useEffect(() => {

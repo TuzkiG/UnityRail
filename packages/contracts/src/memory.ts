@@ -1,14 +1,43 @@
-/** The Memory engine's install state as the host sees it, for the settings page's engine group. */
+/** The Basic Memory install as the host sees it, for the settings page's engine group. */
 export interface MemoryEngineStatus {
-	/** Whether the `basic-memory` command resolves on PATH (`uv tool install`-installed). */
-	engine: "installed" | "missing";
-	/** Whether `uvx` resolves on PATH — the MCP preset's launcher, which fetches on demand. */
-	uvx: "installed" | "missing";
+	/** The `bm` CLI — the integration's transport and installer. */
+	cli: {
+		installed: boolean;
+		/** The version `bm --version` printed, or null when it could not be read. */
+		version: string | null;
+		/** `version` is >= the 0.24 the Pi package requires. */
+		supported: boolean;
+	};
+	/** `uv` installs the CLI (`uv tool install basic-memory`). */
+	uv: boolean;
+	/** The Pi package `bm install pi` copies into `~/.pi/agent/packages/basic-memory`. */
+	piPackage: boolean;
+	/** The Basic Memory config file the project list and folders come from. */
+	configPath: string;
 }
 
-/** One Markdown note under the Basic Memory notes root, for the settings page's Notes group. */
+/** One Basic Memory project: a knowledge base mapped to one folder on disk. */
+export interface MemoryProject {
+	name: string;
+	/** Absolute folder holding this project's Markdown notes. */
+	path: string;
+	mode: "local" | "cloud";
+	isDefault: boolean;
+	/** The folder currently exists. */
+	exists: boolean;
+}
+
+export interface MemoryProjectsSnapshot {
+	configPath: string;
+	/** The config file exists; `projects` still carries the documented default project when it does not. */
+	exists: boolean;
+	defaultProject: string | null;
+	projects: MemoryProject[];
+}
+
+/** One Markdown note under a Basic Memory project's folder. */
 export interface MemoryNoteSummary {
-	/** POSIX path relative to the notes root, e.g. `home/decisions.md`. */
+	/** POSIX path relative to the project folder, e.g. `pi/sessions/2026-01-02-decision.md`. */
 	path: string;
 	/** The frontmatter `title`, or the filename stem when absent. */
 	title: string;
@@ -19,16 +48,11 @@ export interface MemoryNoteSummary {
 }
 
 export interface MemoryNotesSnapshot {
-	/** The resolved notes root (absolute), whether it exists yet or not. */
+	/** The Basic Memory project the notes belong to. */
+	project: string;
+	/** The project's absolute folder. */
 	root: string;
 	exists: boolean;
-	/**
-	 * Which tree this is: `user` for the shared root (project folders excluded) or `project` for one
-	 * project's own folder under it.
-	 */
-	scope: "user" | "project";
-	/** The project folder under the shared root, for a `project` scope. */
-	projectFolder?: string;
-	/** Newest first; bounded to the most recent files. */
+	/** Newest first, bounded to the most recent files. */
 	notes: MemoryNoteSummary[];
 }

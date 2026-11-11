@@ -151,11 +151,11 @@ import { localesDir, readLocalLocales } from "../locales";
 import { logger } from "../log";
 import {
 	listMemoryNotes,
-	memoryProjectDirName,
 	openMemoryInstallTerminal,
 	probeMemoryEngine,
-	projectMemoryDir,
 	readMemoryNote,
+	readMemoryProjects,
+	requireMemoryProject,
 	saveMemoryNote,
 } from "../memory";
 import {
@@ -701,16 +701,6 @@ function invalidSurveyOnThrow<T>(build: () => T): T {
 	} catch {
 		throw new CodedError("SURVEY_INVALID", "Invalid survey submission");
 	}
-}
-
-/** The open project a memory request names, or undefined for the shared user-level tree. */
-function openMemoryProject(projectId: string | undefined) {
-	return projectId ? listProjects().find((row) => row.id === projectId) : undefined;
-}
-
-function memoryScopeFor(projectId: string | undefined) {
-	const project = openMemoryProject(projectId);
-	return project ? { dir: projectMemoryDir(project) } : {};
 }
 
 const handlers: WsHandlers = {
@@ -1336,25 +1326,17 @@ const handlers: WsHandlers = {
 	"fonts.installed": () => listInstalledFonts(),
 	"fonts.reveal": () => revealDataFolder(fontsDir()),
 	"memory.status": () => probeMemoryEngine(),
-	"memory.install": () => {
-		if (!openMemoryInstallTerminal()) throw new Error("Could not open a terminal window");
+	"memory.install": async () => {
+		const status = await probeMemoryEngine();
+		if (!openMemoryInstallTerminal(status.cli.installed))
+			throw new Error("Could not open a terminal window");
 		return { ok: true };
 	},
-	"memory.listNotes": (p) => {
-		const project = openMemoryProject(p?.projectId);
-		if (!project) {
-			const projectDirs = listProjects().map((row) => memoryProjectDirName(row));
-			return listMemoryNotes({ excludeDirs: projectDirs });
-		}
-		// The folder is the product: Basic Memory refuses a project nested inside another, so the
-		// project's notes live inside the default project's tree and the agent reaches them by path.
-		return listMemoryNotes({
-			dir: projectMemoryDir(project),
-			projectFolder: memoryProjectDirName(project),
-		});
-	},
-	"memory.readNote": (p) => readMemoryNote(p.path, memoryScopeFor(p.projectId)),
-	"memory.saveNote": (p) => saveMemoryNote(p.path, p.content, memoryScopeFor(p.projectId)),
+	"memory.projects": () => readMemoryProjects(),
+	"memory.revealProject": (p) => revealDataFolder(requireMemoryProject(p.project).path),
+	"memory.listNotes": (p) => listMemoryNotes(p.project),
+	"memory.readNote": (p) => readMemoryNote(p.project, p.path),
+	"memory.saveNote": (p) => saveMemoryNote(p.project, p.path, p.content),
 	"speech.install": (p) => {
 		if (!isSpeechModel(p.model)) throw new Error("unknown voice model");
 		installSpeech(p.model);

@@ -2,7 +2,7 @@
 id: submodule-server-memory
 type: module-design
 status: draft
-title: server/memory — basic-memory engine probe and terminal install
+title: server/memory — Basic Memory install, project registry and notes I/O
 parent: module-server
 depends-on: [module-contracts]
 tags: [memory]
@@ -10,33 +10,45 @@ tags: [memory]
 
 ## Responsibility
 
-Probes the Basic Memory install for the settings page's engine group, opens the user's terminal to
-run `uv tool install basic-memory --prerelease=allow`, and serves the **global notes manager**: the
-settings page lists, previews and edits the Markdown notes under the Basic Memory folder. The module
-never downloads, installs, or manages anything: Basic Memory is a public PyPI package consumed as an
-MCP server (see the web MCP preset), `uvx` fetches it on demand, and the Markdown files are Basic
-Memory's own source of truth.
+Bridges the host to [Basic Memory](https://docs.basicmemory.com/integrations/pi) so the settings page
+and the project Memory tab can report the install, install it, list the user's projects and
+read/edit the Markdown notes. The integration is the **official Pi package**
+`@basicmemory/pi-basic-memory`, installed with `bm install pi --yes` (the CLI is `bm`, from
+`uv tool install basic-memory`); its transport is the `bm` CLI by default, MCP through
+`pi-mcp-adapter` optionally. The module never vendors or executes Basic Memory code and never
+writes Basic Memory's own config.
 
 ## Boundary
 
-- **Owns:** `probeMemoryEngine()` (PATH resolution of `basic-memory` and `uvx` through shared
-  spawn), `openMemoryInstallTerminal()` (a visible, detached OS terminal window running the pinned
-  command; `windowsHide: false` is the point — the window is the product), and the notes trio
-  `listMemoryNotes()` / `readMemoryNote(path)` / `saveMemoryNote(path, content)` over the notes root
-  (`BASIC_MEMORY_DIR`, else `~/basic-memory`): recursive Markdown scan bounded to 500 notes, reads
-  and writes bounded to 1 MB, path-contained to the root, writes only over existing notes (the
-  manager edits, it never creates). The status shapes are contracts' `MemoryEngineStatus` /
-  `MemoryNotesSnapshot`.
-- **Two scopes, one tree.** The root holds the **user-level** notes plus one folder per project
-  (`memoryProjectDirName(project)` — its slug, filesystem-safe — under `projectMemoryDir(project)`). Every
-  notes call takes an optional `dir`: omitted is the user scope (root, with each open project's folder
-  excluded so the user list never mixes project notes in), present is that project's scope with
-  `projectFolder` echoed back. A project folder is **not** registered as its own Basic Memory project:
-  the engine refuses a project nested inside another, and the default `main` project already owns the
-  root — which is what makes the notes reachable to the agent's MCP server by `<slug>/…` path with no
-  extra registration. The `memory.*` wire methods carry `projectId` for the project scope.
-- **Public surface (barrel):** the five functions above; wire methods `memory.status` /
-  `memory.install` / `memory.listNotes` / `memory.readNote` / `memory.saveNote` live in
-  [[submodule-server-host]] like every other request.
-- Forbidden: fetching or executing Basic Memory code; importing the extension packages; touching
-  the settings store; creating, deleting or renaming notes (the agent and the CLI own that).
+- **Owns:** the install probe, the terminal installer, the project registry reader and note I/O.
+- **Install probe** (`probeMemoryEngine`): `bm` on PATH (`where`/`which` through shared spawn) plus
+  its `--version` — the Pi package needs **0.24+** (`memoryCliSupported`); `uv` on PATH (the CLI
+  installer); the Pi package folder `~/.pi/agent/packages/basic-memory` (honoring
+  `PI_CODING_AGENT_DIR`); and the config path. Every probe runs bounded (5 s) and answers a shape,
+  never throws.
+- **Installer** (`openMemoryInstallTerminal(cliInstalled)`): a visible, detached OS terminal window
+  (`windowsHide: false` — the window is the product, the one deliberate exception to the shared
+  spawn convention) running `bm install pi --yes`, prefixed with
+  `uv tool install basic-memory --prerelease=allow &&` when `bm` is missing. Both steps are
+  idempotent. The host never downloads or runs anything itself.
+- **Project registry** (`readMemoryProjects`): reads `<config dir>/config.json`, where the config dir
+  is `BASIC_MEMORY_CONFIG_DIR` or `~/.basic-memory`; `projects` entries are `{ path, mode }` (v0.24)
+  or a legacy bare path string; `default_project` names the default, and an unset default is **the
+  first configured project** (the documented rule). Before the file exists the reader synthesizes
+  the documented default project `main` → `~/basic-memory`, so the UI works before `bm` first runs.
+  Invalid JSON degrades to that same default rather than failing the page.
+- **Notes** (`listMemoryNotes` / `readMemoryNote` / `saveMemoryNote`, keyed by **project name**):
+  paths are relative to that project's folder, containment-checked, `.md` only, 1 MB per read/write,
+  500 notes per listing, hidden entries skipped and newest first. Writes only overwrite existing
+  notes — the agent and the CLI create them. Unknown project names throw
+  `MEMORY_PROJECT_NOT_FOUND`.
+- **Public surface (barrel):** `probeMemoryEngine`, `memoryCliSupported`, `MEMORY_MIN_CLI_MINOR`,
+  `openMemoryInstallTerminal`, `memoryInstallCommand`, the two install-command constants,
+  `readMemoryProjects`, `requireMemoryProject`, `listMemoryNotes`, `readMemoryNote`,
+  `saveMemoryNote`, `memoryNoteDir`, `memoryConfigDir`, `memoryConfigPath`; wire methods
+  `memory.status` / `memory.install` / `memory.projects` / `memory.revealProject` /
+  `memory.listNotes` / `memory.readNote` / `memory.saveNote` live in [[submodule-server-host]] like
+  every other request.
+- Forbidden: fetching, vendoring or executing Basic Memory code; importing the extension packages;
+  writing `config.json`, registering projects or creating notes (the CLI, `bm project add`, and the
+  agent own that); touching the settings store.

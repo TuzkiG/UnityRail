@@ -54,8 +54,8 @@ treatment.
   Browse project files** (expands the project, resolves its **default** workspace — that workspace's
   worktree *is* the project folder — activates it, and reveals the `files` tool, so the project's own
   directory opens as the usual file tree without creating a workspace), **Brain Project memory** (opens
-  `MemoryPane` — a center-tab document listing the project's Basic Memory notes beside the shared
-  user-level ones, each editable in place and saved straight to Markdown), separator,
+  `MemoryPane` — the center-tab Basic Memory manager: a project list, the selected project's notes and
+  an in-place editor that saves Markdown straight to the project folder), separator,
   **Settings Project settings…** (only when the host's protocol is at least
   `PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION`; opens `ProjectSettingsDialog`), **Pencil Rename** (only when
   the host's protocol is at least `PROJECT_RENAME_PROTOCOL_VERSION`), **X Close
@@ -1278,25 +1278,30 @@ a project picker, the prompt hero, and the reused
   older host the page renders only its description and disabled controls. The six capabilities behind the
   `settings.update { extensionSettings: { "oh-my-pi": { key } } }` and converge on the broadcast. Against an
   older host the page renders only its description and disabled controls. The six capabilities behind the
-  switches are the extension's business, not the panel's. **`MemorySettings`** (the **Memory** section,
-  nav `settings-nav-memory`, listed only at `protocolVersion >= MEMORY_ENGINE_PROTOCOL_VERSION`) owns
-  the Basic Memory engine group (`memory-engine`): `useMemoryEngine` probes `memory.status` on mount
-  and after an install, renders the `basic-memory` command and `uvx` findings
-  (`memory-engine-command`, `memory-engine-uvx`), runs `memory.install` — the host opens a visible OS
-  terminal with `uv tool install basic-memory --prerelease=allow` — and re-polls for a minute. The MCP
-  server itself is added from the MCP servers page's **Basic Memory preset** (`uvx
-  --prerelease=allow basic-memory mcp`, opt-in per project); the panel manages the engine, never the
-  server. The **Notes group** (`memory-notes`, only at `protocolVersion >=
-  MEMORY_NOTES_PROTOCOL_VERSION`) is the global memory manager: `useMemoryNotes` lists
-  `memory.listNotes` (newest first, bounded) and shows the resolved notes root; a note opens in
-  `MemoryNoteDialog` (`memory-note-dialog`) with **Preview** (the shared `chat/Markdown` renderer)
-  and **Edit** (a plain textarea) modes, saving through `memory.saveNote` — the file is Basic
-  Memory's source of truth, so the agent sees the change immediately. That group edits the **user
-  level** tree only; a project's own notes open from the project menu as **`MemoryPane`**, a center-tab
-  document (`documentKind: "memory"`) that lists the project's folder and the shared user-level notes
-  side by side and saves each one in place through the same `memory.readNote`/`memory.saveNote` pair
-  scoped by `projectId` (a host without `MEMORY_PROJECT_NOTES_PROTOCOL_VERSION` shows the project section
-  empty rather than failing). **Skills** (only at
+  switches are the extension's business, not the panel's. **`MemorySettings`** (the **Memory**
+  section, nav `settings-nav-memory`, listed only at `protocolVersion >= MEMORY_ENGINE_PROTOCOL_VERSION`)
+  is the Basic Memory surface, following the official Pi integration
+  ([[submodule-server-memory]]):
+  - **Engine group** (`memory-engine`): `useMemoryEngine` probes `memory.status` on mount and after
+    an install — the `bm` CLI and its version (0.24+ required), `uv`, the Pi package folder and the
+    config path — then runs `memory.install` (the host opens a visible OS terminal running
+    `bm install pi --yes`, prefixed with `uv tool install basic-memory --prerelease=allow` when `bm`
+    is missing) and re-polls for a minute. The page manages the install, never Basic Memory's config.
+  - **Projects group** (`memory-projects`, only at `protocolVersion >=
+    MEMORY_PROJECTS_PROTOCOL_VERSION`): `useMemoryProjects` lists `memory.projects` — every project
+    in the user's `config.json` with its folder, mode and default tag, plus the documented default
+    `main` before that file exists — and **Open folder** reveals one through
+    `memory.revealProject`.
+  - **Notes group** (`memory-notes`) for the selected project: `useMemoryNotes(project)` lists
+    `memory.listNotes` (newest first, bounded) and a note opens in `MemoryNoteDialog`
+    (`memory-note-dialog`) with **Preview** (the shared `chat/Markdown` renderer) and **Edit** (a
+    plain textarea) modes, saving through `memory.saveNote` — the Markdown file is Basic Memory's
+    source of truth, so the agent sees the change immediately.
+  The project menu's **Brain Project memory** opens **`MemoryPane`**, the same manager as a
+  center-tab document (`documentKind: "memory"`): a project list, the selected project's notes and an
+  in-place editor that saves through the same pair; it starts on the Basic Memory project whose name
+  matches the app project, else the registry default (`preferredMemoryProject`).
+**Skills** (only at
   `protocolVersion >= OTHER_AGENT_SKILLS_PROTOCOL_VERSION`) is one switch, `other-agent-skills-toggle`, over
   `store.otherAgentSkills`, writing `settings.update { otherAgentSkills }`; per-project choices made in the
   Skills dialog still win over it. **Installed** and **pi built-in**

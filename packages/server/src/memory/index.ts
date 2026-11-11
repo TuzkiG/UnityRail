@@ -1,12 +1,17 @@
-export { MEMORY_INSTALL_COMMAND, openMemoryInstallTerminal } from "./install";
-export type { MemoryNotesScope } from "./notes";
+export type { MemoryProject } from "@thinkrail/contracts";
+export { memoryConfigDir, memoryConfigPath, readMemoryProjects } from "./config";
+export {
+	MEMORY_CLI_INSTALL_COMMAND,
+	MEMORY_PI_INSTALL_COMMAND,
+	memoryInstallCommand,
+	openMemoryInstallTerminal,
+} from "./install";
 export {
 	listMemoryNotes,
-	memoryNotesDir,
-	memoryProjectDirName,
-	projectMemoryDir,
+	memoryNoteDir,
 	readMemoryNote,
+	requireMemoryProject,
 	saveMemoryNote,
 } from "./notes";
 export type { MemoryProbeOptions } from "./status";
-export { probeMemoryEngine } from "./status";
+export { MEMORY_MIN_CLI_MINOR, memoryCliSupported, probeMemoryEngine } from "./status";

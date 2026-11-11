@@ -77,7 +77,7 @@ internals**. The edges between them are owned here (see the dependency graph), n
 | `themes` | the user's theme files in `<dataDir>/themes/`: read, watch, `themes.list`/`changed` (the client validates) | [themes/SPEC.md](src/themes/SPEC.md) |
 | `fonts` | the user's font files in `<dataDir>/fonts/` (in-house sfnt reader, uploads, watch) and the OS's installed families: `fonts.list`/`installed`/`changed` | [fonts/SPEC.md](src/fonts/SPEC.md) |
 | `speech` | on-demand local voice input: pinned `nemo-speech` + Nemotron download, PATH reuse, `speech.*` state | [speech/SPEC.md](src/speech/SPEC.md) |
-| `memory` | Basic Memory engine probe + terminal install (`memory.status`/`install`) and the global notes manager (`memory.listNotes`/`readNote`/`saveNote`); never downloads or manages the package | [memory/SPEC.md](src/memory/SPEC.md) |
+| `memory` | Basic Memory install probe + terminal install (`memory.status`/`install`), its project registry (`memory.projects`/`revealProject`) and note I/O (`memory.listNotes`/`readNote`/`saveNote`); never downloads, vendors or configures Basic Memory | [memory/SPEC.md](src/memory/SPEC.md) |
 | `projects` | stable known-repo registry: open/recent views + lossless close/reopen (validate, dedupe, slug) | [projects/SPEC.md](src/projects/SPEC.md) |
 | `workspaces` | workspaces = `git worktree`s on their own branch | [workspaces/SPEC.md](src/workspaces/SPEC.md) |
 | `git` | the `git(cwd, args)` runner + worktree status/diff vs base + branch list | [git/SPEC.md](src/git/SPEC.md) |
@@ -127,7 +127,7 @@ the host from env via `bootHost` for dev/e2e.
 - `github` → `subprocess` (both `gh auth status` probes run under the same bounded runner as `git`/`branch-review`)
 - `fonts` → `subprocess` (the installed-font query runs under the same bounded runner)
 - `speech` → `subprocess` (PATH probe, archive unpack), `persistence` (`dataDir`), `log`
-- `memory` → `contracts` (status shape), `@thinkrail/shared/spawn` (PATH probe)
+- `memory` → `contracts` (status/project/note shapes), `@thinkrail/shared/spawn` (bounded PATH/version probes), `codedError`
 - `git`, `fs`, `spec`, `watch`, `terminal`, `settings`, `locales`, `themes`, `fonts`, `analytics`, `feedback` → `persistence` (`locales` also → `@thinkrail/locales` root, external-style: catalog validation and file naming) (`spec` also → `pi-spec-graph/core`, external; `analytics` also → the pi-ai built-in provider/model catalog + `posthog-node`, external—the identity-bucketing vocabulary and delivery SDK)
 - `log` → `persistence` (`dataDir`) — and **any feature module (+ `host`) may → `log`**: it is the one
   cross-cutting edge, like `persistence`, exempt from the never-each-other rule (today: `host`,

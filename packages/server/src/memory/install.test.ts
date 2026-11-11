@@ -1,5 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { openMemoryInstallTerminal } from "./install";
+import { memoryInstallCommand, openMemoryInstallTerminal } from "./install";
+
+describe("memoryInstallCommand", () => {
+	test("installs the CLI first when bm is missing", () => {
+		expect(memoryInstallCommand(false)).toBe(
+			"uv tool install basic-memory --prerelease=allow && bm install pi --yes",
+		);
+	});
+
+	test("only registers the Pi package when bm is present", () => {
+		expect(memoryInstallCommand(true)).toBe("bm install pi --yes");
+	});
+});
 
 describe("openMemoryInstallTerminal", () => {
 	test("spawns the platform terminal with the install command and reports success", () => {
@@ -8,13 +20,13 @@ describe("openMemoryInstallTerminal", () => {
 			calls.push({ argv, options });
 			return { unref: () => {} };
 		}) as unknown as typeof Bun.spawn;
-		expect(openMemoryInstallTerminal({ spawn })).toBe(true);
+		expect(openMemoryInstallTerminal(true, { spawn })).toBe(true);
 		expect(calls).toHaveLength(1);
 		const { argv, options } = calls[0] as {
 			argv: readonly string[];
 			options: { windowsHide: boolean; detached: boolean };
 		};
-		expect(argv.at(-1)).toBe("uv tool install basic-memory --prerelease=allow");
+		expect(argv.at(-1)).toBe("bm install pi --yes");
 		expect(options.windowsHide).toBe(false);
 		expect(options.detached).toBe(true);
 	});
@@ -23,6 +35,6 @@ describe("openMemoryInstallTerminal", () => {
 		const spawn = (() => {
 			throw new Error("no terminal");
 		}) as unknown as typeof Bun.spawn;
-		expect(openMemoryInstallTerminal({ spawn })).toBe(false);
+		expect(openMemoryInstallTerminal(true, { spawn })).toBe(false);
 	});
 });

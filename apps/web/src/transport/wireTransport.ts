@@ -30,9 +30,7 @@ import {
 	FONTS_PROTOCOL_VERSION,
 	HOST_UPDATE_RUN_PROTOCOL_VERSION,
 	LOCALES_PROTOCOL_VERSION,
-	MEMORY_ENGINE_PROTOCOL_VERSION,
-	MEMORY_NOTES_PROTOCOL_VERSION,
-	MEMORY_PROJECT_NOTES_PROTOCOL_VERSION,
+	MEMORY_PROJECTS_PROTOCOL_VERSION,
 	PI_PACKAGES_PROTOCOL_VERSION,
 	PLAN_REVIEW_SUBAGENT_PROTOCOL_VERSION,
 	PLAN_SUMMARY_GENERATION_PROTOCOL_VERSION,
@@ -81,17 +79,9 @@ export function supportsSpeech(protocolVersion: number | null): boolean {
 	return protocolVersion !== null && protocolVersion >= SPEECH_PROTOCOL_VERSION;
 }
 
-export function supportsMemoryEngine(protocolVersion: number | null): boolean {
-	return protocolVersion !== null && protocolVersion >= MEMORY_ENGINE_PROTOCOL_VERSION;
-}
-
-export function supportsMemoryNotes(protocolVersion: number | null): boolean {
-	return protocolVersion !== null && protocolVersion >= MEMORY_NOTES_PROTOCOL_VERSION;
-}
-
-/** A host that can scope notes to one project (and register it with Basic Memory). */
-export function supportsMemoryProjectNotes(protocolVersion: number | null): boolean {
-	return protocolVersion !== null && protocolVersion >= MEMORY_PROJECT_NOTES_PROTOCOL_VERSION;
+/** The Basic Memory project registry and its project-scoped notes. */
+export function supportsMemoryProjects(protocolVersion: number | null): boolean {
+	return protocolVersion !== null && protocolVersion >= MEMORY_PROJECTS_PROTOCOL_VERSION;
 }
 
 export function supportsToolResponses(protocolVersion: number | null): boolean {

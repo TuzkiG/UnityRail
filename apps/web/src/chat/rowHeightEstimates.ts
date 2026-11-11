@@ -170,6 +170,7 @@ export function estimateChatRowHeight(row: ChatRow): number {
 export function estimateChatRowHeights(
 	rows: readonly ChatRow[],
 	cache: RowHeightEstimateCache,
+	previous?: number[],
 ): number[] {
 	const activeIds = new Set<string>();
 	const heights = rows.map((row) => {
@@ -182,6 +183,13 @@ export function estimateChatRowHeights(
 	});
 	for (const id of cache.keys()) {
 		if (!activeIds.has(id)) cache.delete(id);
+	}
+	if (
+		previous &&
+		previous.length === heights.length &&
+		heights.every((height, index) => previous[index] === height)
+	) {
+		return previous;
 	}
 	return heights;
 }

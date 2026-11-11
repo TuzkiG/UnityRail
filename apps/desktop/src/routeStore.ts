@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 const ROUTE_VERSION = 1;
 const FALLBACK_ROUTE = "#/v1";
 const MAX_ROUTE_LENGTH = 4096;
+const WRITE_DELAY_MS = 300;
 
 interface RouteDocument {
 	version: 1;
@@ -54,6 +55,9 @@ function readDocument(path: string): RouteDocument {
 export class RouteStore {
 	readonly #path: string;
 	readonly #document: RouteDocument;
+	#dirty = false;
+	#directoryReady = false;
+	#timer: ReturnType<typeof setTimeout> | undefined;
 
 	constructor(path: string) {
 		this.#path = path;
@@ -69,8 +73,30 @@ export class RouteStore {
 		const key = `${backendProfileId}:${windowId}`;
 		if (this.#document.routes[key] === route) return true;
 		this.#document.routes[key] = route;
-		mkdirSync(dirname(this.#path), { recursive: true });
-		writeFileSync(this.#path, `${JSON.stringify(this.#document, null, "\t")}\n`);
+		this.#dirty = true;
+		this.#scheduleFlush();
 		return true;
+	}
+
+	flush(): void {
+		if (this.#timer !== undefined) {
+			clearTimeout(this.#timer);
+			this.#timer = undefined;
+		}
+		if (!this.#dirty) return;
+		this.#dirty = false;
+		if (!this.#directoryReady) {
+			mkdirSync(dirname(this.#path), { recursive: true });
+			this.#directoryReady = true;
+		}
+		writeFileSync(this.#path, `${JSON.stringify(this.#document, null, "\t")}\n`);
+	}
+
+	#scheduleFlush(): void {
+		if (this.#timer !== undefined) clearTimeout(this.#timer);
+		this.#timer = setTimeout(() => {
+			this.#timer = undefined;
+			this.flush();
+		}, WRITE_DELAY_MS);
 	}
 }

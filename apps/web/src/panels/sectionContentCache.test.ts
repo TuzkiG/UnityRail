@@ -1,5 +1,11 @@
 import { expect, test } from "bun:test";
-import { createSectionContentCache, type SectionContent } from "./sectionContentCache";
+import { useAppStore } from "../store";
+import {
+	createSectionContentCache,
+	SECTION_CONTENT_CACHE_SIZE,
+	type SectionContent,
+	sectionContentCacheFor,
+} from "./sectionContentCache";
 
 const fresh = { original: "a", modified: "b", meta: undefined, originalOid: null };
 
@@ -108,4 +114,32 @@ test("a read against a different diff base is never shared with the one in fligh
 	expect(reads).toBe(2);
 	expect(old.loadedTarget).toBe("main");
 	expect(next.loadedTarget).toBe("release");
+});
+
+const branch = { kind: "branch" } as const;
+
+test("the review cache survives a remount for the same workspace, scope and target", () => {
+	const first = sectionContentCacheFor("c-key", branch, "main");
+	expect(sectionContentCacheFor("c-key", branch, "main")).toBe(first);
+	expect(sectionContentCacheFor("c-key", branch, "release")).not.toBe(first);
+	expect(sectionContentCacheFor("c-key", { kind: "uncommitted" }, "main")).not.toBe(first);
+	expect(sectionContentCacheFor("c-other", branch, "main")).not.toBe(first);
+});
+
+test("the registry keeps only the most recently used diff views", () => {
+	const first = sectionContentCacheFor("c-lru-0", branch, "");
+	for (let index = 1; index <= SECTION_CONTENT_CACHE_SIZE; index += 1) {
+		sectionContentCacheFor(`c-lru-${index}`, branch, "");
+	}
+	expect(sectionContentCacheFor("c-lru-0", branch, "")).not.toBe(first);
+});
+
+test("removing a workspace drops its diff views", () => {
+	const kept = sectionContentCacheFor("c-kept", branch, "");
+	const gone = sectionContentCacheFor("c-gone", branch, "");
+	const previous = useAppStore.getState().removedWorkspaceIds;
+	useAppStore.setState({ removedWorkspaceIds: { ...previous, "c-gone": true } });
+	expect(sectionContentCacheFor("c-kept", branch, "")).toBe(kept);
+	expect(sectionContentCacheFor("c-gone", branch, "")).not.toBe(gone);
+	useAppStore.setState({ removedWorkspaceIds: previous });
 });

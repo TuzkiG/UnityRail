@@ -8,10 +8,14 @@ import { gitCommitPaths } from "../git";
 import { reconcileChangeArtifacts } from "./artifacts";
 import {
 	clearAllPendingReviews,
+	clearReviewPending,
 	dropReviewRecord,
+	markReviewPending,
 	putReviewRecord,
 	readAutoCycles,
+	readReviewMeta,
 	readReviewRecords,
+	readReviewsFile,
 	setAutoCycles,
 } from "./reviews";
 import {
@@ -489,4 +493,32 @@ test("the path-list fallback drops the review verdict but preserves the spent au
 	)?.review;
 	expect(review?.state).toBe("unreviewed");
 	expect(review?.reviewing).toBeUndefined();
+});
+
+test("readReviewsFile returns the records, pending marks, and auto-cycles of one sidecar parse", () => {
+	const record = {
+		state: "reviewed" as const,
+		reviewedShas: ["abc"],
+		at: "2026-01-01T00:00:00Z",
+	};
+	expect(readReviewsFile(repo, SESSION)).toEqual({ items: {}, pending: {}, autoCycles: {} });
+	putReviewRecord(repo, SESSION, "t_1", record);
+	markReviewPending(repo, SESSION, "t_2", ["def"]);
+	setAutoCycles(repo, SESSION, "t_1", 1);
+
+	const snapshot = readReviewsFile(repo, SESSION);
+	expect(snapshot.items).toEqual(readReviewRecords(repo, SESSION));
+	expect(snapshot.items.t_1).toEqual(record);
+	expect(snapshot.pending).toEqual(readReviewMeta(repo, SESSION).pending);
+	expect(snapshot.pending.t_2?.shas).toEqual(["def"]);
+	expect(snapshot.autoCycles).toEqual({ t_1: 1 });
+	expect(readAutoCycles(repo, SESSION, "t_1")).toBe(1);
+	expect(readAutoCycles(repo, SESSION, "t_missing")).toBeUndefined();
+
+	clearReviewPending(repo, SESSION, "t_2");
+	putReviewRecord(repo, SESSION, "t_1", { ...record, state: "changes_requested", feedback: "x" });
+	const next = readReviewsFile(repo, SESSION);
+	expect(next.pending).toEqual({});
+	expect(next.items.t_1?.state).toBe("changes_requested");
+	expect(next.autoCycles).toEqual({ t_1: 1 });
 });

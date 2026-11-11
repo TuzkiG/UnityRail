@@ -770,6 +770,42 @@ describe("stabilizeRows identity", () => {
 	});
 });
 
+describe("deriveRows turn cache", () => {
+	test("reuses rows for turns and blocks whose inputs did not change", () => {
+		const turns: ChatTurn[] = [
+			user("u1"),
+			assistant("a1", [text("stable answer")]),
+			user("u2"),
+			assistant("a2", [text("partial")], { streaming: true }),
+		];
+		const first = deriveRows(turns, {}, true);
+		const nextTurns: ChatTurn[] = [
+			turns[0] as ChatTurn,
+			turns[1] as ChatTurn,
+			turns[2] as ChatTurn,
+			assistant("a2", [text("partial answer growing")], { streaming: true }),
+		];
+		const second = deriveRows(nextTurns, {}, true);
+
+		const firstById = new Map(first.map((row) => [row.id, row]));
+		for (const id of ["u1", "a1:text:0", "u2"]) {
+			expect(second.find((row) => row.id === id)).toBe(firstById.get(id));
+		}
+		expect(second.find((row) => row.id === "a2:text:0")).not.toBe(firstById.get("a2:text:0"));
+	});
+
+	test("reuses activity rows while their tool steps are unchanged", () => {
+		const call = tc("tool-1");
+		const turns: ChatTurn[] = [user("u1"), assistant("a1", [call])];
+		const first = deriveRows(turns, {}, false);
+		const activity = first.find((row) => row.kind === "activity");
+		expect(activity).toBeDefined();
+
+		const second = deriveRows([...turns], {}, false);
+		expect(second.find((row) => row.kind === "activity")).toBe(activity);
+	});
+});
+
 test("turnDivider treats every written file as a change when no classifier is supplied", () => {
 	const turns: ChatTurn[] = [
 		user("u1", 0),

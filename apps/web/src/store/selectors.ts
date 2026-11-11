@@ -533,6 +533,32 @@ export function selectAutoSettledCounts(
 	return counts;
 }
 
+export interface ProjectTreeModel {
+	partitions: Record<string, WorkspacePartition>;
+	workspaceCounts: Record<string, number>;
+	autoSettledKey: string;
+}
+
+/** One pass for the ProjectTree: per-project partitions and row counts, plus the settled-shelf notice key. */
+export function selectProjectTreeModel(
+	state: PartitionState & { workspaces: Record<string, Workspace[]> },
+	projectIds: readonly string[],
+	now: number,
+): ProjectTreeModel {
+	const partitions: Record<string, WorkspacePartition> = {};
+	const workspaceCounts: Record<string, number> = {};
+	for (const projectId of projectIds) {
+		partitions[projectId] = selectWorkspacePartition(state, projectId, now);
+		workspaceCounts[projectId] = (state.workspaces[projectId] ?? []).filter(
+			(workspace) => !isDefaultWorkspace(workspace),
+		).length;
+	}
+	const autoSettledKey = selectAutoSettledCounts(state, now)
+		.map(({ projectId, count }) => `${projectId}:${count}`)
+		.join(",");
+	return { partitions, workspaceCounts, autoSettledKey };
+}
+
 export function selectWorkspaceNeedsAttention(
 	state: SessionStateProjection,
 	workspaceId: string,
@@ -1190,18 +1216,30 @@ export function selectRecordFirstPrompts(state: ChatFirstPromptState): Record<st
 	return prompts;
 }
 
-export function selectUnnamedChatFirstPrompts(
-	state: { tabsByWorkspace: Record<string, EditorTab[]> } & ChatFirstPromptState,
+export function selectUnnamedChatFirstPromptsFrom(
+	tabs: readonly EditorTab[],
+	state: ChatFirstPromptState,
 	workspaceId: string,
 ): Record<string, string> {
 	const prompts: Record<string, string> = {};
-	for (const tab of state.tabsByWorkspace[workspaceId] ?? []) {
+	for (const tab of tabs) {
 		if ((tab.kind !== "chat" && tab.kind !== "plan") || tab.name.trim()) continue;
 		if (tab.sessionId in prompts) continue;
 		const prompt = selectChatFirstPrompt(state, workspaceId, tab.sessionId);
 		if (prompt) prompts[tab.sessionId] = prompt;
 	}
 	return prompts;
+}
+
+export function selectUnnamedChatFirstPrompts(
+	state: { tabsByWorkspace: Record<string, EditorTab[]> } & ChatFirstPromptState,
+	workspaceId: string,
+): Record<string, string> {
+	return selectUnnamedChatFirstPromptsFrom(
+		state.tabsByWorkspace[workspaceId] ?? [],
+		state,
+		workspaceId,
+	);
 }
 
 export function selectChatTitle(

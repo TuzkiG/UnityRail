@@ -56,6 +56,32 @@ export function signalTodoRefetch(key: string, except?: () => void): void {
 	}
 }
 
+const todoListFlights = new Map<string, Promise<TodoPlan>>();
+
+// One in-flight `todo.list` per session: concurrent readers share it, and the entry clears on settle.
+// `opened` marks the request a surface actually initiated; a joiner reuses that request as-is.
+export function requestTodoList(
+	workspaceId: string,
+	sessionId: string,
+	opened?: "rail" | "page",
+): Promise<TodoPlan> {
+	const key = `${workspaceId}\0${sessionId}`;
+	const existing = todoListFlights.get(key);
+	if (existing) return existing;
+	const params: { workspaceId: string; sessionId: string; opened?: "rail" | "page" } = {
+		workspaceId,
+		sessionId,
+	};
+	if (opened) params.opened = opened;
+	const flight: Promise<TodoPlan> = getTransport()
+		.request("todo.list", params)
+		.finally(() => {
+			if (todoListFlights.get(key) === flight) todoListFlights.delete(key);
+		});
+	todoListFlights.set(key, flight);
+	return flight;
+}
+
 // The content eligibility for an auto-drafted plan summary: every step done and no summary yet (agent- or
 // previously auto-authored). The host-capability gate (`supportsPlanSummaryGeneration`) is applied
 // separately, so the request fires only when this holds AND the connected host advertises v69+.
@@ -79,9 +105,8 @@ export function useAutoPlanSummary(workspaceId: string, sessionId: string): void
 			if (cancelled || triedRef.current) return;
 			// Only ask hosts that advertise the capability (v69+); an older host has no such method.
 			if (!supportsPlanSummaryGeneration(useAppStore.getState().protocolVersion)) return;
-			const plan = await getTransport()
-				.request("todo.list", { workspaceId, sessionId })
-				.catch(() => null);
+			const cached = useAppStore.getState().todoPlansByWorkspace[workspaceId]?.[sessionId];
+			const plan = cached ?? (await requestTodoList(workspaceId, sessionId).catch(() => null));
 			if (cancelled || !plan) return;
 			if (!planIsCompleteWithoutSummary(plan)) {
 				triedRef.current = false;
@@ -97,9 +122,8 @@ export function useAutoPlanSummary(workspaceId: string, sessionId: string): void
 		const unsub = getTransport().subscribe(WS_CHANNELS.piEvent, (payload) => {
 			const event = payload as SessionEventPayload;
 			if (event.sessionId !== sessionId) return;
-			if (shouldRefreshTodos(event.event)) void check();
+			if (event.event.type === "agent_settled") void check();
 		});
-		void check();
 		return () => {
 			cancelled = true;
 			unsub();
@@ -118,7 +142,11 @@ export interface ChatTodos {
 	reviewAll: () => Promise<{ total: number; alreadyRunning?: boolean }>;
 }
 
-export function useChatTodos(workspaceId: string, sessionId: string): ChatTodos {
+export function useChatTodos(
+	workspaceId: string,
+	sessionId: string,
+	openedOnMount?: "rail" | "page",
+): ChatTodos {
 	const [data, setData] = useState<TodoPlan | null>(() => {
 		const store = useAppStore.getState();
 		return store.todoPlansByWorkspace[workspaceId]?.[sessionId] ?? null;
@@ -160,13 +188,10 @@ export function useChatTodos(workspaceId: string, sessionId: string): ChatTodos 
 			if (reset) {
 				// Seed from the last-known plan so a remounted view (tab/window switch) renders instantly;
 				// the fetch below refreshes it in the background.
-				setData(
-					useAppStore.getState().todoPlansByWorkspace[workspaceId]?.[sessionId] ?? null,
-				);
+				setData(useAppStore.getState().todoPlansByWorkspace[workspaceId]?.[sessionId] ?? null);
 				setFailed(false);
 			}
-			getTransport()
-				.request("todo.list", { workspaceId, sessionId })
+			requestTodoList(workspaceId, sessionId, reset ? openedOnMount : undefined)
 				.then((plan) => {
 					if (
 						!cancelled &&
@@ -235,7 +260,7 @@ export function useChatTodos(workspaceId: string, sessionId: string): ChatTodos 
 			unsubscribeReview();
 			unsubscribeReviewFailed();
 		};
-	}, [connectionGeneration, identity, live, sessionId, status, workspaceId]);
+	}, [connectionGeneration, identity, live, openedOnMount, sessionId, status, workspaceId]);
 
 	const broadcastWrite = (key: string): void =>
 		signalTodoRefetch(key, selfListenerRef.current ?? undefined);

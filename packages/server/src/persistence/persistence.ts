@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import {
@@ -57,17 +57,52 @@ function storedDirectory(path: string): string {
 	return resolve(path);
 }
 
-function readJson<T>(file: string, fallback: T): T {
+interface JsonCacheEntry {
+	mtimeNs: bigint;
+	size: bigint;
+	value: unknown;
+}
+
+/** Parsed JSON keyed by absolute path; callers still get their own shallow copies where they mutate. */
+const jsonCache = new Map<string, JsonCacheEntry>();
+
+function statJson(path: string): { mtimeNs: bigint; size: bigint } | null {
 	try {
-		return JSON.parse(readFileSync(join(dataDir(), file), "utf8")) as T;
+		const stat = statSync(path, { bigint: true });
+		return { mtimeNs: stat.mtimeNs, size: stat.size };
 	} catch {
+		return null;
+	}
+}
+
+function invalidateJson(path: string): void {
+	jsonCache.delete(path);
+}
+
+/** Reuses a parsed file while its mtime and size are unchanged, so an external rewrite is still seen. */
+function readJson<T>(file: string, fallback: T): T {
+	const path = join(dataDir(), file);
+	const stat = statJson(path);
+	if (stat) {
+		const cached = jsonCache.get(path);
+		if (cached && cached.mtimeNs === stat.mtimeNs && cached.size === stat.size)
+			return cached.value as T;
+	}
+	try {
+		const value = JSON.parse(readFileSync(path, "utf8")) as T;
+		if (stat) jsonCache.set(path, { ...stat, value });
+		return value;
+	} catch {
+		invalidateJson(path);
 		return fallback;
 	}
 }
 
 function writeJson(file: string, value: unknown): void {
+	const path = join(dataDir(), file);
 	mkdirSync(dataDir(), { recursive: true });
-	writeFileSync(join(dataDir(), file), `${JSON.stringify(value, null, "\t")}\n`);
+	writeFileSync(path, `${JSON.stringify(value, null, "\t")}\n`);
+	invalidateJson(path);
 }
 
 function writeJsonAtomic(file: string, value: unknown, mode?: number): void {
@@ -77,6 +112,7 @@ function writeJsonAtomic(file: string, value: unknown, mode?: number): void {
 	try {
 		writeFileSync(temporary, `${JSON.stringify(value, null, "\t")}\n`, mode ? { mode } : undefined);
 		renameSync(temporary, target);
+		invalidateJson(target);
 	} finally {
 		rmSync(temporary, { force: true });
 	}
@@ -107,6 +143,7 @@ function loadSessionMetadata<T>(
 		if ((caught as NodeJS.ErrnoException).code === "ENOENT") return { kind: "missing" };
 		error = caught;
 	}
+	invalidateJson(path);
 	const setAsidePath = `${path}.corrupt-${Date.now()}`;
 	try {
 		renameSync(path, setAsidePath);

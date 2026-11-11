@@ -11,6 +11,9 @@ import {
 	type SessionSummary,
 	type SpecGraphNode,
 	type TodoPlan,
+	type UnityProjectConfig,
+	type UnityWorkspaceSnapshot,
+	type VerificationRun,
 	type WireModel,
 	type Workspace,
 	type WorkspaceFsChangedPayload,
@@ -155,6 +158,9 @@ beforeEach(() => {
 		sessionStateClock: 0,
 		sessionStateSnapshotInstalled: false,
 		todoPlansByWorkspace: {},
+		unitySnapshotsByWorkspace: {},
+		unityProjectConfigsByWorkspace: {},
+		verificationRunsByWorkspace: {},
 		renderedCompletionBySession: {},
 		obscuredChatSessions: {},
 		extUiOrphans: [],
@@ -5201,4 +5207,72 @@ test("todo plan cache: applyWorkspaceRemoved drops the workspace's plans and ins
 
 	useAppStore.getState().installTodoPlan("w1", "a", todoPlanFor("late"));
 	expect(useAppStore.getState().todoPlansByWorkspace.w1).toBeUndefined();
+});
+
+const unitySnapshotFor = (workspaceId: string): UnityWorkspaceSnapshot => ({
+	workspaceId,
+	isUnityProject: true,
+	projectRoot: null,
+	bridgeInstalled: true,
+	bridgePackageVersion: null,
+	bridgePackageStale: false,
+	project: null,
+	projectError: null,
+	bridge: null,
+	bridgeError: null,
+});
+
+const unityConfigFor = (workspaceId: string): UnityProjectConfig => ({
+	workspaceId,
+	projectRoot: null,
+	businessPath: null,
+	linkTarget: null,
+	businessFolders: [],
+	modules: [],
+	detected: [],
+	externalLinks: [],
+	detectedProjectRoot: null,
+});
+
+const verificationRunFor = (workspaceId: string): VerificationRun => ({
+	id: "run-1",
+	workspaceId,
+	kind: "unity-tests",
+	createdAt: 0,
+	run: {
+		runId: "run-1",
+		mode: "edit",
+		state: "passed",
+		startedAt: "",
+		passed: 1,
+		failed: 0,
+		skipped: 0,
+		results: [],
+	},
+});
+
+test("workspace panel seeds: installs cache per workspace, identical values skip, removal drops all three", () => {
+	useAppStore.setState({
+		workspaces: { p1: [pushedWorkspace()] },
+		activeWorkspaceId: "other",
+		toasts: [],
+	});
+	const s = () => useAppStore.getState();
+	s().installUnitySnapshot("w1", unitySnapshotFor("w1"));
+	s().installUnityProjectConfig("w1", unityConfigFor("w1"));
+	s().installVerificationRuns("w1", [verificationRunFor("w1")]);
+
+	expect(s().unitySnapshotsByWorkspace.w1?.isUnityProject).toBe(true);
+	expect(s().unityProjectConfigsByWorkspace.w1?.workspaceId).toBe("w1");
+	expect(s().verificationRunsByWorkspace.w1?.[0]?.id).toBe("run-1");
+
+	const cached = s().unitySnapshotsByWorkspace;
+	s().installUnitySnapshot("w1", unitySnapshotFor("w1"));
+	expect(s().unitySnapshotsByWorkspace).toBe(cached);
+
+	useAppStore.getState().applyWorkspaceRemoved("p1", "w1");
+	const state = useAppStore.getState();
+	expect(state.unitySnapshotsByWorkspace.w1).toBeUndefined();
+	expect(state.unityProjectConfigsByWorkspace.w1).toBeUndefined();
+	expect(state.verificationRunsByWorkspace.w1).toBeUndefined();
 });

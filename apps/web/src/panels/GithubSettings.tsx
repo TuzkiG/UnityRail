@@ -6,18 +6,29 @@ import { useEffect, useState } from "react";
 import { getTransport } from "@/transport";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsNotice } from "./SettingsNotice";
+import { createScopedCache } from "./scopedCache";
+
+const statusCache = createScopedCache<GithubAuthStatus>(4);
 
 export function GithubSettings() {
 	const t = useT();
-	const [gh, setGh] = useState<GithubAuthStatus | null>(null);
+	const [gh, setGh] = useState<GithubAuthStatus | null>(() =>
+		statusCache.peek(getTransport().httpBase()),
+	);
 	const [refreshing, setRefreshing] = useState(false);
 
 	useEffect(() => {
 		let cancelled = false;
+		const scope = getTransport().httpBase();
 		getTransport()
 			.request("github.authStatus", {})
-			.then((s) => !cancelled && setGh(s))
-			.catch(() => !cancelled && setGh({ connected: false }));
+			.then((status) => {
+				statusCache.set(scope, status);
+				if (!cancelled) setGh(status);
+			})
+			.catch(() => {
+				if (!cancelled) setGh((current) => current ?? { connected: false });
+			});
 		return () => {
 			cancelled = true;
 		};
@@ -25,10 +36,16 @@ export function GithubSettings() {
 
 	const refresh = async () => {
 		setRefreshing(true);
-		const load = async () => setGh(await getTransport().request("github.refresh", {}));
-		await load()
-			.catch(() => setGh({ connected: false }))
-			.finally(() => setRefreshing(false));
+		const scope = getTransport().httpBase();
+		try {
+			const status = await getTransport().request("github.refresh", {});
+			statusCache.set(scope, status);
+			setGh(status);
+		} catch {
+			setGh((current) => current ?? { connected: false });
+		} finally {
+			setRefreshing(false);
+		}
 	};
 
 	const connected = gh?.connected ?? false;

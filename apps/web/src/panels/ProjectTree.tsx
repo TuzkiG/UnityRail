@@ -45,7 +45,15 @@ import {
 } from "@thinkrail/ui/dropdown-menu";
 import { LoadingRegion } from "@thinkrail/ui/skeleton";
 import { cn } from "@thinkrail/ui/utils";
-import { type MouseEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import {
+	type MouseEvent,
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { AttentionDot } from "@/components/AttentionDot";
 import { RunningIcon } from "@/components/RunningIcon";
 import { copyText, platformShortcutLabel } from "@/lib";
@@ -57,19 +65,20 @@ import {
 	SETTLED_SHELF_PAGE,
 	type SettledReason,
 	selectActiveWorkspaceProjectId,
-	selectAutoSettledCounts,
 	selectProjectIsRunning,
 	selectProjectNeedsAttention,
+	selectProjectTreeModel,
 	selectSupportsOnboarding,
 	selectWorkspaceIsRunning,
 	selectWorkspaceNeedsAttention,
-	selectWorkspacePartition,
+	type selectWorkspacePartition,
 	selectWorkspaceReadAction,
 	settledReasonLabel,
 	settledReasonTitle,
 	supportsWorkspaceReadState,
 	toast,
 	useAppStore,
+	type WorkspacePartition,
 	type WorkspaceReadAction,
 	workspaceName,
 } from "../store";
@@ -109,6 +118,8 @@ import {
 const HOVER_CONTROL_CLASS =
 	"shrink-0 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100";
 
+const NO_WORKSPACES: WorkspacePartition = { live: [], settled: [] };
+
 function groupCreationsByProject(
 	creations: Record<string, WorkspaceCreation>,
 ): Record<string, WorkspaceCreation[]> {
@@ -134,7 +145,7 @@ export function ProjectTree() {
 	const protocolVersion = useAppStore((s) => s.protocolVersion);
 	const supportsCreate = useAppStore(selectSupportsOnboarding);
 	const supportsSettling = useAppStore((s) => s.workspaceSettlingSupported);
-	const sessionStateByWorkspace = useAppStore((s) => s.sessionStateByWorkspace);
+	const sessionStateClock = useAppStore((s) => s.sessionStateClock);
 	const settleIdleDays = useAppStore((s) => s.settleIdleDays);
 	const settledShelfExpanded = useAppStore((s) => s.settledShelfExpanded);
 	const settledShelfShown = useAppStore((s) => s.settledShelfShown);
@@ -183,19 +194,39 @@ export function ProjectTree() {
 		if (activeProjectId) useAppStore.getState().expandProject(activeProjectId);
 	}, [activeProjectId]);
 
-	const partitionState = {
-		workspaces,
-		workspaceSettlingSupported: supportsSettling,
-		sessionStateByWorkspace,
+	const projectTree = useMemo(() => {
+		const sessionStateByWorkspace = useAppStore.getState().sessionStateByWorkspace;
+		return {
+			...selectProjectTreeModel(
+				{
+					workspaces,
+					workspaceSettlingSupported: supportsSettling,
+					sessionStateByWorkspace,
+					activeWorkspaceId,
+					activeWorkspaceLiveLatch,
+					settleIdleDays,
+				},
+				projects.map((project) => project.id),
+				now,
+			),
+			projection: { sessionStateByWorkspace },
+		};
+	}, [
 		activeWorkspaceId,
 		activeWorkspaceLiveLatch,
+		now,
+		projects,
+		sessionStateClock,
 		settleIdleDays,
-	};
+		supportsSettling,
+		workspaces,
+	]);
+	const { partitions, workspaceCounts, autoSettledKey, projection: stateProjection } = projectTree;
 	const activeSettledIndex =
 		activeProjectId && activeWorkspaceId
-			? selectWorkspacePartition(partitionState, activeProjectId, now).settled.findIndex(
+			? (partitions[activeProjectId]?.settled.findIndex(
 					(row) => row.workspace.id === activeWorkspaceId,
-				)
+				) ?? -1)
 			: -1;
 	useEffect(() => {
 		if (!activeProjectId || activeSettledIndex < 0) return;
@@ -204,9 +235,6 @@ export function ProjectTree() {
 		store.showMoreSettled(activeProjectId, activeSettledIndex + 1);
 	}, [activeProjectId, activeSettledIndex]);
 
-	const autoSettledKey = selectAutoSettledCounts(partitionState, now)
-		.map(({ projectId, count }) => `${projectId}:${count}`)
-		.join(",");
 	useEffect(() => {
 		if (autoSettledKey === "" || settledShelfNoticed()) return;
 		const timer = setTimeout(announceSettledShelf, SETTLED_NOTICE_QUIET_MS);
@@ -318,7 +346,6 @@ export function ProjectTree() {
 				{projects.map((project) => {
 					const isExpanded = expandedProjectIds[project.id] === true;
 					const list = workspaces[project.id];
-					const stateProjection = { sessionStateByWorkspace };
 					return (
 						<li key={project.id}>
 							<ProjectRow
@@ -329,7 +356,7 @@ export function ProjectTree() {
 									!isExpanded && selectProjectNeedsAttention(stateProjection, project.id)
 								}
 								isRunning={!isExpanded && selectProjectIsRunning(stateProjection, project.id)}
-								workspaceCount={(list ?? []).filter((w) => !isDefaultWorkspace(w)).length}
+								workspaceCount={workspaceCounts[project.id] ?? 0}
 								onToggle={() => toggleExpand(project.id)}
 								onSelect={() => void selectProject(project.id)}
 								canRename={canRenameProject(protocolVersion)}
@@ -350,7 +377,7 @@ export function ProjectTree() {
 								<SettledPartition
 									enabled={supportsSettling}
 									projectId={project.id}
-									partition={selectWorkspacePartition(partitionState, project.id, now)}
+									partition={partitions[project.id] ?? NO_WORKSPACES}
 									shelfExpanded={settledShelfExpanded[project.id] === true}
 									shelfShown={settledShelfShown[project.id] ?? SETTLED_SHELF_PAGE}
 									renderRow={(ws, settled) =>

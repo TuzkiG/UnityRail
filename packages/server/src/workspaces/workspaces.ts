@@ -195,8 +195,37 @@ export async function openExistingWorktree(
 	return workspace;
 }
 
+const DIFF_STATS_CONCURRENCY = 4;
+
+async function mapLimited<T, R>(
+	items: readonly T[],
+	limit: number,
+	fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+	const results = new Array<R>(items.length);
+	let next = 0;
+	const worker = async () => {
+		while (next < items.length) {
+			const index = next++;
+			results[index] = await fn(items[index] as T);
+		}
+	};
+	await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+	return results;
+}
+
 function folderTruth(repoPath: string): { branch: string; baseBranch: string } {
-	return { branch: currentBranch(repoPath), baseBranch: resolveDefaultBranch(repoPath) };
+	const sha = headShaAt(repoPath, { onTimeout: "return" });
+	const head = headBranchAt(repoPath);
+	const key = `${sha ?? ""}\u0000${head ?? ""}`;
+	const cached = folderTruthByHead.get(repoPath);
+	if (cached?.key === key) return { ...cached.truth };
+	const truth = {
+		branch: head ?? currentBranch(repoPath),
+		baseBranch: resolveDefaultBranch(repoPath, sha),
+	};
+	folderTruthByHead.set(repoPath, { key, truth });
+	return { ...truth };
 }
 
 function applyFolderTruth(ws: Workspace, truth: { branch: string; baseBranch: string }): boolean {
@@ -588,6 +617,12 @@ export function setWorkspaceDiffBase(id: string, ref: string | null): Workspace 
 const ACTIVITY_COALESCE_MS = 60_000;
 const observedActivityAt = new Map<string, number>();
 const observedHeadSha = new Map<string, string>();
+/** Folder truth is keyed by HEAD sha + checked-out branch (read off the HEAD file);
+ * `recordWorkspaceHead` (watch + repo-meta events) drops it. */
+const folderTruthByHead = new Map<
+	string,
+	{ key: string; truth: { branch: string; baseBranch: string } }
+>();
 
 export function recordWorkspaceActivity(id: string, at: number = Date.now()): Workspace | null {
 	const all = loadWorkspaces();
@@ -627,6 +662,7 @@ export function backfillWorkspaceActivity(id: string, at: number): Workspace | n
 export function recordWorkspaceHead(id: string): void {
 	const workspace = loadWorkspaces().find((candidate) => candidate.id === id);
 	if (!workspace) return;
+	folderTruthByHead.delete(workspace.worktreePath);
 	const sha = headShaAt(workspace.worktreePath, { onTimeout: "return" });
 	if (!sha) return;
 	const previous = observedHeadSha.get(id);
@@ -713,9 +749,8 @@ export async function listWorkspaces(
 	adoptManagedBranches(projectId);
 	const rows = projectRows(projectId);
 	if (opts.includeDiffStats === false) return rows;
-	const statsByKey = new Map(
-		await Promise.all(rows.map(async (w) => [workspaceDiffKey(w), await diffStats(w)] as const)),
-	);
+	const stats = await mapLimited(rows, DIFF_STATS_CONCURRENCY, diffStats);
+	const statsByKey = new Map(rows.map((w, index) => [workspaceDiffKey(w), stats[index]] as const));
 	return projectRows(projectId).map((w) => {
 		const stats = statsByKey.get(workspaceDiffKey(w));
 		return stats ? { ...w, diffStats: stats } : w;
@@ -750,6 +785,7 @@ export function forgetWorkspace(id: string): Workspace | null {
 	saveWorkspaces(all.filter((w) => w.id !== id));
 	observedActivityAt.delete(id);
 	observedHeadSha.delete(id);
+	folderTruthByHead.delete(ws.worktreePath);
 	forgetWorktreeRepos(id);
 	emit({ kind: "removed", projectId: ws.projectId, id: ws.id });
 	return ws;

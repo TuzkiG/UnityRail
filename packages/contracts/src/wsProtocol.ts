@@ -107,6 +107,7 @@ import type {
 	WireCustomMessage,
 	WireModel,
 } from "./piProtocol";
+import type { SpeechErrorCode, SpeechModel, SpeechStatus } from "./speech";
 import type {
 	UnityAssetDiff,
 	UnityAssetResult,
@@ -141,10 +142,7 @@ import type {
 	UnityUndoResult,
 	UnityWorkspaceSnapshot,
 } from "./unity";
-
 import type { VerificationHistory } from "./verification";
-
-import type { SpeechErrorCode, SpeechModel, SpeechStatus } from "./speech";
 
 export interface TerminalDataPush {
 	id: string;

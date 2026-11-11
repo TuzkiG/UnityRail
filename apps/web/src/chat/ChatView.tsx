@@ -20,7 +20,7 @@ import {
 import { useCallback, useEffect, useInsertionEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useNow } from "@/components/useNow";
-import { type ParsedTemplate, templateToSlashCommand, useTemplateCommandPicker } from "@/prompt";
+import { templateToSlashCommand } from "@/prompt";
 import {
 	EMPTY_RUNTIME,
 	SettingsSection,
@@ -77,12 +77,21 @@ import { useModelCatalog } from "./useModelCatalog";
 import { useModelPreferences } from "./useModelPreferences";
 import { useSessionStats } from "./useSessionStats";
 import "./tools/register";
-import type { ChatAttachment } from "./types";
+import type { ChatAttachment, ChatTurn } from "./types";
 import { useHistorySearch } from "./useHistorySearch";
 import { useUnitySelection } from "./useUnitySelection";
 
 const TRY_AGAIN_PROMPT = "Try again.";
 const NOTHING_EXPANDED: Partial<Record<ResourceKind, boolean>> = {};
+const recentPromptsByTurns = new WeakMap<ChatTurn[], string[]>();
+
+function recentPromptsFor(turns: ChatTurn[]): string[] {
+	const cached = recentPromptsByTurns.get(turns);
+	if (cached) return cached;
+	const prompts = deriveRecentPrompts(turns);
+	recentPromptsByTurns.set(turns, prompts);
+	return prompts;
+}
 
 function renderSubagentModel({ model, thinkingLevel }: SubagentResourceSummary) {
 	return <RunModelLabel model={model} thinkingLevel={thinkingLevel} />;
@@ -100,7 +109,6 @@ export default function ChatView({
 	const t = useT();
 	const sessionExists = useAppStore((s) => s.sessions[sessionId] !== undefined);
 	const isStreaming = useAppStore((s) => s.sessions[sessionId]?.isStreaming ?? false);
-	const draft = useAppStore((s) => s.sessions[sessionId]?.draft ?? "");
 	const queue = useAppStore((s) => s.sessions[sessionId]?.queue ?? EMPTY_RUNTIME.queue);
 	const sessionModel = useAppStore((s) => s.sessions[sessionId]?.model ?? null);
 	const thinkingLevel = useAppStore(
@@ -121,7 +129,7 @@ export default function ChatView({
 		(s) => s.sessions[sessionId]?.syncedConnectionGeneration ?? 0,
 	);
 	const recentPrompts = useAppStore(
-		useShallow((s) => deriveRecentPrompts(s.sessions[sessionId]?.turns ?? [])),
+		useShallow((s) => recentPromptsFor(s.sessions[sessionId]?.turns ?? EMPTY_RUNTIME.turns)),
 	);
 	const unitySelection = useUnitySelection(workspaceId);
 
@@ -207,10 +215,15 @@ export default function ChatView({
 		resources.groups.recentFinished,
 		resources.visible && resources.authoritative,
 	);
-	const freshIds = new Set([
-		...freshResults.commands.map((command) => command.id),
-		...freshResults.subagents.map((child) => child.childSessionId),
-	]);
+	const freshCommandIds = freshResults.commands.map((command) => command.id).join("\u0000");
+	const freshSubagentIds = freshResults.subagents
+		.map((child) => child.childSessionId)
+		.join("\u0000");
+	const freshIds = useMemo(() => {
+		const ids = new Set(freshCommandIds ? freshCommandIds.split("\u0000") : []);
+		for (const id of freshSubagentIds ? freshSubagentIds.split("\u0000") : []) ids.add(id);
+		return ids;
+	}, [freshCommandIds, freshSubagentIds]);
 	const resourcesTrigger = useRef<HTMLButtonElement>(null);
 	const [stopAllOpen, setStopAllOpen] = useState(false);
 	const [inspector, setInspector] = useState<{
@@ -681,7 +694,10 @@ export default function ChatView({
 		});
 	};
 
-	const onHistoryOpen = () => (historyState.open ? onDismissHistory() : openOverlay(draft));
+	const onHistoryOpen = () =>
+		historyState.open
+			? onDismissHistory()
+			: openOverlay(useAppStore.getState().sessions[sessionId]?.draft ?? "");
 
 	const onManageTemplates = () => useAppStore.getState().openSettings(SettingsSection.Templates);
 
@@ -717,16 +733,6 @@ export default function ChatView({
 		(name: string) => getTransport().request("template.get", { workspaceId, name }),
 		[workspaceId],
 	);
-	const applyTemplate = useCallback(
-		(template: ParsedTemplate) => composerRef.current?.insertTemplate(template),
-		[],
-	);
-	const { pending: templatePending, pick: onPickTemplate } = useTemplateCommandPicker({
-		draft,
-		contextKey: `${workspaceId}:${sessionId}`,
-		load: loadTemplate,
-		onApply: applyTemplate,
-	});
 
 	const historyOpenRequest = useAppStore((s) => s.historyOpenRequest);
 	const historyOverlayOpen = historyState.open;
@@ -927,12 +933,12 @@ export default function ChatView({
 				/>
 				<Composer
 					ref={composerRef}
-					value={draft}
-					onChange={(v) => useAppStore.getState().setChatDraft(sessionId, v)}
+					sessionId={sessionId}
+					workspaceId={workspaceId}
+					loadTemplate={loadTemplate}
 					isStreaming={isStreaming}
 					growthLimit={composerGrowthLimit}
 					commands={mergedCommands}
-					templatePending={templatePending}
 					mentionCandidates={mentionCandidates}
 					recentPrompts={recentPrompts}
 					unitySelection={unitySelection}
@@ -949,7 +955,6 @@ export default function ChatView({
 					onSubmit={onSubmit}
 					onAbort={onAbort}
 					onHistoryOpen={onHistoryOpen}
-					onPickTemplate={onPickTemplate}
 					onManageTemplates={onManageTemplates}
 					templatesEmpty={templatesEmpty}
 				/>

@@ -23,6 +23,7 @@ test("persists routes independently by backend and window", () => {
 	expect(routes.read("local", "main")).toBe("#/v1");
 	expect(routes.write("local", "main", "#/v1/projects/project-1")).toBe(true);
 	expect(routes.write("remote", "main", "#/v1/projects/project-2")).toBe(true);
+	routes.flush();
 	const restored = new RouteStore(path);
 	expect(restored.read("local", "main")).toBe("#/v1/projects/project-1");
 	expect(restored.read("remote", "main")).toBe("#/v1/projects/project-2");
@@ -49,7 +50,28 @@ test("idempotent writes preserve the stored document", () => {
 	const path = routePath();
 	const routes = new RouteStore(path);
 	routes.write("local", "main", "#/v1");
+	routes.flush();
 	const first = readFileSync(path, "utf8");
 	routes.write("local", "main", "#/v1");
+	routes.flush();
 	expect(readFileSync(path, "utf8")).toBe(first);
+});
+
+test("coalesces a burst of route writes into one trailing flush", async () => {
+	const path = routePath();
+	const routes = new RouteStore(path);
+	expect(routes.write("local", "main", "#/v1/a")).toBe(true);
+	expect(routes.write("local", "main", "#/v1/b")).toBe(true);
+	expect(existsSync(path)).toBe(false);
+	await Bun.sleep(350);
+	expect(new RouteStore(path).read("local", "main")).toBe("#/v1/b");
+});
+
+test("flush writes the pending route immediately and clears the debounce", () => {
+	const path = routePath();
+	const routes = new RouteStore(path);
+	routes.write("local", "main", "#/v1/immediate");
+	expect(existsSync(path)).toBe(false);
+	routes.flush();
+	expect(new RouteStore(path).read("local", "main")).toBe("#/v1/immediate");
 });

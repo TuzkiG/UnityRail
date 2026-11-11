@@ -32,6 +32,7 @@ import { isImeComposing } from "@thinkrail/ui/keyboard";
 import { LoadingRegion } from "@thinkrail/ui/skeleton";
 import { IconTooltip } from "@thinkrail/ui/tooltip";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { type ChatActions, ChatActionsContext } from "../chat/ChatActions";
 import {
 	awaitingToolCallIdOf,
@@ -69,6 +70,7 @@ import { useToolInteraction } from "../chat/toolInteraction";
 import { getToolRenderer } from "../chat/toolRegistry";
 import { hydrateSessionRuntime, useChatTodos } from "../chat/useChatTodos";
 import {
+	type SessionRuntime,
 	selectAgentReviewCommentCount,
 	selectChatName,
 	selectChatTitle,
@@ -696,7 +698,19 @@ function PlanInteractionCard({
 // Keep the session's live slot isolated from the heavy PlanPane.
 function PlanSessionLive({ workspaceId, sessionId }: { workspaceId: string; sessionId: string }) {
 	const t = useT();
-	const runtime = useAppStore((s) => s.sessions[sessionId]);
+	const runtime = useAppStore(
+		useShallow((s) => {
+			const live: SessionRuntime | undefined = s.sessions[sessionId];
+			return live
+				? {
+						turns: live.turns,
+						toolResponses: live.toolResponses,
+						toolResults: live.toolResults,
+						hostState: live.hostState,
+					}
+				: undefined;
+		}),
+	);
 	const [focusScope] = useState<object>(() => ({}));
 	const actions = useMemo<ChatActions>(
 		() => ({

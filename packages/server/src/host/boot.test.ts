@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, expect, spyOn, test } from "bun:test";
-import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { InMemoryCredentialStore } from "@earendil-works/pi-ai";
@@ -20,6 +20,7 @@ import {
 } from "../analytics";
 import { resetJbcentralStateForTests } from "../auth";
 import { logger } from "../log";
+import { listRecentProjects } from "../projects";
 import { resetConfigCache, updateConfig } from "../settings";
 import { type BootedHost, bootHost } from "./boot";
 import { handleRequest } from "./handlers";
@@ -467,6 +468,8 @@ test("serves the SPA from staticDir with index.html fallback", async () => {
 	const dir = mkdtempSync(join(tmpdir(), "thinkrail-boot-"));
 	tmpDirs.push(dir);
 	writeFileSync(join(dir, "index.html"), "<!doctype html><title>spa</title>");
+	mkdirSync(join(dir, "assets"));
+	writeFileSync(join(dir, "assets", "app.js"), "console.log('asset')");
 
 	const b = await boot({
 		port: grabFreePort(),
@@ -478,10 +481,17 @@ test("serves the SPA from staticDir with index.html fallback", async () => {
 	const root = await fetch(`http://localhost:${b.port}/`);
 	expect(root.status).toBe(200);
 	expect(root.headers.get("content-type") ?? "").toContain("text/html");
+	expect(root.headers.get("cache-control")).toBe("no-cache");
 	expect(await root.text()).toContain("<title>spa</title>");
+
+	const asset = await fetch(`http://localhost:${b.port}/assets/app.js`);
+	expect(asset.status).toBe(200);
+	expect(asset.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+	expect(await asset.text()).toBe("console.log('asset')");
 
 	const deep = await fetch(`http://localhost:${b.port}/some/client/route`);
 	expect(deep.status).toBe(200);
+	expect(deep.headers.get("cache-control")).toBe("no-cache");
 	expect(await deep.text()).toContain("<title>spa</title>");
 });
 
@@ -525,7 +535,7 @@ test("boot permits two hosts for the same data directory", async () => {
 	expect(await Promise.all(responses.map((response) => response.text()))).toEqual(["ok", "ok"]);
 });
 
-test("welcome omits closed projects whose folders are gone", async () => {
+test("welcome snapshots recents and the deferred folder refresh drops gone projects", async () => {
 	const dir = process.env.THINKRAIL_DATA_DIR;
 	if (!dir) throw new Error("missing fixture data directory");
 	writeFileSync(
@@ -551,7 +561,12 @@ test("welcome omits closed projects whose folders are gone", async () => {
 
 	const welcome = frame.data as ServerWelcome;
 	expect(welcome.projects.map((project) => project.id)).toEqual(["open"]);
-	expect(welcome.recentProjects?.map((project) => project.id)).toEqual(["open", "kept"]);
+	expect(welcome.recentProjects?.some((project) => project.id === "kept")).toBe(true);
+	const deadline = Date.now() + 2_000;
+	while (Date.now() < deadline && listRecentProjects().some((project) => project.id === "gone")) {
+		await Bun.sleep(20);
+	}
+	expect(listRecentProjects().map((project) => project.id)).toEqual(["open", "kept"]);
 });
 
 test("shutdown is idempotent and releases the port", async () => {

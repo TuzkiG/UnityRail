@@ -10,17 +10,19 @@ import {
 } from "../store";
 import { errorText, wsErrorCode } from "../transport";
 import { scopeKey } from "./changesModel";
-import { readGitStatus } from "./gitStatusCache";
+import { peekGitStatus, readGitStatus } from "./gitStatusCache";
 import { useWorkspaceRead } from "./useWorkspaceRead";
 
 export function useGitStatus(workspaceId: string) {
-	const [status, setStatus] = useState<GitStatus | null>(null);
-	const [error, setError] = useState<string | null>(null);
-	const warnedRef = useRef(false);
 	const setDiffScope = useAppStore((s) => s.setDiffScope);
 	const scope = useAppStore((s) => selectDiffScope(s, workspaceId));
 	const baseRef = useAppStore((s) => selectDiffBaseRef(s, workspaceId));
 	const targetRef = useAppStore((s) => selectDiffTabTargetRef(s, { workspaceId, scope }));
+	const [status, setStatus] = useState<GitStatus | null>(() =>
+		peekGitStatus(workspaceId, scope, targetRef),
+	);
+	const [error, setError] = useState<string | null>(null);
+	const warnedRef = useRef(false);
 
 	const { reload } = useWorkspaceRead(
 		workspaceId,
@@ -46,7 +48,7 @@ export function useGitStatus(workspaceId: string) {
 				setError(errorText(failure));
 			},
 			onSwitch: () => {
-				setStatus(null);
+				setStatus(peekGitStatus(workspaceId, scope, targetRef));
 				setError(null);
 				warnedRef.current = false;
 			},

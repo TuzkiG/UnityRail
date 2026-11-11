@@ -215,6 +215,40 @@ test("reanchorWorkspace publishes only when something moved", async () => {
 	expect(pushes.length).toBe(before + 1);
 });
 
+test("reanchorWorkspace leaves files the change doesn't name alone", async () => {
+	writeFileSync(join(worktree, "b.ts"), "const d = 4;\n");
+	const a = await addInline("a");
+	const b = await addComment({
+		workspaceId: WS_ID,
+		kind: "inline",
+		anchor: {
+			path: "b.ts",
+			side: "worktree",
+			selectors: [{ kind: "lineRange", startLine: 1, endLine: 1 }],
+		},
+		body: "b",
+	});
+	pushes.length = 0;
+	writeFileSync(join(worktree, "a.ts"), "// shift\nconst a = 1;\nconst b = 2;\nconst c = 3;\n");
+	writeFileSync(join(worktree, "b.ts"), "// shift\nconst d = 4;\n");
+
+	reanchorWorkspace(WS_ID, ["a.ts"]);
+
+	expect(pushes).toHaveLength(1);
+	const states = new Map(pushes[0]?.comments.map((entry) => [entry.id, entry.anchorState]));
+	expect(states.get(a.id)).toBe("moved");
+	expect(states.get(b.id)).toBe("anchored");
+});
+
+test("a re-anchor that already landed is not broadcast again", async () => {
+	await addInline();
+	writeFileSync(join(worktree, "a.ts"), "// shift\nconst a = 1;\nconst b = 2;\nconst c = 3;\n");
+	expect((await getReviewSnapshot(WS_ID)).comments[0]?.anchorState).toBe("moved");
+	const published = pushes.length;
+	expect((await getReviewSnapshot(WS_ID)).comments[0]?.anchorState).toBe("moved");
+	expect(pushes).toHaveLength(published);
+});
+
 test("update edits drafts only; manual resolve stamps resolvedBy user; resolved is final", async () => {
 	const comment = await addInline();
 	await updateComment({ workspaceId: WS_ID, id: comment.id, body: "better wording" });

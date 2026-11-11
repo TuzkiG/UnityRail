@@ -56,6 +56,8 @@ import { ToolRendererBody } from "./ToolRendererBody";
 import { getToolChrome, getToolSummary } from "./toolRegistry";
 import type { CompactionState } from "./types";
 
+const NOOP = () => {};
+
 function ChatTurnViewImpl({
 	row,
 	workspaceRoot,
@@ -173,10 +175,10 @@ function ChatTurnViewImpl({
 					id={row.id}
 					data={row.data}
 					workspaceRoot={workspaceRoot}
-					onOpenSpec={onOpenSpec ?? (() => {})}
-					onOpenChange={onOpenChange ?? (() => {})}
+					onOpenSpec={onOpenSpec ?? NOOP}
+					onOpenChange={onOpenChange ?? NOOP}
 					onReviewTurn={onReviewTurn}
-					onReveal={onReveal ?? (() => {})}
+					onReveal={onReveal ?? NOOP}
 					stillRunning={stillRunning}
 				/>
 			);

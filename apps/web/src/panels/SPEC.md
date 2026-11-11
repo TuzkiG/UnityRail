@@ -22,7 +22,11 @@ hierarchy, inspector, Game View and test tabs for one workspace; it knows nothin
 Editor owns the selection: a selected GameObject reported by the snapshot becomes the inspected path (the
 first GameObject wins; assets and component selections have no hierarchy path), while a pick in the panel's
 hierarchy selects it in the Editor through `unity.select` and is not re-adopted from that call's trailing
-cached status. An `unity.inspect` answer that arrives after a newer selection is dropped.
+cached status. An `unity.inspect` answer that arrives after a newer selection is dropped. The last
+snapshot is also cached in the store (`unitySnapshotsByWorkspace`), so a remounted panel (tab/window
+switch back) renders it instantly while the first poll refreshes; the workspace-linking sibling
+(`UnityProjectPanel`) seeds its `unity.projectConfig` + snapshot reads from `unityProjectConfigsByWorkspace`
++ `unitySnapshotsByWorkspace` the same way. Both caches drop with the workspace (`applyWorkspaceRemoved`).
 `TerminalInstance` wraps xterm with `QuietScrollFrame`, which skins xterm's descendant custom scroll control
 without shrinking its hit target; top/bottom state comes from xterm's public `buffer.active.viewportY/baseY`
 and `onScroll`/`onWriteParsed` API rather than pretending its non-native viewport has DOM scroll metrics.
@@ -243,7 +247,10 @@ treatment.
   already selected), the toolbar adds a **repository picker** (`files-repo-trigger`): the workspace root
   or a nested root. Choosing one stores `filesTreeByWorkspace.repo` and re-roots `FileTree` at that
   workspace-relative path; labels, marks, open-file handlers and warmups keep the full workspace path, so
-  the rest of the Files behavior is unchanged. The selection is persisted with the files-tree document
+  the rest of the Files behavior is unchanged. Root listings and resolved folder chains are memoized per
+  *(workspace, repo)* (bounded LRU, one shared in-flight read), so a remount paints the tree and each
+  expanded row's children before the refresh; an expanded row whose read failed retries once, and a
+  folder's starting path stays its expansion key even when the single-child chain grows past it. The selection is persisted with the files-tree document
   and scoped scroll state. `FilesPanel` owns the single `git.status` read (`useGitStatus`, scope-keyed, including
   the unknown-commit scope fallback) and feeds `ChangesPanel` and the **All** marks from it, so count, marks
   and the Changed list cannot disagree. Both `git.status` readers — `useGitStatus` and `ChangesReviewPane` —
@@ -252,7 +259,10 @@ treatment.
   the panel has already read renders its sections on first paint, not after a skeleton round-trip. The cache
   is a bounded LRU (32 entries), a reply never overwrites one from a later request, a removed workspace's
   entries are dropped, and an `UNKNOWN_COMMIT` rejection forgets the entry, so a vanished scope is never
-  seeded. A seeded status is provisional until the tab's own read settles: a reveal, the stored active file
+  seeded. Reads of one key share a single in-flight request, so the Files panel and the review tab never
+  issue the same `git.status` twice. The review tab's per-file section content is module-level too, keyed
+  by that same *(workspace, scope, target ref)* and bounded to 64 views, so reopening it paints every file
+  from its last diff before the live-tab refresh. A seeded status is provisional until the tab's own read settles: a reveal, the stored active file
   and the Stacked restore whose path the seed lacks wait for that read instead of being dropped or
   overwritten. **All** follows VS Code's Explorer: the plain tree plus marks derived
   once by the pure `changesModel.buildChangeMarks` — a changed file shows its name and a trailing
@@ -343,7 +353,9 @@ treatment.
   The **Verify** tool panel (`VerifyPanel`, `LayoutToolId` `verify`) lists `verification.list` history for
   the workspace, runs EditMode/PlayMode tests through `unity.tests` (with a filter field), and turns a
   failing test's stack frames into links: `openFileInTab(..., revealLine)` stores a one-shot `reveal` on
-  the file tab and the code renderer reveals that line, so verification ends where the bug is.
+  the file tab and the code renderer reveals that line, so verification ends where the bug is. The run
+  history is seeded from the store cache (`verificationRunsByWorkspace`) so a remount renders instantly;
+  a failed refresh keeps the last-known list instead of flashing the empty state.
   `ChangesTree`'s tree build + `+/−` aggregation + shared status glyphs live in the pure
   **`changesModel.ts`** (unit-tested; no store/transport — `ChangesTree` is presentational, fed `changes` +
   `onOpen`/`isActive` by `ChangesPanel`), together with the **diff-tab identity + scope vocabulary**:
@@ -365,7 +377,9 @@ treatment.
   works two remotes, so a list that shows only `origin` hides the ref it branches from. The whole state
   *around* it — the list, `refreshing`, `refresh()` — is the shared
   **`useBranchList(projectId, onLoaded?)`** (`branches.ts`, over the offline-degrading
-  `listBranchesOrEmpty`; it also reports `failed` for a degraded initial read, so the picker never calls an
+  `readBranchList`; a successful list is cached for 30 s per project/workspace/repo with one shared
+  in-flight request, so reopening a picker paints it before the refresh; it also reports `failed` for a
+  degraded initial read, so the picker never calls an
   unreadable repository "local only"), so both pickers are identical **by construction**: the list is **keyed to the
   project** (it clears on a project change, and both reads are generation-stamped, so a switch can never
   offer or land the previous project's branches), **only the initial read degrades** (a *refresh* keeps its
@@ -854,8 +868,8 @@ a project picker, the prompt hero, and the reused
   (`type` `"oauth"` / `"api_key"`, issue #97) into the same store-driven `auth/LoginDialog` (open the
   URL / paste a code / answer the provider's own key prompts, `provider.loginReply` — no inline key
   field); a "configured outside the app" note for rows with neither flag; **`CustomEndpointsSettings`**
-  (v101, hidden below `CUSTOM_ENDPOINTS_PROTOCOL_VERSION`; re-read on `providerVersion`) — the **Custom
-  servers** group listing every `customEndpoints.list` endpoint (name, address, model count; **Edit** and a
+  (v101, hidden below `CUSTOM_ENDPOINTS_PROTOCOL_VERSION`; re-read on `providerVersion`; the last successful
+  list is cached per transport scope, so reopening the page paints it and a failed reload keeps it) — the **Custom servers** group listing every `customEndpoints.list` endpoint (name, address, model count; **Edit** and a
   **Remove** icon behind a `ConfirmDialog`) plus **Add server**. The page's **Refresh** reloads the list together with
   `provider.status`. Providers the group lists are filtered out of the
   generic provider rows so each appears once (only listed ids: an unlisted `custom-*` provider, or any on
@@ -914,7 +928,9 @@ a project picker, the prompt hero, and the reused
   range inline, and waits for `settings.changed` rather than installing optimistic authority. Older hosts get
   neither control. **`GithubSettings`** (the Integrations section's "Local GitHub" group —
   `github.authStatus()` shown as `settings-gh-status[data-connected]`: Connected + login, or a Not connected
-  notice naming `gh auth login`; Refresh (`github.refresh`) is offered in both states);
+  notice naming `gh auth login`; Refresh (`github.refresh`) is offered in both states; the last
+  `github.authStatus` answer is cached per transport scope, so reopening Settings paints it and a failed
+  refresh keeps it instead of flipping to Not connected);
   **`LanguageSettings`** (gated by `LOCALES_PROTOCOL_VERSION`; a store-integrating container over the
   props-driven `LanguagePage`, whose derivations come from [[submodule-web-i18n]]): one radio list — **System**
   (default; names the language System resolves to) then every available language by its own-language name
@@ -1305,8 +1321,9 @@ a project picker, the prompt hero, and the reused
   row action — switch, resource toggle, Update, Open folder, Remove — carries `{ source, scope,
   workspaceId? }` and a `rowKey` the page keys busy and error state on (an error renders inline on the
   row, never a toast; the bundled group's switch keeps its older toast); Remove goes through
-  `ConfirmDialog`; Update and Remove run with a ten-minute `timeoutMs`. Updates are checked once on mount
-  (`packages.checkUpdates`, cached by the host) and on **Check for updates** (`force: true`); a failed
+  `ConfirmDialog`; Update and Remove run with a ten-minute `timeoutMs`. Updates are checked once per
+  *(workspace, packagesVersion)* on mount (`packages.checkUpdates`, cached by the host; a reopening page
+  reuses that check's result) and on **Check for updates** (`force: true`); a failed
   check renders under the group header; **Update all** sends the flagged rows as **one**
   `packages.update` request and marks them busy together. The empty state offers
   Install and the pi.dev gallery link; an untrusted project shows one info notice; a failed list renders

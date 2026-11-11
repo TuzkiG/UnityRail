@@ -114,7 +114,9 @@ function LiveTab(props: {
 	path: string;
 	read: (path: string) => Promise<string>;
 	applied: string[];
+	renders?: number[];
 }) {
+	props.renders?.push(0);
 	const [loadedTick, setLoadedTick] = useState(0);
 	useLiveTabContent(
 		{ workspaceId: props.workspaceId, path: props.path, loadedTick },
@@ -146,6 +148,37 @@ test("a slow tab read waits out further ticks, lands, then catches up once", asy
 	await host.pending[1]?.settle("v3");
 	expect(applied).toEqual(["v1", "v3"]);
 	expect(host.pending).toHaveLength(2);
+	await view.unmount();
+});
+
+test("replacing the change object without advancing the tick does not re-render the tab", async () => {
+	const host = scriptedReads<string>();
+	const applied: string[] = [];
+	const renders: number[] = [];
+	const view = await mount(
+		<LiveTab
+			workspaceId="lt-quiet"
+			path="f.ts"
+			read={host.read}
+			applied={applied}
+			renders={renders}
+		/>,
+	);
+	const initialRenders = renders.length;
+	await act(async () => {
+		useAppStore.setState((state) => ({
+			fsChangesByWorkspace: {
+				...state.fsChangesByWorkspace,
+				"lt-quiet": { tick: 0, paths: ["f.ts"], truncated: false },
+			},
+		}));
+	});
+	expect(renders).toHaveLength(initialRenders);
+	expect(host.pending).toHaveLength(0);
+
+	await tick("lt-quiet", ["f.ts"]);
+	expect(renders.length).toBeGreaterThan(initialRenders);
+	expect(host.keys()).toEqual(["f.ts"]);
 	await view.unmount();
 });
 

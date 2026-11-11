@@ -105,8 +105,25 @@ function writeFile(root: string, sessionId: string, file: ReviewsFile): void {
 	renameSync(tmp, path);
 }
 
+export interface TodoReviews {
+	items: Record<string, TodoReviewRecord>;
+	pending: Record<string, { at: string; shas?: string[] }>;
+	autoCycles: Record<string, number>;
+}
+
+/** One parse of the session's review sidecar, for callers that need more than one section of it:
+ * `listTodos` reads the records and the pending marks for every item in the same pass. */
+export function readReviewsFile(root: string, sessionId: string): TodoReviews {
+	const file = readFile(root, sessionId);
+	return {
+		items: file.items,
+		pending: file.pending ?? {},
+		autoCycles: file.autoCycles ?? {},
+	};
+}
+
 export function readReviewMeta(root: string, sessionId: string): TodoReviewMeta {
-	return { pending: readFile(root, sessionId).pending ?? {} };
+	return { pending: readReviewsFile(root, sessionId).pending };
 }
 
 export function markReviewPending(
@@ -131,7 +148,7 @@ export function clearReviewPending(root: string, sessionId: string, id: string):
 }
 
 export function readAutoCycles(root: string, sessionId: string, id: string): number | undefined {
-	return readFile(root, sessionId).autoCycles?.[id];
+	return readReviewsFile(root, sessionId).autoCycles[id];
 }
 
 export function setAutoCycles(root: string, sessionId: string, id: string, value: number): void {
@@ -144,7 +161,7 @@ export function readReviewRecords(
 	root: string,
 	sessionId: string,
 ): Record<string, TodoReviewRecord> {
-	return readFile(root, sessionId).items;
+	return readReviewsFile(root, sessionId).items;
 }
 
 export function putReviewRecord(

@@ -148,43 +148,57 @@ export function createWindowChromeStyleWriter(getRoot: () => WindowChromeRoot | 
 	};
 }
 
-export function installWindowChromePublisher<T>(
-	window: {
-		on(name: "resize", listener: () => void): void;
-		webview: { on(name: "dom-ready", listener: () => void): void };
-	},
-	read: () => T,
-	publish: (value: T) => void,
-	equal: (a: T, b: T) => boolean,
-): void {
-	let lastPublished: { value: T } | undefined;
-	window.on("resize", () => {
-		const next = read();
-		if (lastPublished && equal(lastPublished.value, next)) return;
-		lastPublished = { value: next };
-		publish(next);
-	});
-	window.webview.on("dom-ready", () => {
-		const next = read();
-		lastPublished = { value: next };
-		publish(next);
-	});
+export interface WindowChromeSnapshot {
+	geometry: WindowChromeGeometry;
+	state?: NativeWindowState;
 }
 
-export function installWindowChromeGeometry(
+const WINDOW_CHROME_RESIZE_DELAY_MS = 75;
+
+function sameWindowChromeGeometry(a: WindowChromeGeometry, b: WindowChromeGeometry): boolean {
+	return a.insetLeft === b.insetLeft && a.insetRight === b.insetRight;
+}
+
+export function sameWindowChromeSnapshot(
+	a: WindowChromeSnapshot,
+	b: WindowChromeSnapshot,
+): boolean {
+	if (!sameWindowChromeGeometry(a.geometry, b.geometry)) return false;
+	if (a.state === undefined || b.state === undefined) return a.state === b.state;
+	return sameNativeWindowState(a.state, b.state);
+}
+
+export function installWindowChromeUpdates(
 	window: {
 		on(name: "resize", listener: () => void): void;
 		webview: { on(name: "dom-ready", listener: () => void): void };
 	},
-	readGeometry: () => WindowChromeGeometry,
-	publish: (geometry: WindowChromeGeometry) => void,
+	read: () => WindowChromeSnapshot,
+	publish: (snapshot: WindowChromeSnapshot) => void,
+	delayMs = WINDOW_CHROME_RESIZE_DELAY_MS,
 ): void {
-	installWindowChromePublisher(
-		window,
-		readGeometry,
-		publish,
-		(a, b) => a.insetLeft === b.insetLeft && a.insetRight === b.insetRight,
-	);
+	let last: WindowChromeSnapshot | undefined;
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const publishLatest = (): void => {
+		timer = undefined;
+		const next = read();
+		if (last !== undefined && sameWindowChromeSnapshot(last, next)) return;
+		last = next;
+		publish(next);
+	};
+	window.on("resize", () => {
+		if (timer !== undefined) clearTimeout(timer);
+		timer = setTimeout(publishLatest, delayMs);
+	});
+	window.webview.on("dom-ready", () => {
+		if (timer !== undefined) {
+			clearTimeout(timer);
+			timer = undefined;
+		}
+		const next = read();
+		last = next;
+		publish(next);
+	});
 }
 
 export function readNativeWindowState(window: {

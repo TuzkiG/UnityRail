@@ -48,3 +48,13 @@ test("ignoredPaths splits long listings and reports nothing outside a repository
 	mkdirSync(plain);
 	expect(await ignoredPaths(plain, ["a.log"])).toEqual(new Set());
 });
+
+test("a listing stays memoized for its TTL while a different listing is asked again", async () => {
+	const dir = repo();
+	const listing = ["src", "src/x.log", "src/y.ts"];
+	expect([...(await ignoredPaths(dir, listing))].sort()).toEqual(["src/x.log"]);
+
+	writeFileSync(join(dir, ".gitignore"), "");
+	expect([...(await ignoredPaths(dir, listing))].sort()).toEqual(["src/x.log"]);
+	expect(await ignoredPaths(dir, ["src", "src/y.ts"])).toEqual(new Set());
+});

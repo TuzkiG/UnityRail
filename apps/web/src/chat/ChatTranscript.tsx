@@ -8,6 +8,7 @@ import { useModalLayerOpen } from "@thinkrail/ui/dialog";
 import { cn } from "@thinkrail/ui/utils";
 import {
 	forwardRef,
+	memo,
 	type ReactNode,
 	type RefCallback,
 	useCallback,
@@ -55,7 +56,7 @@ import { ChatTurnView } from "./turns";
 import { useChatScroll } from "./useChatScroll";
 import { useTranscriptSync } from "./useTranscriptSync";
 import { useWindowFocused } from "./useWindowFocused";
-import { advanceVirtualRows, initialVirtualRows } from "./virtualRows";
+import { advanceVirtualRows, initialVirtualRows, type VirtualRowsState } from "./virtualRows";
 
 const CHAT_VIEWPORT_INCREASE = 800;
 const CHAT_MIN_OVERSCAN_ITEMS = 2;
@@ -134,21 +135,48 @@ function useVirtualRows(
 	rows: ChatRow[],
 	messageOrder: ChatMessageOrder,
 	visibleAnchorRowIdRef: React.RefObject<string | null>,
+	owner: object,
+	sessionId: string,
 ) {
-	const [storedVirtualRows, setStoredVirtualRows] = useState(() =>
-		initialVirtualRows(rows, messageOrder),
+	return useMemo(
+		() => resolveVirtualRows(owner, sessionId, rows, messageOrder, visibleAnchorRowIdRef.current),
+		[messageOrder, owner, rows, sessionId, visibleAnchorRowIdRef],
 	);
-	if (storedVirtualRows.rows === rows && storedVirtualRows.order === messageOrder) {
-		return storedVirtualRows;
-	}
-	const virtualRows = advanceVirtualRows(
-		storedVirtualRows,
-		rows,
-		messageOrder,
-		visibleAnchorRowIdRef.current,
-	);
-	setStoredVirtualRows(virtualRows);
-	return virtualRows;
+}
+
+type VirtualRowsOwner = { sessionId: string; state: VirtualRowsState<ChatRow> };
+const virtualRowsByRows = new WeakMap<ChatRow[], VirtualRowsState<ChatRow>>();
+const virtualRowsByOwner = new WeakMap<object, VirtualRowsOwner>();
+
+function resolveVirtualRows(
+	owner: object,
+	sessionId: string,
+	rows: ChatRow[],
+	order: ChatMessageOrder,
+	visibleAnchorId: string | null,
+): VirtualRowsState<ChatRow> {
+	const cached = virtualRowsByRows.get(rows);
+	if (cached && cached.order === order) return cached;
+	const held = virtualRowsByOwner.get(owner);
+	const previous = held?.sessionId === sessionId ? held.state : initialVirtualRows(rows, order);
+	const next = advanceVirtualRows(previous, rows, order, visibleAnchorId);
+	virtualRowsByRows.set(rows, next);
+	virtualRowsByOwner.set(owner, { sessionId, state: next });
+	return next;
+}
+
+const stableRowsByDerived = new WeakMap<ChatRow[], ChatRow[]>();
+const stableRowsByOwner = new WeakMap<object, { sessionId: string; rows: ChatRow[] }>();
+
+function resolveStableRows(owner: object, sessionId: string, derived: ChatRow[]): ChatRow[] {
+	const cached = stableRowsByDerived.get(derived);
+	if (cached) return cached;
+	const held = stableRowsByOwner.get(owner);
+	const previous = held?.sessionId === sessionId ? held.rows : [];
+	const rows = stabilizeRows(previous, derived);
+	stableRowsByDerived.set(derived, rows);
+	stableRowsByOwner.set(owner, { sessionId, rows });
+	return rows;
 }
 
 export type ChatTranscriptHandle = {
@@ -247,42 +275,55 @@ const ChatTranscript = forwardRef<
 
 	const { turns, toolResults, isStreaming, settlementTick, currentAssistantId } = runtime;
 
-	const workspaceTurns = useAppStore((state) => state.turnsByWorkspace[workspaceId]);
-	const agentTurns = useMemo(
-		() => workspaceTurns?.filter((turn) => turn.sessionId === sessionId) ?? NO_AGENT_TURNS,
-		[sessionId, workspaceTurns],
+	const workspaceTurns = useAppStore(
+		useShallow((s) => {
+			const turns = s.turnsByWorkspace[workspaceId];
+			if (!turns) return NO_AGENT_TURNS;
+			const mine = turns.filter((turn) => turn.sessionId === sessionId);
+			return mine.length > 0 ? mine : NO_AGENT_TURNS;
+		}),
 	);
+	const agentTurns = workspaceTurns;
 	const derivedRows = useMemo(
 		() => deriveRows(turns, toolResults, isStreaming, isSpec, agentTurns, workspaceRoot),
 		[turns, toolResults, isStreaming, isSpec, agentTurns, workspaceRoot],
 	);
-	// Keep the stabilized rows in state (never a ref written during render): a render-written ref both
-	// violates apps/web/SPEC.md and makes the React Compiler skip memoizing this component.
-	const [stableRows, setStableRows] = useState(() => ({ derived: derivedRows, rows: derivedRows }));
-	let chronologicalRows = stableRows.rows;
-	if (stableRows.derived !== derivedRows) {
-		chronologicalRows = stabilizeRows(stableRows.rows, derivedRows);
-		setStableRows({ derived: derivedRows, rows: chronologicalRows });
-	}
+	const [rowsOwner] = useState<object>(() => ({}));
+	const chronologicalRows = useMemo(
+		() => resolveStableRows(rowsOwner, sessionId, derivedRows),
+		[derivedRows, rowsOwner, sessionId],
+	);
 	const rows = useMemo(
 		() => projectRows(chronologicalRows, chatMessageOrder),
 		[chronologicalRows, chatMessageOrder],
 	);
 	const completionId = runtime.hostState?.completion?.completionId ?? null;
 	const completionAnchorRowId = completionId ? (chronologicalRows.at(-1)?.id ?? null) : null;
-	const [rowHeightEstimateCache, setRowHeightEstimateCache] = useState(() => ({
-		messageOrder: chatMessageOrder,
-		heights: new Map<string, number>(),
-	}));
-	if (rowHeightEstimateCache.messageOrder !== chatMessageOrder) {
-		setRowHeightEstimateCache({ messageOrder: chatMessageOrder, heights: new Map() });
-	}
+	const rowHeightEstimateCache = useMemo(
+		() => ({ messageOrder: chatMessageOrder, heights: new Map<string, number>() }),
+		[chatMessageOrder],
+	);
+	const settledHeightsRef = useRef<number[] | null>(null);
 	const rowHeightEstimates = useMemo(
-		() => estimateChatRowHeights(rows, rowHeightEstimateCache.heights),
+		() =>
+			estimateChatRowHeights(
+				rows,
+				rowHeightEstimateCache.heights,
+				settledHeightsRef.current ?? undefined,
+			),
 		[rows, rowHeightEstimateCache],
 	);
+	useInsertionEffect(() => {
+		settledHeightsRef.current = rowHeightEstimates;
+	});
 	const visibleAnchorRowId = useRef<string | null>(null);
-	const virtualRows = useVirtualRows(rows, chatMessageOrder, visibleAnchorRowId);
+	const virtualRows = useVirtualRows(
+		rows,
+		chatMessageOrder,
+		visibleAnchorRowId,
+		rowsOwner,
+		sessionId,
+	);
 	const firstItemIndex = virtualRows.firstItemIndex;
 
 	const messageActions = useMemo(
@@ -754,4 +795,4 @@ const ChatTranscript = forwardRef<
 	);
 });
 
-export default ChatTranscript;
+export default memo(ChatTranscript);

@@ -183,13 +183,13 @@ test.each(["stable", "canary"])("selects only UnityRail's exact %s setup name", 
 	);
 });
 
-test.each([
-	"stable",
-	"canary",
-])("refuses similarly named or nested %s setup executables", (channel) => {
-	const name = `UnityRail${windowsSetupExecutableSuffix(channel)}`;
-	const root = packageDir(`Another${windowsSetupExecutableSuffix(channel)}`, join("other", name));
-	expect(() => locateWindowsSetupExecutable(root, channel)).toThrow(
-		`desktop ZIP does not contain ${name}`,
-	);
-});
+test.each(["stable", "canary"])(
+	"refuses similarly named or nested %s setup executables",
+	(channel) => {
+		const name = `UnityRail${windowsSetupExecutableSuffix(channel)}`;
+		const root = packageDir(`Another${windowsSetupExecutableSuffix(channel)}`, join("other", name));
+		expect(() => locateWindowsSetupExecutable(root, channel)).toThrow(
+			`desktop ZIP does not contain ${name}`,
+		);
+	},
+);

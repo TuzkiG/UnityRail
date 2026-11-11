@@ -1,10 +1,8 @@
 import { useT } from "@thinkrail/locales/react";
-import { useEffect } from "react";
 import { hostSessionGlance, sessionGlance } from "../chat/planView";
 import { TodoAddRow, TodoRows } from "../chat/TodoList";
 import { useChatTodos } from "../chat/useChatTodos";
 import { useAppStore } from "../store";
-import { getTransport } from "../transport";
 
 export default function PlanRailPane({
 	workspaceId,
@@ -14,12 +12,7 @@ export default function PlanRailPane({
 	sessionId: string;
 }) {
 	const t = useT();
-	const plan = useChatTodos(workspaceId, sessionId);
-	useEffect(() => {
-		void getTransport()
-			.request("todo.list", { workspaceId, sessionId, opened: "rail" })
-			.catch(() => {});
-	}, [workspaceId, sessionId]);
+	const plan = useChatTodos(workspaceId, sessionId, "rail");
 	const glance = useAppStore((s) => {
 		const runtime = s.sessions[sessionId];
 		if (!runtime) return "waiting" as const;

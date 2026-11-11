@@ -110,8 +110,6 @@ export {
 } from "./piProtocol";
 export type { QuitConfirmationDependencies } from "./quitConfirmation";
 export { createQuitConfirmation, QUIT_CONFIRMATION } from "./quitConfirmation";
-export type * from "./unity";
-export type * from "./verification";
 export type { SearchFieldSource } from "./searchFields";
 export { searchHitFields } from "./searchFields";
 export type * from "./speech";
@@ -125,4 +123,6 @@ export {
 	SPEECH_SAMPLE_RATE,
 	SPEECH_SOCKET_ROUTE,
 } from "./speech";
+export type * from "./unity";
+export type * from "./verification";
 export * from "./wsProtocol";

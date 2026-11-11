@@ -8,7 +8,7 @@ import {
 	RiSparkling2Line as Sparkles,
 	RiStopFill as StopFill,
 } from "@remixicon/react";
-import type { ComposerGrowthLimit, ThinkingLevel, WireModel } from "@thinkrail/contracts";
+import type { ComposerGrowthLimit, Template, ThinkingLevel, WireModel } from "@thinkrail/contracts";
 import type { MessageKey } from "@thinkrail/locales";
 import { useT } from "@thinkrail/locales/react";
 import { Button, IconButton } from "@thinkrail/ui/button";
@@ -44,8 +44,10 @@ import {
 	type TemplateSlotSessionState,
 	usePendingSelection,
 	useSlashCommandCompletion,
+	useTemplateCommandPicker,
 } from "@/prompt";
 import { DICTATION_EVENT } from "@/speech";
+import { useAppStore } from "@/store";
 import { FileChip } from "./FileChip";
 import {
 	ModelEffortPicker,
@@ -166,12 +168,12 @@ function highlightTint(state: SlotHighlightState): string {
 }
 
 interface ComposerProps {
-	value: string;
-	onChange: (value: string) => void;
+	sessionId: string;
+	workspaceId: string;
+	loadTemplate: (name: string) => Promise<Template>;
 	isStreaming: boolean;
 	growthLimit: ComposerGrowthLimit;
 	commands: SlashCommandItem[];
-	templatePending: boolean;
 	mentionCandidates: MentionCandidate[];
 	recentPrompts: string[];
 	unitySelection?: UnityEditorSelection | null;
@@ -192,7 +194,6 @@ interface ComposerProps {
 	) => ComposerSubmitDisposition;
 	onAbort: () => void;
 	onHistoryOpen?: () => void;
-	onPickTemplate?: (name: string) => void;
 	onManageTemplates?: () => void;
 	templatesEmpty?: boolean;
 }
@@ -208,12 +209,12 @@ export interface ComposerHandle {
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
 	{
-		value,
-		onChange,
+		sessionId,
+		workspaceId,
+		loadTemplate,
 		isStreaming,
 		growthLimit,
 		commands,
-		templatePending,
 		mentionCandidates,
 		recentPrompts,
 		unitySelection,
@@ -230,13 +231,17 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 		onSubmit,
 		onAbort,
 		onHistoryOpen,
-		onPickTemplate,
 		onManageTemplates,
 		templatesEmpty,
 	},
 	handleRef,
 ) {
 	const t = useT();
+	const value = useAppStore((s) => s.sessions[sessionId]?.draft ?? "");
+	const onChange = useCallback(
+		(text: string) => useAppStore.getState().setChatDraft(sessionId, text),
+		[sessionId],
+	);
 	const ref = useRef<HTMLTextAreaElement>(null);
 	const pickerRef = useRef<ModelEffortPickerHandle>(null);
 	const [caret, setCaret] = useState(0);
@@ -312,6 +317,24 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
 	const focusSelection = usePendingSelection(ref, setCaret);
 
+	const insertTemplate = useCallback(
+		(parsed: ParsedTemplate) => {
+			const transition = beginTemplateSlotSession(parsed);
+			recallIdxRef.current = null;
+			setSubmitError(null);
+			onChange(transition.value);
+			setSlotSession(transition.session);
+			focusSelection(transition.selection.start, transition.selection.end);
+		},
+		[focusSelection, onChange],
+	);
+	const { pending: templatePending, pick: onPickTemplate } = useTemplateCommandPicker({
+		draft: value,
+		contextKey: `${workspaceId}:${sessionId}`,
+		load: loadTemplate,
+		onApply: insertTemplate,
+	});
+
 	const replaceDraft = useCallback(
 		(text: string, caret?: number) => {
 			recallIdxRef.current = null;
@@ -384,7 +407,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 		commands,
 		onSelect: (command) => {
 			if (isModelCommand(command)) openModelPicker("");
-			else if (command.source === "prompt" && onPickTemplate) onPickTemplate(command.name);
+			else if (command.source === "prompt" && onPickTemplate) void onPickTemplate(command.name);
 			else replaceDraft(selectedSlashCommandValue(command));
 		},
 	});
@@ -401,14 +424,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 		insertText: (text: string) => replaceDraft(text),
 		insertAndSubmit: (text: string, behavior: SubmitBehavior) =>
 			canSubmit(text) ? submitText(text, behavior) : replaceDraft(text),
-		insertTemplate: (parsed: ParsedTemplate) => {
-			const transition = beginTemplateSlotSession(parsed);
-			recallIdxRef.current = null;
-			setSubmitError(null);
-			onChange(transition.value);
-			setSlotSession(transition.session);
-			focusSelection(transition.selection.start, transition.selection.end);
-		},
+		insertTemplate,
 		restoreAttachments: (attachments: ChatAttachment[]) => {
 			if (attachments.length === 0) return;
 			attachedImages.restore(attachments);

@@ -114,6 +114,15 @@ describe("chat row height estimates", () => {
 		expect(remounted).toBeGreaterThan(initial ?? 0);
 	});
 
+	test("keeps the previous heights array when every estimate is unchanged", () => {
+		const cache = new Map();
+		const rows = [markdownRow("a1:text:0", "Short answer.")];
+		const first = estimateChatRowHeights(rows, cache);
+		const second = estimateChatRowHeights([{ ...rows[0] } as ChatRow], cache, first);
+
+		expect(second).toBe(first);
+	});
+
 	test("models collapsed reports and expanded visualization payloads", () => {
 		const report: ChatRow = {
 			kind: "subagentCompletion",

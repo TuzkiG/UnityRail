@@ -10,7 +10,7 @@ import type { UnityTestResult, VerificationRun } from "@thinkrail/contracts";
 import { localeOf, useT } from "@thinkrail/locales/react";
 import { Button, IconButton } from "@thinkrail/ui/button";
 import { cn } from "@thinkrail/ui/utils";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { QuietScrollArea } from "@/components/QuietScrollArea";
 import { workspaceFileTarget } from "../chat/fileTargets";
 import { selectWorkspaceById, useAppStore } from "../store";
@@ -57,26 +57,35 @@ function formatTime(t: ReturnType<typeof useT>, at: number): string {
 export function VerifyPanel({ workspaceId }: { workspaceId: string }) {
 	const t = useT();
 	const workspace = useAppStore((state) => selectWorkspaceById(state, workspaceId));
-	const [runs, setRuns] = useState<VerificationRun[]>([]);
+	const [runs, setRuns] = useState<VerificationRun[]>(
+		() => useAppStore.getState().verificationRunsByWorkspace[workspaceId] ?? [],
+	);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [filter, setFilter] = useState("");
 	const [busy, setBusy] = useState<"edit" | "play" | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const loadedWorkspace = useRef(workspaceId);
 
 	const load = useCallback(async () => {
 		try {
 			const history = await getTransport().request("verification.list", { workspaceId });
-			setRuns(history.runs.slice(0, MAX_RUNS));
+			const sliced = history.runs.slice(0, MAX_RUNS);
+			setRuns(sliced);
+			useAppStore.getState().installVerificationRuns(workspaceId, sliced);
 			setSelectedId((current) => current ?? history.runs[0]?.id ?? null);
 		} catch {
-			setRuns([]);
+			// Keep the last-known runs on failure; the next remount/refresh will retry.
 		}
 	}, [workspaceId]);
 
 	useEffect(() => {
-		setSelectedId(null);
+		if (loadedWorkspace.current !== workspaceId) {
+			loadedWorkspace.current = workspaceId;
+			setRuns(useAppStore.getState().verificationRunsByWorkspace[workspaceId] ?? []);
+			setSelectedId(null);
+		}
 		void load();
-	}, [load]);
+	}, [load, workspaceId]);
 
 	const run = async (mode: "edit" | "play") => {
 		if (busy !== null) return;

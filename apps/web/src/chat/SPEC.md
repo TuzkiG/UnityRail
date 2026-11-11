@@ -486,7 +486,11 @@ both message orders. *Rejected:* keeping the modal for non-MCP extensions — ev
   scope live in the child (a private refactor; `ChatActions`/`InteractionStatesContext` are provided by
   `ChatTranscript`). The shell still reads `turns`/`toolResponses`/`toolResults`, but only through
   shallow-compared derived selectors (recent prompts, plan glance) that stay stable across streamed deltas,
-  so it does not re-render on them.
+  so it does not re-render on them. `ChatTranscript` is `memo`'d, and the composer's typed draft is
+  subscribed inside `Composer` itself, so keystrokes never re-render the shell or transcript. Row
+  stabilization and virtual-row derivation are pure `WeakMap`-keyed identity caches (no render-phase
+  setState), and `deriveRows` caches per assistant-block / run / turn identity so a delta re-derives only
+  the changed tail; `turnsByWorkspace` is projected to this session's turns before subscribing.
 - **Structured tool-file navigation** — `ChatView` accepts an optional `onOpenFile(path)` from the shell and
   passes it through every `ToolRenderProps` path (routine, primary, card, or bare). The shared tool-file
   primitive offers that action only for a non-empty relative path or an absolute path contained by
@@ -1526,7 +1530,10 @@ both message orders. *Rejected:* keeping the modal for non-MCP extensions — ev
   `shell/WorkspaceWorkbench` through one `PlanSummaryAutoDraft` anchor per unique sessionId of any open
   session-backed tab (chat, the live Plan page, the markdown plan `doc` export) via
   `editorSessionId(tab)`, so it fires regardless of which tab is selected or which plan surface is
-  open. Plan writes signal other mounted `useChatTodos` instances for the same chat to refetch.
+  open. Plan writes signal other mounted `useChatTodos` instances for the same chat to refetch; a
+  module-level single-flight shares one `todo.list` request per (workspace, session) across the rail,
+  the Plan page, and the auto-summary check, and `useAutoPlanSummary` reads the store-cached plan
+  (`todoPlansByWorkspace`) and only fetches when absent, checking on `agent_settled` (not every tool end).
   Frontend-local workspace view state
   persists the Plan page as a registered `todo-plan` reference (resolver kind + session identity,
   never plan content); another

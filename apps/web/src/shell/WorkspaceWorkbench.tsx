@@ -50,12 +50,13 @@ import {
 	isExternalWorkspace,
 	isFileComparison,
 	type LayoutIntent,
+	type SessionRuntime,
 	selectCanRenameChat,
 	selectContextProject,
 	selectDiffTabTargetRef,
 	selectRailPlanSessionId,
 	selectReviewDraftCount,
-	selectUnnamedChatFirstPrompts,
+	selectUnnamedChatFirstPromptsFrom,
 	selectWorkspaceById,
 	selectWorkspaceNavTick,
 	selectWorkspaceTick,
@@ -582,8 +583,39 @@ export function WorkspaceWorkbench({ workspaceId }: { workspaceId: string }) {
 				: emptyWorkspaceProjection(frame, workspaceProjectionReference(workspaceId)),
 		[attention, document, frame, workspaceId],
 	);
-	const chatFirstPrompts = useAppStore(
-		useShallow((state) => selectUnnamedChatFirstPrompts(state, workspaceId)),
+	const unnamedChatSessionIds = useMemo(() => {
+		const ids: string[] = [];
+		for (const tab of editorTabs) {
+			if ((tab.kind === "chat" || tab.kind === "plan") && !tab.name.trim()) {
+				ids.push(tab.sessionId);
+			}
+		}
+		return ids;
+	}, [editorTabs]);
+	const unnamedChatRuntimes = useAppStore(
+		useShallow((state) => {
+			const runtimes: Record<string, SessionRuntime> = {};
+			for (const sessionId of unnamedChatSessionIds) {
+				const runtime = state.sessions[sessionId];
+				if (runtime) runtimes[sessionId] = runtime;
+			}
+			return runtimes;
+		}),
+	);
+	const sessionStateRecords = useAppStore((state) => state.sessionStateByWorkspace[workspaceId]);
+	const closedChats = useAppStore((state) => state.closedChatsByWorkspace[workspaceId]);
+	const chatFirstPrompts = useMemo(
+		() =>
+			selectUnnamedChatFirstPromptsFrom(
+				editorTabs,
+				{
+					sessions: unnamedChatRuntimes,
+					sessionStateByWorkspace: { [workspaceId]: sessionStateRecords ?? {} },
+					closedChatsByWorkspace: { [workspaceId]: closedChats ?? [] },
+				},
+				workspaceId,
+			),
+		[closedChats, editorTabs, sessionStateRecords, unnamedChatRuntimes, workspaceId],
 	);
 	const rendered = document && attention ? { document, attention } : pendingProjection;
 

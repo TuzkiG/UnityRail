@@ -17,6 +17,36 @@ const UPDATE_CHECK_TIMEOUT_MS = 2 * 60_000;
 /** The row key the update check's own failure renders under. */
 export const UPDATE_CHECK_KEY = "\0check-updates";
 
+interface UpdatesCheckCache {
+	key: (workspaceId: string | undefined, packagesVersion: number) => string;
+	isFresh: (key: string) => boolean;
+	cached: (key: string) => ReadonlySet<string> | null;
+	markAttempted: (key: string) => void;
+	remember: (key: string, updates: ReadonlySet<string>) => void;
+}
+
+/** One update check per workspace and packages version; reopening the page reuses its result. */
+export function createUpdatesCheckCache(): UpdatesCheckCache {
+	let attempted: string | null = null;
+	let last: { key: string; updates: ReadonlySet<string> } | null = null;
+	const key = (workspaceId: string | undefined, packagesVersion: number) =>
+		`${workspaceId ?? ""}\u0000${packagesVersion}`;
+	return {
+		key,
+		isFresh: (candidate) => attempted === candidate,
+		cached: (candidate) => (last?.key === candidate ? last.updates : null),
+		markAttempted: (candidate) => {
+			attempted = candidate;
+		},
+		remember: (candidate, updates) => {
+			attempted = candidate;
+			last = { key: candidate, updates };
+		},
+	};
+}
+
+const updatesCheckCache = createUpdatesCheckCache();
+
 export interface PiPackagesController {
 	catalog: PiPackagesCatalog | "loading" | "failed";
 	updates: ReadonlySet<string>;
@@ -59,8 +89,11 @@ export function usePiPackages({
 	disabledPackages: readonly string[];
 }): PiPackagesController {
 	const t = useT();
+	const updatesKey = updatesCheckCache.key(workspaceId, packagesVersion);
 	const [catalog, setCatalog] = useState<PiPackagesCatalog | "loading" | "failed">("loading");
-	const [updates, setUpdates] = useState<ReadonlySet<string>>(new Set());
+	const [updates, setUpdates] = useState<ReadonlySet<string>>(
+		() => updatesCheckCache.cached(updatesKey) ?? new Set(),
+	);
 	const [checkingUpdates, setCheckingUpdates] = useState(false);
 	const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
 	const [errors, setErrors] = useState<ReadonlyMap<string, string>>(new Map());
@@ -112,6 +145,7 @@ export function usePiPackages({
 
 	const checkUpdates = useCallback(
 		(force = false) => {
+			const key = updatesCheckCache.key(workspaceId, packagesVersion);
 			const generation = ++checkGeneration.current;
 			const current = () => generation === checkGeneration.current;
 			setCheckingUpdates(true);
@@ -123,15 +157,18 @@ export function usePiPackages({
 				)
 				.then((flagged) => {
 					if (!current()) return;
-					setUpdates(new Set(flagged.map(piPackageKey)));
+					const next = new Set(flagged.map(piPackageKey));
+					updatesCheckCache.remember(key, next);
+					setUpdates(next);
 					setErrors((errs) => {
-						const next = new Map(errs);
-						next.delete(UPDATE_CHECK_KEY);
-						return next;
+						const nextErrors = new Map(errs);
+						nextErrors.delete(UPDATE_CHECK_KEY);
+						return nextErrors;
 					});
 				})
 				.catch((error) => {
 					if (!current()) return;
+					updatesCheckCache.markAttempted(key);
 					setErrors((errs) =>
 						new Map(errs).set(
 							UPDATE_CHECK_KEY,
@@ -143,13 +180,18 @@ export function usePiPackages({
 					if (current()) setCheckingUpdates(false);
 				});
 		},
-		[workspaceId, t],
+		[packagesVersion, workspaceId, t],
 	);
 
 	useEffect(() => {
+		setUpdates(updatesCheckCache.cached(updatesKey) ?? new Set());
+	}, [updatesKey]);
+
+	useEffect(() => {
 		if (!enabled) return;
+		if (updatesCheckCache.isFresh(updatesKey)) return;
 		void checkUpdates();
-	}, [checkUpdates, enabled]);
+	}, [checkUpdates, enabled, updatesKey]);
 
 	const markBusy = (keys: readonly string[], on: boolean) =>
 		setBusy((current) => {

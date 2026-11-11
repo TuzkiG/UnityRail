@@ -18,6 +18,7 @@ export interface ElectrobunUpdateControllerOptions {
 	platform: NodeJS.Platform;
 	arch: string;
 	userData: string;
+	releaseBaseUrl: string;
 	restartToUpdate(): Promise<boolean>;
 }
 
@@ -71,19 +72,19 @@ export function createElectrobunQuitCoordinator(
 export async function createElectrobunUpdateController(
 	options: ElectrobunUpdateControllerOptions,
 ): Promise<NativeUpdateController> {
-	const local = await Updater.getLocalInfo();
+	const local = options.releaseBaseUrl === "" ? undefined : await Updater.getLocalInfo();
 	const enabled = nativeUpdatesEnabled({
 		isPackaged: options.isPackaged,
-		channel: local.channel,
-		baseUrl: local.baseUrl,
+		channel: local?.channel ?? options.channel,
+		baseUrl: local?.baseUrl ?? options.releaseBaseUrl,
 		platform: options.platform,
 		arch: options.arch,
 		artifactTestSeam: hasDesktopArtifactTestSeam(process.env),
 	});
 	return createNativeUpdateController({
 		enabled,
-		version: local.version || options.version,
-		channel: local.channel || options.channel,
+		version: local?.version || options.version,
+		channel: local?.channel || options.channel,
 		updater: electrobunUpdater,
 		restartToUpdate: options.restartToUpdate,
 		journal: updateJournal(options.userData),

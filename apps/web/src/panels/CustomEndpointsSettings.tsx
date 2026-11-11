@@ -41,6 +41,9 @@ import {
 } from "./customEndpointDraft";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsSwitch } from "./SettingsSwitch";
+import { createScopedCache } from "./scopedCache";
+
+const endpointsCache = createScopedCache<CustomEndpoint[]>(4);
 
 const INPUT_CLASS =
 	"h-32 w-full min-w-0 rounded-sm border border-control-border-default bg-control-bg px-8 tr-text-ui text-text-default outline-none transition-colors placeholder:text-text-muted focus:border-control-border-active disabled:border-control-disabled-border disabled:bg-control-disabled-bg disabled:text-control-disabled-text";
@@ -387,20 +390,31 @@ export interface CustomEndpointsState {
 export function useCustomEndpoints(): CustomEndpointsState | null {
 	const protocolVersion = useAppStore((state) => state.protocolVersion);
 	const providerVersion = useAppStore((state) => state.providerVersion);
-	const [endpoints, setEndpoints] = useState<CustomEndpoint[] | null>(null);
+	const [endpoints, setEndpoints] = useState<CustomEndpoint[] | null>(() =>
+		supported(useAppStore.getState().protocolVersion)
+			? endpointsCache.peek(getTransport().httpBase())
+			: null,
+	);
 	const [failed, setFailed] = useState(false);
 	const sequence = useRef(0);
 
 	const load = useCallback(async () => {
 		if (!supported(protocolVersion)) return;
 		const current = ++sequence.current;
+		const scope = getTransport().httpBase();
+		const cached = endpointsCache.peek(scope);
+		if (cached) {
+			setEndpoints(cached);
+			setFailed(false);
+		}
 		try {
 			const next = await getTransport().request("customEndpoints.list", {});
+			endpointsCache.set(scope, next);
 			if (current !== sequence.current) return;
 			setEndpoints(next);
 			setFailed(false);
 		} catch {
-			if (current === sequence.current) setFailed(true);
+			if (current === sequence.current && !cached) setFailed(true);
 		}
 	}, [protocolVersion]);
 
@@ -410,7 +424,9 @@ export function useCustomEndpoints(): CustomEndpointsState | null {
 
 	const replace = useCallback((next: CustomEndpoint[]) => {
 		sequence.current++;
+		endpointsCache.set(getTransport().httpBase(), next);
 		setEndpoints(next);
+		setFailed(false);
 	}, []);
 
 	if (!supported(protocolVersion)) return null;

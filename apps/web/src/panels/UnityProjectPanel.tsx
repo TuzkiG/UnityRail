@@ -19,6 +19,7 @@ import { Button, IconButton } from "@thinkrail/ui/button";
 import { cn } from "@thinkrail/ui/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { QuietScrollArea } from "../components/QuietScrollArea";
+import { useAppStore } from "../store";
 import { errorText, getTransport } from "../transport";
 
 const LINK_TYPE_KEYS: Record<UnityLinkType, MessageKey> = {
@@ -112,8 +113,12 @@ function FolderRow({
 
 export function UnityProjectPanel({ workspaceId }: { workspaceId: string }) {
 	const t = useT();
-	const [config, setConfig] = useState<UnityProjectConfig | null>(null);
-	const [snapshot, setSnapshot] = useState<UnityWorkspaceSnapshot | null>(null);
+	const [config, setConfig] = useState<UnityProjectConfig | null>(
+		() => useAppStore.getState().unityProjectConfigsByWorkspace[workspaceId] ?? null,
+	);
+	const [snapshot, setSnapshot] = useState<UnityWorkspaceSnapshot | null>(
+		() => useAppStore.getState().unitySnapshotsByWorkspace[workspaceId] ?? null,
+	);
 	const [error, setError] = useState<string | null>(null);
 	const [notice, setNotice] = useState<string | null>(null);
 	const [busy, setBusy] = useState<string | null>(null);
@@ -133,6 +138,9 @@ export function UnityProjectPanel({ workspaceId }: { workspaceId: string }) {
 				setConfig(nextConfig);
 				setSnapshot(nextSnapshot);
 				setError(null);
+				const store = useAppStore.getState();
+				store.installUnityProjectConfig(workspaceId, nextConfig);
+				store.installUnitySnapshot(workspaceId, nextSnapshot);
 			})
 			.catch((loadError: unknown) => {
 				if (generation.current === token) setError(errorText(loadError));

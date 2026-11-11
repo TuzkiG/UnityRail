@@ -303,7 +303,6 @@ function sameHostUpdateRelease(
 }
 
 export async function createServer(options: CreateServerOptions = {}): Promise<RunningServer> {
-	await initializeJbcentralRuntime();
 	getConfig();
 	setPiTrustSeed(piTrustsProjectPath);
 	const {
@@ -323,13 +322,24 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 			return null;
 		}
 	});
-	await initializeSessionStates(
-		loadWorkspaces().map((workspace) => ({
-			id: workspace.id,
-			projectId: workspace.projectId,
-			cwd: workspace.worktreePath,
-		})),
-	);
+	let runtimeError: unknown;
+	const runtimeReady = (async () => {
+		await initializeJbcentralRuntime();
+		await initializeSessionStates(
+			loadWorkspaces().map((workspace) => ({
+				id: workspace.id,
+				projectId: workspace.projectId,
+				cwd: workspace.worktreePath,
+			})),
+		);
+	})().catch((error: unknown) => {
+		runtimeError = error;
+		log.warn("agent runtime initialization failed", error);
+	});
+	const hostReady = async (): Promise<boolean> => {
+		await runtimeReady;
+		return runtimeError === undefined;
+	};
 
 	const sockets = new Map<string, Bun.ServerWebSocket<SocketData>>();
 	const reapTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -385,12 +395,12 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 		async fetch(req, srv) {
 			const url = new URL(req.url);
 			if (url.pathname === "/ws") {
+				if (!(await hostReady())) return new Response("host unavailable", { status: 503 });
 				const clientKey = url.searchParams.get("client") ?? `anon-${randomUUID()}`;
 				const protocolVersion = clientProtocolVersion(url.searchParams.get("protocol"));
-				await refreshRecentProjectFolders(RECENT_FOLDER_CHECK_BUDGET_MS);
-				return srv.upgrade(req, { data: { clientKey, protocolVersion } })
-					? undefined
-					: new Response("ws upgrade failed", { status: 400 });
+				const upgraded = srv.upgrade(req, { data: { clientKey, protocolVersion } });
+				if (upgraded) refreshRecentFoldersSoon();
+				return upgraded ? undefined : new Response("ws upgrade failed", { status: 400 });
 			}
 			if (url.pathname === SPEECH_SOCKET_ROUTE) {
 				const protocolVersion = clientProtocolVersion(url.searchParams.get("protocol"));
@@ -607,6 +617,19 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 			},
 		},
 	});
+
+	function refreshRecentFoldersSoon(): void {
+		void refreshRecentProjectFolders(RECENT_FOLDER_CHECK_BUDGET_MS)
+			.then(() => {
+				for (const project of listRecentProjects()) {
+					server.publish(
+						WS_CHANNELS.projectUpdated,
+						JSON.stringify({ channel: WS_CHANNELS.projectUpdated, data: project }),
+					);
+				}
+			})
+			.catch((error: unknown) => log.warn("recent project folders could not be refreshed", error));
+	}
 
 	const backpressureReconciler = setInterval(() => {
 		const drained = drainedClientKeys(terminalBackpressured, (clientKey) =>
@@ -833,9 +856,9 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 			WS_CHANNELS.workspaceFsChanged,
 			JSON.stringify({ channel: WS_CHANNELS.workspaceFsChanged, data: payload }),
 		);
-		reanchorWorkspace(payload.workspaceId);
-		const changedRoot = loadWorkspaces().find((w) => w.id === payload.workspaceId)?.worktreePath;
-		if (changedRoot) hostSearch().invalidateRoot(changedRoot);
+		reanchorWorkspace(payload.workspaceId, payload.truncated ? undefined : payload.paths);
+		const workspace = loadWorkspaces().find((w) => w.id === payload.workspaceId);
+		if (workspace) hostSearch().invalidateRoot(workspace.worktreePath);
 		if (
 			payload.truncated ||
 			payload.paths.some((path) => path === ".pi" || path.startsWith(".pi/"))
@@ -846,7 +869,6 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 			payload.truncated ||
 			payload.paths.some((path) => path === ".pi" || path === ".pi/settings.json")
 		) {
-			const workspace = listAllWorkspaceRecords().find((ws) => ws.id === payload.workspaceId);
 			const trusted =
 				workspace &&
 				getProjects().find((project) => project.id === workspace.projectId)?.piResourceTrust ===
@@ -1224,12 +1246,23 @@ function restoreSeamDefaults(): void {
 	setModelListingPublisher(null);
 }
 
+const IMMUTABLE_ASSET_CACHE = { "Cache-Control": "public, max-age=31536000, immutable" };
+const NO_CACHE = { "Cache-Control": "no-cache" };
+
 async function serveStatic(pathname: string, staticDir: string): Promise<Response> {
 	const safe = normalize(pathname).replace(/^(\.\.(\/|\\|$))+/, "");
-	const requested = safe === "/" || safe === "" ? "index.html" : safe;
-	const file = Bun.file(join(staticDir, requested));
-	if (await file.exists()) return new Response(file);
+	const requested = pathname === "/" || pathname === "" ? "index.html" : safe;
+	if (requested !== "index.html") {
+		const file = Bun.file(join(staticDir, requested));
+		if (Number.isFinite(file.size) && file.size > 0) {
+			return pathname.startsWith("/assets/")
+				? new Response(file, { headers: IMMUTABLE_ASSET_CACHE })
+				: new Response(file);
+		}
+	}
 	const index = Bun.file(join(staticDir, "index.html"));
-	if (await index.exists()) return new Response(index);
+	if (Number.isFinite(index.size) && index.size > 0) {
+		return new Response(index, { headers: NO_CACHE });
+	}
 	return new Response("not found", { status: 404 });
 }

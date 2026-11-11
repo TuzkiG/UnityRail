@@ -4,6 +4,7 @@ import { currentTranslator } from "@thinkrail/locales/react";
 import { useAppStore } from "./appStore";
 import {
 	selectAutoSettledCounts,
+	selectProjectTreeModel,
 	selectWorkspacePartition,
 	selectWorkspaceSettledReason,
 	settledReasonTitle,
@@ -259,6 +260,38 @@ describe("selectWorkspacePartition", () => {
 				NOW,
 			),
 		).toBeNull();
+	});
+});
+
+describe("selectProjectTreeModel", () => {
+	const home = ws("home", { kind: "default", name: "Default", lastActiveAt: NOW });
+	const live = ws("live", { lastActiveAt: NOW });
+	const idle = ws("idle", { lastActiveAt: NOW - 20 * DAY });
+	const merged = ws("merged", {
+		review: { kind: "pull-request", number: 1, state: "merged", changedAt: NOW - 6 * DAY },
+		lastActiveAt: NOW - 7 * DAY,
+	});
+	const parked = ws("parked", { projectId: "p2", settledOverride: "settled" });
+	const state = {
+		...base,
+		workspaces: { p1: [home, live, merged, idle], p2: [parked] },
+	};
+
+	test("partitions, row counts and the notice key agree with the per-project selectors", () => {
+		const model = selectProjectTreeModel(state, ["p1", "p2", "missing"], NOW);
+		expect(model.partitions.p1).toEqual(selectWorkspacePartition(state, "p1", NOW));
+		expect(model.partitions.p1?.settled.map((row) => row.workspace.id)).toEqual(["idle", "merged"]);
+		expect(model.partitions.p2).toEqual(selectWorkspacePartition(state, "p2", NOW));
+		expect(model.partitions.missing).toEqual({ live: [], settled: [] });
+		expect(model.workspaceCounts).toEqual({ p1: 3, p2: 1, missing: 0 });
+		expect(model.autoSettledKey).toBe("p1:2");
+	});
+
+	test("a project outside the loaded rows partitions to nothing without dropping the notice key", () => {
+		const model = selectProjectTreeModel(state, ["p2"], NOW);
+		expect(Object.keys(model.partitions)).toEqual(["p2"]);
+		expect(model.workspaceCounts).toEqual({ p2: 1 });
+		expect(model.autoSettledKey).toBe("p1:2");
 	});
 });
 

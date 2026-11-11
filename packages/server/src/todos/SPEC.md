@@ -174,13 +174,17 @@ commits can be adopted into the step** (the app's own editor is read-only, and a
 the window opened is caught by gate 2).
 
 **`listTodos` decoration — unfolding the commit.** The wire DTO's `commit` artifact carries a derived
-**`files`** list — full `GitFileChange[]` rows (path + status + `+/−` line counts), read through
-`git.gitStatus` at the **`commit:{sha}` scope** (the exact rows the Changes panel renders there, one
-derivation) — memoized in-memory **by workspace + sha** (resolvability is repository-local: two clones
-can share a sha while only one still has the object, so one workspace's hit must never satisfy another's
-resolution check) — immutable, so the cache never staleness-checks; only
-successful resolutions are cached, a transient git failure (or `UNKNOWN_COMMIT`) retries on the next
-list. An **unresolvable sha** (GC'd after a history rewrite — reflog keeps rewritten commits alive ~90
+**`files`** list — full `GitFileChange[]` rows (path + status + `+/−` line counts), the exact rows the
+Changes panel renders at the **`commit:{sha}` scope**, one derivation — read for the whole plan in ONE
+`git.gitCommitFilesBulk` (`git log --raw -z --numstat`, first-parent diff for a merge) rather than one
+`gitStatus` scope per commit, and memoized in-memory **by workspace + sha** (resolvability is
+repository-local: two clones can share a sha while only one still has the object, so one workspace's hit
+must never satisfy another's resolution check). The memo is an **LRU capped at 500** entries; a commit's
+rows are immutable, so only a deleted workspace can stale one, and the next miss lazily drops the rows of
+workspaces `getWorkspace` no longer knows. Only successful resolutions are cached, a transient git
+failure (or `UNKNOWN_COMMIT`) retries on the next pass, and a sha the batch could not read keeps the
+per-commit scope as its fallback. An **unresolvable sha** (GC'd after a history rewrite — reflog keeps
+rewritten commits alive ~90
 days, far longer than a chat plan's ephemeral life; we deliberately pin nothing) yields **no `files`** —
 that absence is the client's signal to degrade the affordance silently (no chip, never a broken diff
 tab). The same decoration pass is where `groupStatus` already ships, so the pattern has one home.

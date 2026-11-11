@@ -41,8 +41,11 @@ import type {
 	ThinkingLevel,
 	TodoPlan,
 	TurnChangeSet,
+	UnityProjectConfig,
+	UnityWorkspaceSnapshot,
 	UserFontsSnapshot,
 	UserThemesSnapshot,
+	VerificationRun,
 	WireModel,
 	Workspace,
 	WorkspaceCreation,
@@ -1054,6 +1057,13 @@ interface AppState {
 	 */
 	todoPlansByWorkspace: Record<string, Record<string, TodoPlan>>;
 	installTodoPlan: (workspaceId: string, sessionId: string, plan: TodoPlan) => void;
+	/** Same stale-while-revalidate seeds for the remounting workspace panels (Unity, Verify). */
+	unitySnapshotsByWorkspace: Record<string, UnityWorkspaceSnapshot>;
+	installUnitySnapshot: (workspaceId: string, snapshot: UnityWorkspaceSnapshot) => void;
+	unityProjectConfigsByWorkspace: Record<string, UnityProjectConfig>;
+	installUnityProjectConfig: (workspaceId: string, config: UnityProjectConfig) => void;
+	verificationRunsByWorkspace: Record<string, VerificationRun[]>;
+	installVerificationRuns: (workspaceId: string, runs: VerificationRun[]) => void;
 	renderedCompletionBySession: Record<string, string>;
 	markingUnreadWorkspaces: Record<string, PendingMarkUnread>;
 	markedUnreadBySession: Record<string, MarkedUnread>;
@@ -2143,6 +2153,10 @@ function sameTodoPlan(prev: TodoPlan | undefined, next: TodoPlan): boolean {
 	return prev !== undefined && JSON.stringify(prev) === JSON.stringify(next);
 }
 
+function sameJsonValue(prev: unknown, next: unknown): boolean {
+	return prev !== undefined && JSON.stringify(prev) === JSON.stringify(next);
+}
+
 function sameSessionStateRecord(
 	previous: SessionStateRecord | undefined,
 	next: SessionStateRecord,
@@ -2432,6 +2446,54 @@ export const useAppStore = create<AppState>((set, get) => ({
 						...(state.todoPlansByWorkspace[workspaceId] ?? {}),
 						[sessionId]: plan,
 					},
+				},
+			};
+		}),
+	unitySnapshotsByWorkspace: {},
+	installUnitySnapshot: (workspaceId, snapshot) =>
+		set((state) => {
+			if (
+				state.removedWorkspaceIds[workspaceId] ||
+				sameJsonValue(state.unitySnapshotsByWorkspace[workspaceId], snapshot)
+			) {
+				return {};
+			}
+			return {
+				unitySnapshotsByWorkspace: {
+					...state.unitySnapshotsByWorkspace,
+					[workspaceId]: snapshot,
+				},
+			};
+		}),
+	unityProjectConfigsByWorkspace: {},
+	installUnityProjectConfig: (workspaceId, config) =>
+		set((state) => {
+			if (
+				state.removedWorkspaceIds[workspaceId] ||
+				sameJsonValue(state.unityProjectConfigsByWorkspace[workspaceId], config)
+			) {
+				return {};
+			}
+			return {
+				unityProjectConfigsByWorkspace: {
+					...state.unityProjectConfigsByWorkspace,
+					[workspaceId]: config,
+				},
+			};
+		}),
+	verificationRunsByWorkspace: {},
+	installVerificationRuns: (workspaceId, runs) =>
+		set((state) => {
+			if (
+				state.removedWorkspaceIds[workspaceId] ||
+				sameJsonValue(state.verificationRunsByWorkspace[workspaceId], runs)
+			) {
+				return {};
+			}
+			return {
+				verificationRunsByWorkspace: {
+					...state.verificationRunsByWorkspace,
+					[workspaceId]: runs,
 				},
 			};
 		}),
@@ -2844,6 +2906,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 				skillChangeTickByWorkspace: omitKey(state.skillChangeTickByWorkspace, workspaceId),
 				specsByWorkspace: omitKey(state.specsByWorkspace, workspaceId),
 				todoPlansByWorkspace: omitKey(state.todoPlansByWorkspace, workspaceId),
+				unitySnapshotsByWorkspace: omitKey(state.unitySnapshotsByWorkspace, workspaceId),
+				unityProjectConfigsByWorkspace: omitKey(state.unityProjectConfigsByWorkspace, workspaceId),
+				verificationRunsByWorkspace: omitKey(state.verificationRunsByWorkspace, workspaceId),
 				diffScopeByWorkspace: omitKey(state.diffScopeByWorkspace, workspaceId),
 				filesTreeByWorkspace: omitKey(state.filesTreeByWorkspace, workspaceId),
 				reviewsByWorkspace: omitKey(state.reviewsByWorkspace, workspaceId),

@@ -61,13 +61,19 @@ channel fan-out, and the process-boot wrapper both launchers share.
   replay cache or any channel: binary 20 ms audio frames would otherwise be hashed and retained
   per request. `host` publishes
   `speech.changed` whole to v107 sockets, which also get `ServerWelcome.speech`; static serving with
-  `index.html` fallback, the `server.welcome` push, the **`?client=` page identity** read off the socket URL at
+  `index.html` fallback (hash-named `/assets/*` answers `Cache-Control: public, max-age=31536000,
+  immutable`; `index.html` is `no-cache`, and the miss path no longer pays a double stat), the
+  `server.welcome` push, the **`?client=` page identity** read off the socket URL at
   upgrade (threaded to every handler as `RequestContext`; it addresses terminal output but no longer *owns*
   PTYs — see [[submodule-server-terminal]]) plus the `clientKey → socket` registry and the **replay-namespace
   retention timer** that outlives a reconnect (terminals are deliberately untouched by it); the
   **request replay cache** keyed by `(clientKey, requestId)` (the first frame
   owns one handler promise + its
   serialized response, a reconnect replay awaits/returns that same result, a mismatched duplicate is rejected,
+  and the first request
+  can be answered before the PI runtime is warm: `createServer` no longer awaits runtime/session-state
+  initialization before listening — `/ws` upgrades await a `hostReady()` gate (503 while not ready) while
+  `/health`, static assets, `/files`, `/blob`, and `/fonts` serve immediately),
   and reaping the client clears its cache — but **only once nothing is in flight**: an unresolved request
   outlives the socket grace window, since the page holds that frame until its *own* deadline (30 minutes for
   the folder picker) and replays it on reconnect, so `clearClient` declines and the reap re-arms rather than
@@ -596,9 +602,11 @@ channel fan-out, and the process-boot wrapper both launchers share.
   authoritative open/reopen/close snapshot to **`project.updated`**. The WS `open` handler subscribes to
   that channel and hydrates two views in `server.welcome`: `projects` (open records only) and
   `recentProjects` (all known records, with closed records whose folder is definitively
-  gone omitted). The `/ws` upgrade first awaits `refreshRecentProjectFolders` for at most
-  250 ms, so an unresponsive mount delays a connect by that budget at most and an unfinished check leaves
-  its record at its last completed result; `open` itself never yields, so `server.welcome` stays the socket's first frame and
+  gone omitted). The `/ws` upgrade no longer waits for the folder check: `refreshRecentProjectFolders`
+  (at most 250 ms) runs after a successful upgrade and publishes `project.updated` deltas as they
+  land, so an unresponsive mount delays a connect by that budget at most and an unfinished check leaves
+  its record at its last completed result; a welcome sent before the refresh finishes may still carry a
+  recently-gone closed record until the client's next reconnect. `open` itself never yields, so `server.welcome` stays the socket's first frame and
   both views are read from the current registry in the same tick they are sent. The one full-snapshot
   channel is idempotent and avoids separate opened/closed streams replaying out of order. Every client
   converges its rail + Recents from it; only

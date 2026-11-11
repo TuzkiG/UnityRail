@@ -70,6 +70,12 @@ For latest version, see the [Releases page](https://github.com/JetBrains/thinkra
 - **Specs as ground truth.** A connected graph of `SPEC.md` files lives beside the code; the agent reads,
   searches, and maintains it through dedicated `spec_*` tools, so intent survives the session. The
   read-only Specs tool renders the graph as a tree in the workbench.
+- **Memory that outlives a session.** Connect [Basic Memory](https://docs.basicmemory.com/integrations/pi)
+  from Settings → Memory: the official Pi package recalls the decisions, rationale and next steps of
+  earlier sessions and captures new ones after a turn settles. Its notes are plain Markdown in your own
+  Basic Memory projects, listed and editable on the same page — and a project's notes open as a
+  workbench tab from the project menu. Each project can pick the Basic Memory project it targets and
+  whether recall and capture run automatically.
 - **Skills and workflows.** UnityRail loads your `pi` skills and any already in your project, and can
   import skills from Claude, Codex, and other coding agents: switch them on in Settings → Extensions, or
   per project in the Skills dialog, which also shows the size of your skill catalog. A large library is

@@ -149,7 +149,13 @@ import { githubAuthStatus, githubRefresh } from "../github";
 import { clampLimit, getHistoryIndex } from "../history";
 import { localesDir, readLocalLocales } from "../locales";
 import { logger } from "../log";
-import { openMemoryInstallTerminal, probeMemoryEngine } from "../memory";
+import {
+	listMemoryNotes,
+	openMemoryInstallTerminal,
+	probeMemoryEngine,
+	readMemoryNote,
+	saveMemoryNote,
+} from "../memory";
 import {
 	deleteRemoteBranch,
 	mergePr,
@@ -1322,6 +1328,9 @@ const handlers: WsHandlers = {
 		if (!openMemoryInstallTerminal()) throw new Error("Could not open a terminal window");
 		return { ok: true };
 	},
+	"memory.listNotes": () => listMemoryNotes(),
+	"memory.readNote": (p) => readMemoryNote(p.path),
+	"memory.saveNote": (p) => saveMemoryNote(p.path, p.content),
 	"speech.install": (p) => {
 		if (!isSpeechModel(p.model)) throw new Error("unknown voice model");
 		installSpeech(p.model);

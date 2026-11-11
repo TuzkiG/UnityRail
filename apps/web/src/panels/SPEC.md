@@ -1281,7 +1281,12 @@ a project picker, the prompt hero, and the reused
   terminal with `uv tool install basic-memory --prerelease=allow` — and re-polls for a minute. The MCP
   server itself is added from the MCP servers page's **Basic Memory preset** (`uvx
   --prerelease=allow basic-memory mcp`, opt-in per project); the panel manages the engine, never the
-  server. **Skills** (only at
+  server. The **Notes group** (`memory-notes`, only at `protocolVersion >=
+  MEMORY_NOTES_PROTOCOL_VERSION`) is the global memory manager: `useMemoryNotes` lists
+  `memory.listNotes` (newest first, bounded) and shows the resolved notes root; a note opens in
+  `MemoryNoteDialog` (`memory-note-dialog`) with **Preview** (the shared `chat/Markdown` renderer)
+  and **Edit** (a plain textarea) modes, saving through `memory.saveNote` — the file is Basic
+  Memory's source of truth, so the agent sees the change immediately. **Skills** (only at
   `protocolVersion >= OTHER_AGENT_SKILLS_PROTOCOL_VERSION`) is one switch, `other-agent-skills-toggle`, over
   `store.otherAgentSkills`, writing `settings.update { otherAgentSkills }`; per-project choices made in the
   Skills dialog still win over it. **Installed** and **pi built-in**

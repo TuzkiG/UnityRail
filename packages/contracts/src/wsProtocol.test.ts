@@ -39,6 +39,7 @@ import {
 	MCP_PROTOCOL_VERSION,
 	MCP_TOOL_GRANTS_PROTOCOL_VERSION,
 	MEMORY_ENGINE_PROTOCOL_VERSION,
+	MEMORY_NOTES_PROTOCOL_VERSION,
 	MODEL_PICKER_PROTOCOL_VERSION,
 	normalizeSessionTitle,
 	ONBOARDING_PROTOCOL_VERSION,
@@ -264,6 +265,14 @@ test("memory engine management is pinned to v112", () => {
 	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(MEMORY_ENGINE_PROTOCOL_VERSION);
 	expect(WS_METHODS.memoryStatus).toBe("memory.status");
 	expect(WS_METHODS.memoryInstall).toBe("memory.install");
+});
+
+test("memory notes management is pinned to v113", () => {
+	expect(MEMORY_NOTES_PROTOCOL_VERSION).toBe(113);
+	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(MEMORY_NOTES_PROTOCOL_VERSION);
+	expect(WS_METHODS.memoryListNotes).toBe("memory.listNotes");
+	expect(WS_METHODS.memoryReadNote).toBe("memory.readNote");
+	expect(WS_METHODS.memorySaveNote).toBe("memory.saveNote");
 });
 
 test("user-selectable fonts are pinned to v102", () => {

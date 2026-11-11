@@ -77,7 +77,7 @@ internals**. The edges between them are owned here (see the dependency graph), n
 | `themes` | the user's theme files in `<dataDir>/themes/`: read, watch, `themes.list`/`changed` (the client validates) | [themes/SPEC.md](src/themes/SPEC.md) |
 | `fonts` | the user's font files in `<dataDir>/fonts/` (in-house sfnt reader, uploads, watch) and the OS's installed families: `fonts.list`/`installed`/`changed` | [fonts/SPEC.md](src/fonts/SPEC.md) |
 | `speech` | on-demand local voice input: pinned `nemo-speech` + Nemotron download, PATH reuse, `speech.*` state | [speech/SPEC.md](src/speech/SPEC.md) |
-| `memory` | Basic Memory engine probe for the settings page (`memory.status`) and the terminal install opener (`memory.install`); never downloads or manages the package | [memory/SPEC.md](src/memory/SPEC.md) |
+| `memory` | Basic Memory engine probe + terminal install (`memory.status`/`install`) and the global notes manager (`memory.listNotes`/`readNote`/`saveNote`); never downloads or manages the package | [memory/SPEC.md](src/memory/SPEC.md) |
 | `projects` | stable known-repo registry: open/recent views + lossless close/reopen (validate, dedupe, slug) | [projects/SPEC.md](src/projects/SPEC.md) |
 | `workspaces` | workspaces = `git worktree`s on their own branch | [workspaces/SPEC.md](src/workspaces/SPEC.md) |
 | `git` | the `git(cwd, args)` runner + worktree status/diff vs base + branch list | [git/SPEC.md](src/git/SPEC.md) |

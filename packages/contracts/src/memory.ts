@@ -5,3 +5,23 @@ export interface MemoryEngineStatus {
 	/** Whether `uvx` resolves on PATH — the MCP preset's launcher, which fetches on demand. */
 	uvx: "installed" | "missing";
 }
+
+/** One Markdown note under the Basic Memory notes root, for the settings page's Notes group. */
+export interface MemoryNoteSummary {
+	/** POSIX path relative to the notes root, e.g. `home/decisions.md`. */
+	path: string;
+	/** The frontmatter `title`, or the filename stem when absent. */
+	title: string;
+	/** File size in bytes. */
+	size: number;
+	/** Last-modified epoch millis. */
+	updatedAt: number;
+}
+
+export interface MemoryNotesSnapshot {
+	/** The resolved notes root (absolute), whether it exists yet or not. */
+	root: string;
+	exists: boolean;
+	/** Newest first; bounded to the most recent files. */
+	notes: MemoryNoteSummary[];
+}

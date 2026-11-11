@@ -991,6 +991,7 @@
 	"panels.projectSettings.title": "项目设置",
 	"panels.projectTree.addProject": "添加项目",
 	"panels.projectTree.attachedWorktreeMissing": "附加的工作树不在工作区列表中",
+	"panels.projectTree.browseFiles": "浏览项目文件",
 	"panels.projectTree.closeDescription": "将此项目从已打开项目列表中移除。其仓库、工作区、会话和正在运行的活动都会保留。可从添加项目 → 最近重新打开。",
 	"panels.projectTree.closeFailed": "无法关闭 {{name}}",
 	"panels.projectTree.closeProject": "关闭项目",

@@ -50,7 +50,10 @@ treatment.
   Right-click opens that PR-#167-styled menu at the pointer without selecting/navigating; a scroll-cancelled
   ~700ms long press is its touch equivalent. With a project-name button focused, the standard Context Menu
   key or Shift+F10 opens the same menu for keyboard-only use; arrow/activate/Escape keys work normally.
-  The menu is neutral: **Plus Create workspace**, **FolderOpen Open existing worktree…**, separator,
+  The menu is neutral: **Plus Create workspace**, **FolderOpen Open existing worktree…**, **NodeTree
+  Browse project files** (expands the project, resolves its **default** workspace — that workspace's
+  worktree *is* the project folder — activates it, and reveals the `files` tool, so the project's own
+  directory opens as the usual file tree without creating a workspace), separator,
   **Settings Project settings…** (only when the host's protocol is at least
   `PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION`; opens `ProjectSettingsDialog`), **Pencil Rename** (only when
   the host's protocol is at least `PROJECT_RENAME_PROTOCOL_VERSION`), **X Close

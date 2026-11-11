@@ -39,6 +39,14 @@ export async function loadProjectWorkspaces(projectId: string): Promise<Workspac
 	return rows;
 }
 
+/**
+ * The project's own directory as a browsable workspace: its `default` row, whose worktree IS the project
+ * folder. Falls back to the first row so an older host without `kind` still opens something.
+ */
+export function projectFilesWorkspace(rows: readonly Workspace[]): Workspace | undefined {
+	return rows.find((workspace) => workspace.kind === "default") ?? rows[0];
+}
+
 export function canRenameWorkspace(protocolVersion: number | null, workspace: Workspace): boolean {
 	return (
 		protocolVersion !== null &&

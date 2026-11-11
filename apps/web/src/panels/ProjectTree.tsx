@@ -21,6 +21,7 @@ import {
 	RiHome2Fill,
 	RiSettings3Line as Settings,
 	RiDeleteBin6Line as Trash2,
+	RiNodeTree as Tree,
 	RiCloseLine as X,
 } from "@remixicon/react";
 import type { EditorInfo, Project, Workspace, WorkspaceCreation } from "@thinkrail/contracts";
@@ -106,6 +107,7 @@ import {
 	markWorkspaceRead,
 	markWorkspaceUnread,
 	openWorkspaceIn,
+	projectFilesWorkspace,
 	renameProject,
 	renameWorkspace,
 	revealWorkspace,
@@ -266,6 +268,19 @@ export function ProjectTree() {
 		useAppStore.getState().activateWorkspace(workspace);
 	};
 
+	/** Open the project folder as a file tree: its default workspace IS the project root. */
+	const browseProjectFiles = async (projectId: string) => {
+		const store = useAppStore.getState();
+		store.expandProject(projectId);
+		if (!store.workspaces[projectId]) await loadWorkspaces(projectId).catch(() => {});
+		const current = useAppStore.getState();
+		const rows = current.workspaces[projectId] ?? [];
+		const target = projectFilesWorkspace(rows);
+		if (!target) return;
+		current.activateWorkspace(target);
+		useAppStore.getState().requestToolView(target.id, "files");
+	};
+
 	const toggleExpand = (projectId: string) => {
 		const store = useAppStore.getState();
 		const willExpand = !store.expandedProjectIds[projectId];
@@ -367,6 +382,7 @@ export function ProjectTree() {
 								onAddWorkspace={() => openWorkspaceDialog(project.id, false)}
 								onAddWorkspaceFromMenu={() => openWorkspaceDialog(project.id, true)}
 								onOpenExistingWorktree={() => openExistingWorktreeDialog(project.id)}
+								onBrowseFiles={() => void browseProjectFiles(project.id)}
 								onRegisterNameButton={(element) => registerProjectNameButton(project.id, element)}
 								onRestoreFocus={() => focusProjectNameOrAdd(project.id)}
 							/>
@@ -578,6 +594,7 @@ function ProjectRow({
 	onAddWorkspace,
 	onAddWorkspaceFromMenu,
 	onOpenExistingWorktree,
+	onBrowseFiles,
 	onRegisterNameButton,
 	onRestoreFocus,
 }: {
@@ -597,6 +614,7 @@ function ProjectRow({
 	onAddWorkspace: () => void;
 	onAddWorkspaceFromMenu: () => void;
 	onOpenExistingWorktree: () => void;
+	onBrowseFiles: () => void;
 	onRegisterNameButton: (element: HTMLButtonElement | null) => void;
 	onRestoreFocus: () => void;
 }) {
@@ -750,6 +768,10 @@ function ProjectRow({
 					>
 						<FolderOpen />
 						{t("panels.projectTree.openExistingWorktree")}
+					</ContextMenuItem>
+					<ContextMenuItem data-testid="project-menu-browse-files" onSelect={() => onBrowseFiles()}>
+						<Tree />
+						{t("panels.projectTree.browseFiles")}
 					</ContextMenuItem>
 					<ContextMenuSeparator />
 					{canEditSettings ? (

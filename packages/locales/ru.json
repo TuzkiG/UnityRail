@@ -1136,6 +1136,7 @@
 	"panels.projectSettings.title": "Настройки проекта",
 	"panels.projectTree.addProject": "Добавить проект",
 	"panels.projectTree.attachedWorktreeMissing": "Связанное рабочее дерево отсутствует в списке рабочих областей",
+	"panels.projectTree.browseFiles": "Показать файлы проекта",
 	"panels.projectTree.closeDescription": "Удаляет проект из списка открытых. Его репозиторий, рабочие области, чаты и текущая активность сохраняются. Повторно откройте его через «Добавить проект» → «Недавние».",
 	"panels.projectTree.closeFailed": "Не удалось закрыть {{name}}",
 	"panels.projectTree.closeProject": "Закрыть проект",

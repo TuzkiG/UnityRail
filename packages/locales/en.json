@@ -1085,6 +1085,7 @@
 	"panels.projectSettings.title": "Project settings",
 	"panels.projectTree.addProject": "Add project",
 	"panels.projectTree.attachedWorktreeMissing": "The attached worktree is missing from the workspace list",
+	"panels.projectTree.browseFiles": "Browse project files",
 	"panels.projectTree.closeDescription": "Removes this project from the open projects list. Its repository, workspaces, chats, and running activity are kept. Reopen it from Add project → Recents.",
 	"panels.projectTree.closeFailed": "Couldn't close {{name}}",
 	"panels.projectTree.closeProject": "Close project",

@@ -8,6 +8,7 @@ import {
 	canEditProjectSettings,
 	canRenameWorkspace,
 	createRenameController,
+	projectFilesWorkspace,
 	workspaceRenameValue,
 } from "./workspaceActions";
 
@@ -118,4 +119,13 @@ test("reset abandons an open or pending edit so a later capable welcome renames 
 	expect(renamed).toEqual([]);
 	rename.reset();
 	expect(editing).toEqual([true, false]);
+});
+
+test("browse project files resolves the project folder's default workspace", () => {
+	const defaultRow: Workspace = { ...managed, id: "w-default", kind: "default", name: "默认" };
+	const branchRow: Workspace = { ...managed, id: "w-branch" };
+
+	expect(projectFilesWorkspace([branchRow, defaultRow])?.id).toBe("w-default");
+	expect(projectFilesWorkspace([branchRow])?.id).toBe("w-branch");
+	expect(projectFilesWorkspace([])).toBeUndefined();
 });

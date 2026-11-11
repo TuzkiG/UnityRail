@@ -1013,6 +1013,7 @@
 	"panels.previewCommenting.wholeFile": "Archivo completo (no se pudo localizar el fragmento)",
 	"panels.projectTree.addProject": "Añadir proyecto",
 	"panels.projectTree.attachedWorktreeMissing": "El worktree adjunto falta en la lista de espacios de trabajo",
+	"panels.projectTree.browseFiles": "Explorar los archivos del proyecto",
 	"panels.projectTree.closeDescription": "Quita este proyecto de la lista de proyectos abiertos. Su repositorio, espacios de trabajo, chats y actividad en curso se conservan. Vuelve a abrirlo desde Añadir proyecto → Recientes.",
 	"panels.projectTree.closeFailed": "No se pudo cerrar {{name}}",
 	"panels.projectTree.closeProject": "Cerrar proyecto",

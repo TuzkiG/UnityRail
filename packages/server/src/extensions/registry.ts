@@ -1,4 +1,5 @@
 import askUserQuestion from "@thinkrail/ext-ask-user-question/server";
+import memory from "@thinkrail/ext-memory/server";
 import ohMyPi from "@thinkrail/ext-oh-my-pi/server";
 import unity from "@thinkrail/ext-unity/server";
 import visualize from "@thinkrail/ext-visualize/server";
@@ -16,4 +17,5 @@ export const serverExtensions: readonly ServerExtensionEntry[] = [
 	{ specifier: "@thinkrail/ext-web-access/server", extension: webAccess },
 	{ specifier: "@thinkrail/ext-unity/server", extension: unity },
 	{ specifier: "@thinkrail/ext-oh-my-pi/server", extension: ohMyPi },
+	{ specifier: "@thinkrail/ext-memory/server", extension: memory },
 ];

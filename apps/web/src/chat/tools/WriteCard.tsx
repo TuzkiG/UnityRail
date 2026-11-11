@@ -1,7 +1,11 @@
 import { RiFileAddLine as FilePlus } from "@remixicon/react";
-import { resultText, strArg, type ToolRenderProps } from "@thinkrail/extension-api/web";
+import {
+	languageFromPath,
+	resultText,
+	strArg,
+	type ToolRenderProps,
+} from "@thinkrail/extension-api/web";
 import { useT } from "@thinkrail/locales/react";
-import { shikiLanguageForPath } from "@/lib/highlighter";
 import { CodeBlock } from "./CodeBlock";
 import { Collapsible, countLines } from "./Collapsible";
 import { ToolFileLink } from "./ToolFileLink";
@@ -17,7 +21,7 @@ export function WriteCard({
 	const t = useT();
 	const path = strArg(args, "path");
 	const content = strArg(args, "content");
-	const lang = shikiLanguageForPath(path) ?? "";
+	const lang = languageFromPath(path);
 	const message = resultText(result);
 
 	return (

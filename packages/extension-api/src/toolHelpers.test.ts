@@ -1,5 +1,16 @@
 import { expect, test } from "bun:test";
-import { numArg, resultText, strArg } from "@thinkrail/extension-api/web";
+import { languageFromPath, numArg, resultText, strArg } from "@thinkrail/extension-api/web";
+
+test("languageFromPath maps known extensions and falls back to ''", () => {
+	expect(languageFromPath("src/App.tsx")).toBe("tsx");
+	expect(languageFromPath("index.ts")).toBe("typescript");
+	expect(languageFromPath("script.py")).toBe("python");
+	expect(languageFromPath("run.sh")).toBe("bash");
+	expect(languageFromPath("setup.ps1")).toBe("powershell");
+	expect(languageFromPath("module.psm1")).toBe("powershell");
+	expect(languageFromPath("data.YAML")).toBe("yaml");
+	expect(languageFromPath("notes.unknown")).toBe("");
+});
 
 test("resultText joins the text blocks of an AgentToolResult-shaped value", () => {
 	expect(

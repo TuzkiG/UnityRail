@@ -20,6 +20,7 @@ import { FeedbackSettings } from "./FeedbackSettings";
 import { GithubSettings } from "./GithubSettings";
 import { LanguageSettings } from "./LanguageSettings";
 import { McpSettings } from "./McpSettings";
+import { MemorySettings } from "./MemorySettings";
 import { ModelsSettings } from "./ModelsSettings";
 import { NotificationsSettings } from "./NotificationsSettings";
 import { OhMyPiSettings } from "./OhMyPiSettings";
@@ -148,6 +149,8 @@ export function SettingsDialog({
 								<ExtensionsSettings />
 							) : selectedSection === SettingsSection.OhMyPi ? (
 								<OhMyPiSettings />
+							) : selectedSection === SettingsSection.Memory ? (
+								<MemorySettings />
 							) : selectedSection === SettingsSection.Chat ? (
 								<ChatSettings />
 							) : selectedSection === SettingsSection.Appearance ? (

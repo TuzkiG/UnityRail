@@ -1255,7 +1255,14 @@ a project picker, the prompt hero, and the reused
   `saveSettings`, so a rejected write reverts); both write
   `settings.update { extensionSettings: { "oh-my-pi": { key } } }` and converge on the broadcast. Against an
   older host the page renders only its description and disabled controls. The six capabilities behind the
-  switches are the extension's business, not the panel's. **Skills** (only at
+  switches are the extension's business, not the panel's. **`MemorySettings`** (the **Memory** section, nav
+  `settings-nav-memory`, listed only at
+  `protocolVersion >= EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION`) is the same shape for
+  `@thinkrail/ext-memory` (`MEMORY_TOGGLES`, `MEMORY_FIELDS`): one switch (`memory-toggle-enabled`) plus
+  the adapter's three strings (`memory-input-memoryUrl` / `-memoryPort` / `-memoryBin`), written through
+  `settings.update { extensionSettings: { memory: { key } } }`; the copy maps live in the extension's
+  `./web` half. Only `enabled` applies live — the strings bind when the adapter first loads (see
+  [[module-ext-memory]]). **Skills** (only at
   `protocolVersion >= OTHER_AGENT_SKILLS_PROTOCOL_VERSION`) is one switch, `other-agent-skills-toggle`, over
   `store.otherAgentSkills`, writing `settings.update { otherAgentSkills }`; per-project choices made in the
   Skills dialog still win over it. **Installed** and **pi built-in**
@@ -1344,7 +1351,7 @@ a project picker, the prompt hero, and the reused
   live in `panels/environmentDraft.ts`; the props-driven `EnvironmentForm` is what tests render. No folder
   picker: `dialog.selectDirectory` is the project-setup picker and records setup analytics.
   `ProvidersSettings`/`McpSettings`/`AppearanceSettings`/`LineWidthControl`/`ChatSettings`/`TemplatesSettings`/
-  `WorkspacesSettings`/`PrivacySettings`/`ModelsSettings`/`FeedbackSettings`/`ExtensionsSettings`/`OhMyPiSettings`/`EnvironmentSettings`, the onboarding
+  `WorkspacesSettings`/`PrivacySettings`/`ModelsSettings`/`FeedbackSettings`/`ExtensionsSettings`/`OhMyPiSettings`/`MemorySettings`/`EnvironmentSettings`, the onboarding
   `ConnectProviderDialog`/`CreateProjectDialog`/`OnboardingWizard`, and the app-wide **`SurveyInvitationDialog`** /
   **`SurveyWindow`** are the panels-owned **integration pieces** (store + transport).
   `SettingsDialog` receives the Layout section from the

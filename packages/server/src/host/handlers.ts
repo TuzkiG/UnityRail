@@ -840,9 +840,9 @@ const handlers: WsHandlers = {
 					}
 				}
 				try {
-				const refreshed = await findWorkspaceReviewOutcome(ws, {
-					fresh: true,
-				});
+					const refreshed = await findWorkspaceReviewOutcome(ws, {
+						fresh: true,
+					});
 					if (refreshed.reliable) setWorkspaceReview(ws.id, refreshed.value, ws.branch);
 				} catch {}
 				nudgeRepoMeta(p.workspaceId);
@@ -1301,7 +1301,12 @@ const handlers: WsHandlers = {
 			admissionContextFor(project, ws.skillOverrides ?? {}, getConfig().otherAgentSkills),
 		);
 	},
-	"extension.list": () => listExtensionCatalog(new Set(getConfig().disabledExtensions)),
+	"extension.list": () =>
+		listExtensionCatalog(
+			new Set(getConfig().disabledExtensions),
+			undefined,
+			(extension, key) => getConfig().extensionSettings?.[extension]?.[key],
+		),
 	"packages.list": (p) => packagesList(p),
 	"packages.install": (p) => packagesInstall(p),
 	"packages.remove": (p) => packagesRemove(p),

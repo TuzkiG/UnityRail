@@ -111,6 +111,12 @@ const NAV_GROUPS: SettingsNavGroup[] = [
 				requiresProtocolVersion: EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION,
 			},
 			{
+				id: SettingsSection.Memory,
+				label: "settings.nav.memory",
+				icon: RiBrainLine,
+				requiresProtocolVersion: EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION,
+			},
+			{
 				id: SettingsSection.Extensions,
 				label: "settings.nav.extensions",
 				icon: RiPuzzle2Line,

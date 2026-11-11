@@ -21,6 +21,7 @@ describe("server extension registry", () => {
 			"@thinkrail/ext-web-access/server",
 			"@thinkrail/ext-unity/server",
 			"@thinkrail/ext-oh-my-pi/server",
+			"@thinkrail/ext-memory/server",
 		]);
 		expect(new Set(specifiers).size).toBe(specifiers.length);
 		for (const entry of serverExtensions) {
@@ -34,6 +35,7 @@ describe("server extension registry", () => {
 			"web-access",
 			"unity",
 			"oh-my-pi",
+			"memory",
 		]);
 	});
 
@@ -49,7 +51,7 @@ describe("server extension registry", () => {
 				awaitToolResponse: () => Promise.resolve({ kind: "deferred" as const }),
 				workspaceFiles: { check: async () => {}, scratchDir: "" },
 			}),
-		).toEqual(["visualize", "ask-user-question", "web-access", "unity", "oh-my-pi"]);
+		).toEqual(["visualize", "ask-user-question", "web-access", "unity", "oh-my-pi", "memory"]);
 		expect(
 			registryInlineExtensions("childExtensions").map((inline) =>
 				typeof inline === "function" ? "fn" : inline.name,

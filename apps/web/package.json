@@ -32,6 +32,7 @@
 		"@pierre/highlights": "catalog:",
 		"@thinkrail/contracts": "workspace:*",
 		"@thinkrail/ext-ask-user-question": "workspace:*",
+		"@thinkrail/ext-memory": "workspace:*",
 		"@thinkrail/ext-oh-my-pi": "workspace:*",
 		"@thinkrail/ext-unity": "workspace:*",
 		"@thinkrail/ext-visualize": "workspace:*",

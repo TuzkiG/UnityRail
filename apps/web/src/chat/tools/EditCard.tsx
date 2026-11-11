@@ -1,9 +1,13 @@
 import { RiPencilLine as Pencil } from "@remixicon/react";
 import { type HashlineOp, insertedLines, isHashlineOp } from "@thinkrail/ext-oh-my-pi/web";
-import { resultText, strArg, type ToolRenderProps } from "@thinkrail/extension-api/web";
+import {
+	languageFromPath,
+	resultText,
+	strArg,
+	type ToolRenderProps,
+} from "@thinkrail/extension-api/web";
 import { useT } from "@thinkrail/locales/react";
 import { useHighlightedCode } from "@/lib/highlightCode";
-import { shikiLanguageForPath } from "@/lib/highlighter";
 import { Collapsible } from "./Collapsible";
 import { highlightedLines } from "./highlightedLines";
 import { ToolFileLink } from "./ToolFileLink";
@@ -21,7 +25,7 @@ export function EditCard({
 	const newText = strArg(args, "newText") || strArg(args, "new_string") || strArg(args, "new");
 	const ops = hashlineOps(args);
 	const removedOps = hashlineRemoved(result);
-	const lang = shikiLanguageForPath(path) ?? "";
+	const lang = languageFromPath(path);
 	const message = resultText(result);
 
 	if (status === "error") {

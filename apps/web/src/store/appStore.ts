@@ -427,6 +427,7 @@ export const SettingsSection = {
 	Extensions: "extensions",
 	Environment: "environment",
 	OhMyPi: "oh-my-pi",
+	Memory: "memory",
 	Voice: "voice",
 } as const;
 export type SettingsSection = (typeof SettingsSection)[keyof typeof SettingsSection];

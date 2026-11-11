@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import {
 	getCurrentSystemPrompt,
 	getCurrentTools,
+	getSupportedThinkingLevels,
 	InMemoryCredentialStore,
 	type Model,
 	type ModelsRefreshResult,
@@ -86,7 +87,7 @@ import {
 	toWireModel,
 } from "./agentSessionManager";
 import { setDisabledExtensionsResolver } from "./extensions";
-import { configurePiRuntime } from "./piRuntime";
+import { configurePiRuntime, settledAvailableModels } from "./piRuntime";
 import { admissionContextFor } from "./skillAdmission";
 import { assessRespondability, TOOL_RESPONSE_STOPPED_ERROR } from "./toolResponses";
 import { resolveExtUi, setExtUiPublisher } from "./webUiContext";
@@ -1596,11 +1597,15 @@ test("wire models expose only the allowlisted fields (no baseUrl/headers/other M
 					"virtual",
 				].sort(),
 			);
-			expect(m.thinkingLevels).toEqual(["low", "medium", "high"]);
+			expect(m.thinkingLevels).toEqual(["low", "medium", "high", "xhigh", "max"]);
 			continue;
 		}
 		expect(Object.keys(m).sort()).toEqual(allowlist);
-		expect(m.thinkingLevels).toEqual(["off"]);
+		const runtimeModel = settledAvailableModels(runtime).find(
+			(candidate) => candidate.provider === m.provider && candidate.id === m.id,
+		);
+		if (!runtimeModel) throw new Error(`no runtime model for ${m.provider}/${m.id}`);
+		expect(m.thinkingLevels).toEqual(getSupportedThinkingLevels(runtimeModel));
 		expect(Object.keys(m.cost ?? {}).sort()).toEqual(["input", "output"]);
 		expect(m.auth?.kind).toBeDefined();
 	}

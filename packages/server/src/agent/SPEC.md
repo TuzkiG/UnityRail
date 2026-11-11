@@ -165,7 +165,9 @@ re-opened transcripts provider-valid.
     The host may **pin** what Auto connects to: `setAutoModelPreferencesSource` supplies the plan model,
     the execution model and the effort, read on every route so a Settings change applies to the next turn.
     A pin is a *preference*, not a demand — a model that left the catalog falls back to the automatic pick
-    for that phase, and an unset effort keeps the chat's own level. `autoReasoning: "automatic"` instead
+    for that phase, and an unset effort keeps the chat's own level. The virtual model advertises the full
+    ladder through `max`, so the Auto reasoning-level row can pin 最高: `AUTO_THINKING_LEVELS` (low → max)
+    is both the advertised set and the fallback for models that declare none. `autoReasoning: "automatic"` instead
     derives the level per route — planning is `high` for a hard request and `medium` for an easy one,
     execution is `medium` hard / `low` easy (a `direct` request counts as execution) — clamped down to the
     chosen model's own `thinkingLevels`; a pinned `autoEffort` still wins over the derivation. The source is injected because `agent`

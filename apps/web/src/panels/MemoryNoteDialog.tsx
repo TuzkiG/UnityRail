@@ -67,7 +67,7 @@ export function MemoryNoteDialog({
 				{mode === "preview" ? (
 					<div
 						data-testid="memory-note-preview"
-						className="max-h-160 overflow-y-auto rounded-8 border border-border-default p-12"
+						className="max-h-160 overflow-y-auto rounded-md border border-border-default p-12"
 					>
 						<Markdown text={content} />
 					</div>
@@ -77,7 +77,7 @@ export function MemoryNoteDialog({
 						value={draft}
 						onChange={(event) => setDraft(event.target.value)}
 						spellCheck={false}
-						className={cn(SETTINGS_INPUT, "h-160 w-full resize-none font-mono text-12")}
+						className={cn(SETTINGS_INPUT, "h-160 w-full resize-none tr-code-text")}
 					/>
 				)}
 				<div className="flex justify-end gap-8">

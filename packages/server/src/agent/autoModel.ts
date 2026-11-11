@@ -11,7 +11,13 @@ export const AUTO_MODEL_PROVIDER = "thinkrail";
 export const AUTO_MODEL_ID = "auto";
 export const AUTO_MODEL_NAME = "Auto";
 
-const AUTO_THINKING_LEVELS: readonly ModelThinkingLevel[] = ["low", "medium", "high"];
+const AUTO_THINKING_LEVELS: readonly ModelThinkingLevel[] = [
+	"low",
+	"medium",
+	"high",
+	"xhigh",
+	"max",
+];
 
 /** Ordering used when a model cannot run the derived level. */
 const LEVEL_RANK: Record<ModelThinkingLevel, number> = {

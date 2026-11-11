@@ -38,6 +38,7 @@ import {
 	LOCALES_PROTOCOL_VERSION,
 	MCP_PROTOCOL_VERSION,
 	MCP_TOOL_GRANTS_PROTOCOL_VERSION,
+	MEMORY_ENGINE_PROTOCOL_VERSION,
 	MODEL_PICKER_PROTOCOL_VERSION,
 	normalizeSessionTitle,
 	ONBOARDING_PROTOCOL_VERSION,
@@ -258,6 +259,13 @@ test("voice input is pinned to v107", () => {
 	expect(WS_CHANNELS.speechChanged).toBe("speech.changed");
 });
 
+test("memory engine management is pinned to v112", () => {
+	expect(MEMORY_ENGINE_PROTOCOL_VERSION).toBe(112);
+	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(MEMORY_ENGINE_PROTOCOL_VERSION);
+	expect(WS_METHODS.memoryStatus).toBe("memory.status");
+	expect(WS_METHODS.memoryInstall).toBe("memory.install");
+});
+
 test("user-selectable fonts are pinned to v102", () => {
 	expect(FONTS_PROTOCOL_VERSION).toBe(102);
 	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(FONTS_PROTOCOL_VERSION);
@@ -360,7 +368,7 @@ test("the GitHub star ask is pinned to v103", () => {
 
 test("the other agents' skills opt-in is pinned to v108", () => {
 	expect(OTHER_AGENT_SKILLS_PROTOCOL_VERSION).toBe(108);
-	expect(PROTOCOL_VERSION).toBe(108);
+	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(OTHER_AGENT_SKILLS_PROTOCOL_VERSION);
 	expect(DEFAULT_CONFIG.otherAgentSkills).toBe(false);
 });
 

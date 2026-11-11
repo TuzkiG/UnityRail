@@ -89,6 +89,7 @@ import type {
 	Workspace,
 } from "./domain";
 import { isDelegationRunDetails } from "./domain";
+import type { MemoryEngineStatus } from "./memory";
 import type {
 	ExtUiResponse,
 	ImageContent,
@@ -177,7 +178,7 @@ export type TemplateReadLocation =
 	| { projectId: string; workspaceId?: never }
 	| { workspaceId?: never; projectId?: never };
 
-export const PROTOCOL_VERSION = 111;
+export const PROTOCOL_VERSION = 112;
 export const PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION = 110;
 export const EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION = 111;
 export const AUTO_MODEL_SETTING_PROTOCOL_VERSION = 107;
@@ -186,6 +187,7 @@ export const UNITY_PROTOCOL_VERSION = 105;
 export const OTHER_AGENT_SKILLS_PROTOCOL_VERSION = 108;
 export const SPEECH_PROTOCOL_VERSION = 107;
 export const SEARCH_PROTOCOL_VERSION = 106;
+export const MEMORY_ENGINE_PROTOCOL_VERSION = 112;
 export const WORKSPACE_CREATION_PROTOCOL_VERSION = 104;
 export const EXTENSION_SETTINGS_PROTOCOL_VERSION = 105;
 export const ASK_DISCUSS_PROTOCOL_VERSION = 105;
@@ -411,6 +413,8 @@ export const WS_METHODS = {
 	fontsList: "fonts.list",
 	fontsInstalled: "fonts.installed",
 	fontsReveal: "fonts.reveal",
+	memoryStatus: "memory.status",
+	memoryInstall: "memory.install",
 	speechInstall: "speech.install",
 	speechCancelInstall: "speech.cancelInstall",
 	speechRemove: "speech.remove",
@@ -1128,6 +1132,8 @@ export interface WsMethodMap {
 	"fonts.list": { params: Record<string, never>; result: UserFontsSnapshot };
 	"fonts.installed": { params: Record<string, never>; result: InstalledFontsResult };
 	"fonts.reveal": { params: Record<string, never>; result: Ack };
+	"memory.status": { params: Record<string, never>; result: MemoryEngineStatus };
+	"memory.install": { params: Record<string, never>; result: Ack };
 	"speech.install": { params: { model: SpeechModel }; result: Ack };
 	"speech.cancelInstall": { params: Record<string, never>; result: Ack };
 	"speech.remove": { params: Record<string, never>; result: Ack };

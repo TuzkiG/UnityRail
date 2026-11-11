@@ -99,6 +99,7 @@ export {
 	parseMatchTerms,
 	prepareContent,
 } from "./match";
+export type { MemoryEngineStatus } from "./memory";
 export type * from "./nativeClient";
 export type * from "./piProtocol";
 export {

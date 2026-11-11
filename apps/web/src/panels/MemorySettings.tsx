@@ -9,14 +9,16 @@ import {
 	type MemoryToggle,
 } from "@thinkrail/ext-memory/web";
 import { useT } from "@thinkrail/locales/react";
+import { Button } from "@thinkrail/ui/button";
 import { cn } from "@thinkrail/ui/utils";
-import { useAppStore } from "../store";
+import { toast, useAppStore } from "../store";
 import { supportsExtensionStringSettings } from "../transport";
 import { SettingsGroup, SettingsPageContainer } from "./SettingsGroup";
 import { SettingsRow } from "./SettingsRow";
 import { SettingsSwitch } from "./SettingsSwitch";
 import { saveSettings } from "./saveSettings";
 import { SETTINGS_INPUT, useSettingsDraft } from "./settingsDraft";
+import { useMemoryEngine } from "./useMemoryEngine";
 
 const NO_SETTINGS: Readonly<Record<string, ExtensionSettingValue>> = {};
 const TOGGLES = Object.keys(MEMORY_TOGGLES) as MemoryToggle[];
@@ -74,6 +76,12 @@ export function MemorySettings() {
 	const protocolVersion = useAppStore((state) => state.protocolVersion);
 	const supported = supportsExtensionStringSettings(protocolVersion);
 	const values = useAppStore((state) => state.extensionSettings[MEMORY_EXTENSION]) ?? NO_SETTINGS;
+	const engine = useMemoryEngine();
+
+	const installInTerminal = async () => {
+		const opened = await engine.install();
+		if (!opened) toast.error(t("settings.memory.engine.installFailed"));
+	};
 
 	return (
 		<SettingsPageContainer testId="settings-memory">
@@ -83,6 +91,80 @@ export function MemorySettings() {
 					{t(supported ? "settings.memory.description" : "settings.memory.unavailable")}
 				</p>
 			</section>
+			{engine.supported && (
+				<SettingsGroup
+					testId="memory-engine"
+					title={t("settings.memory.engine.title")}
+					description={t("settings.memory.engine.description")}
+				>
+					<SettingsRow
+						label={t("settings.memory.engine.binary")}
+						control={
+							engine.status === null ? (
+								<span className="text-text-muted">{t("settings.memory.engine.checking")}</span>
+							) : (
+								<span
+									data-testid="memory-engine-binary"
+									className={cn(
+										"tr-text-metadata",
+										engine.status.engine === "missing"
+											? "text-feedback-error"
+											: "text-text-default",
+									)}
+								>
+									{t(
+										engine.status.engine === "installed"
+											? "settings.memory.engine.binaryInstalled"
+											: "settings.memory.engine.binaryMissing",
+										{ path: engine.status.binary },
+									)}
+								</span>
+							)
+						}
+					/>
+					<SettingsRow
+						label={t("settings.memory.engine.server")}
+						control={
+							engine.status === null ? (
+								<span className="text-text-muted">{t("settings.memory.engine.checking")}</span>
+							) : (
+								<span
+									data-testid="memory-engine-server"
+									className={cn(
+										"tr-text-metadata",
+										engine.status.server === "running"
+											? "text-text-default"
+											: "text-feedback-error",
+									)}
+								>
+									{t(
+										engine.status.server === "running"
+											? "settings.memory.engine.serverRunning"
+											: engine.status.server === "foreign"
+												? "settings.memory.engine.serverForeign"
+												: "settings.memory.engine.serverAbsent",
+										{ url: engine.status.url },
+									)}
+								</span>
+							)
+						}
+					/>
+					<div className="flex gap-8">
+						<Button data-testid="memory-engine-install" onClick={() => void installInTerminal()}>
+							{t("settings.memory.engine.install")}
+						</Button>
+						<Button
+							variant="ghost"
+							size="m"
+							data-testid="memory-engine-recheck"
+							onClick={engine.recheck}
+							disabled={engine.checking}
+						>
+							{t("settings.memory.engine.recheck")}
+						</Button>
+					</div>
+				</SettingsGroup>
+			)}
 			{TOGGLES.map((toggle) => (
 				<SettingsGroup
 					key={toggle}

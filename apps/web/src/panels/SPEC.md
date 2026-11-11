@@ -1278,7 +1278,11 @@ a project picker, the prompt hero, and the reused
   the adapter's three strings (`memory-input-memoryUrl` / `-memoryPort` / `-memoryBin`), written through
   `settings.update { extensionSettings: { memory: { key } } }`; the copy maps live in the extension's
   `./web` half. Only `enabled` applies live — the strings bind when the adapter first loads (see
-  [[module-ext-memory]]). **Skills** (only at
+  [[module-ext-memory]]). The page also owns the **engine group** (`memory-engine`, only at
+  `protocolVersion >= MEMORY_ENGINE_PROTOCOL_VERSION`): `useMemoryEngine` probes `memory.status` on
+  mount and after an install, renders the binary/server findings (`memory-engine-binary`,
+  `memory-engine-server`), runs `memory.install` — the host opens a visible OS terminal with the
+  official install command — and re-polls for a minute so the result lands without a manual refresh. **Skills** (only at
   `protocolVersion >= OTHER_AGENT_SKILLS_PROTOCOL_VERSION`) is one switch, `other-agent-skills-toggle`, over
   `store.otherAgentSkills`, writing `settings.update { otherAgentSkills }`; per-project choices made in the
   Skills dialog still win over it. **Installed** and **pi built-in**

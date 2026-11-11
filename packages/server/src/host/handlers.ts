@@ -149,6 +149,7 @@ import { githubAuthStatus, githubRefresh } from "../github";
 import { clampLimit, getHistoryIndex } from "../history";
 import { localesDir, readLocalLocales } from "../locales";
 import { logger } from "../log";
+import { openMemoryInstallTerminal, probeMemoryEngine } from "../memory";
 import {
 	deleteRemoteBranch,
 	mergePr,
@@ -1321,6 +1322,11 @@ const handlers: WsHandlers = {
 	"fonts.list": () => readUserFonts(),
 	"fonts.installed": () => listInstalledFonts(),
 	"fonts.reveal": () => revealDataFolder(fontsDir()),
+	"memory.status": () => probeMemoryEngine(),
+	"memory.install": () => {
+		if (!openMemoryInstallTerminal()) throw new Error("Could not open a terminal window");
+		return { ok: true };
+	},
 	"speech.install": (p) => {
 		if (!isSpeechModel(p.model)) throw new Error("unknown voice model");
 		installSpeech(p.model);

@@ -38,6 +38,9 @@ card.
   deduplicates them into one module instance.
 - **Accepted cost (server binary):** the adapter only serves requests when the Memory server runs. The
   wrapper never installs it; `memoryBin` points at the user's binary and the panel copy says so. Without
-  it the tools answer "could not reach the Memory server" and the agent is told as much.
+  it the tools answer "could not reach the Memory server" and the agent is told as much. The settings
+  page's engine group ([[submodule-server-memory]]) shows what the host finds — binary on PATH/custom
+  path and `/health` — and opens a terminal with the official `pi install` command; the host never
+  downloads the binary.
 - Forbidden: importing host internals; value-importing `@cloudfrog/memory` from the `./web` half (the
   panel needs only the key lists); shipping a custom tool renderer.

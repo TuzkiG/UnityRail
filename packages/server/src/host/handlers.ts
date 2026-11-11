@@ -156,7 +156,6 @@ import {
 	probeMemoryEngine,
 	projectMemoryDir,
 	readMemoryNote,
-	registerProjectMemory,
 	saveMemoryNote,
 } from "../memory";
 import {
@@ -1347,11 +1346,11 @@ const handlers: WsHandlers = {
 			const projectDirs = listProjects().map((row) => memoryProjectDirName(row));
 			return listMemoryNotes({ excludeDirs: projectDirs });
 		}
-		// Register lazily on first read: the panel is what makes a project's notes discoverable.
-		void registerProjectMemory(project).catch(() => {});
+		// The folder is the product: Basic Memory refuses a project nested inside another, so the
+		// project's notes live inside the default project's tree and the agent reaches them by path.
 		return listMemoryNotes({
 			dir: projectMemoryDir(project),
-			engineProject: memoryProjectDirName(project),
+			projectFolder: memoryProjectDirName(project),
 		});
 	},
 	"memory.readNote": (p) => readMemoryNote(p.path, memoryScopeFor(p.projectId)),

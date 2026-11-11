@@ -87,8 +87,8 @@ function collectNotes(
 export interface MemoryNotesScope {
 	/** Absolute folder the note paths are relative to; defaults to the shared root. */
 	dir?: string;
-	/** The Basic Memory project this folder belongs to, echoed back on a project scope. */
-	engineProject?: string;
+	/** The project folder under the shared root, echoed back on a project scope. */
+	projectFolder?: string;
 	/** Direct child folders of the shared root that belong to a project, so the user scope skips them. */
 	excludeDirs?: readonly string[];
 }
@@ -99,7 +99,7 @@ export function listMemoryNotes(scope: MemoryNotesScope = {}): MemoryNotesSnapsh
 	const base = {
 		root,
 		scope: scope.dir ? ("project" as const) : ("user" as const),
-		...(scope.engineProject ? { engineProject: scope.engineProject } : {}),
+		...(scope.projectFolder ? { projectFolder: scope.projectFolder } : {}),
 	};
 	if (!existsSync(root)) return { ...base, exists: false, notes: [] };
 	const notes: MemoryNoteSummary[] = [];

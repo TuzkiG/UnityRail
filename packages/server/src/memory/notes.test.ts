@@ -87,9 +87,9 @@ describe("memory notes > project scope", () => {
 		writeNote("demo/project.md", "project note");
 
 		const dir = projectMemoryDir({ slug: "demo", name: "Demo" });
-		const project = listMemoryNotes({ dir, engineProject: "demo" });
+		const project = listMemoryNotes({ dir, projectFolder: "demo" });
 		expect(project.scope).toBe("project");
-		expect(project.engineProject).toBe("demo");
+		expect(project.projectFolder).toBe("demo");
 		expect(project.notes.map((note) => note.path)).toEqual(["project.md"]);
 
 		const user = listMemoryNotes({ excludeDirs: [memoryProjectDirName({ name: "Demo" })] });

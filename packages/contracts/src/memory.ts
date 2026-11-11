@@ -27,8 +27,8 @@ export interface MemoryNotesSnapshot {
 	 * project's own folder under it.
 	 */
 	scope: "user" | "project";
-	/** The Basic Memory project this folder is registered as, for a `project` scope. */
-	engineProject?: string;
+	/** The project folder under the shared root, for a `project` scope. */
+	projectFolder?: string;
 	/** Newest first; bounded to the most recent files. */
 	notes: MemoryNoteSummary[];
 }

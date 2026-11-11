@@ -8,7 +8,5 @@ export {
 	readMemoryNote,
 	saveMemoryNote,
 } from "./notes";
-export type { RegisterProjectOptions } from "./projects";
-export { forgetRegisteredMemoryProjects, registerProjectMemory } from "./projects";
 export type { MemoryProbeOptions } from "./status";
 export { probeMemoryEngine } from "./status";

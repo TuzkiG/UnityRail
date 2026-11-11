@@ -56,3 +56,26 @@ export interface MemoryNotesSnapshot {
 	/** Newest first, bounded to the most recent files. */
 	notes: MemoryNoteSummary[];
 }
+
+/** The per-project `.pi/basic-memory.json` the Basic Memory Pi package reads. */
+export interface MemoryPiConfig {
+	/** Absolute path of the config file (\`<project>/.pi/basic-memory.json\`). */
+	path: string;
+	exists: boolean;
+	/** `cli` runs the bm CLI; `mcp` goes through pi-mcp-adapter. */
+	transport: "cli" | "mcp";
+	/** The Basic Memory project the package targets; null leaves the choice to the package. */
+	project: string | null;
+	captureFolder: string;
+	autoRecall: boolean;
+	autoCapture: boolean;
+}
+
+/** A partial config write; omitted keys keep their stored value. */
+export interface MemoryPiConfigPatch {
+	transport?: "cli" | "mcp";
+	project?: string | null;
+	captureFolder?: string;
+	autoRecall?: boolean;
+	autoCapture?: boolean;
+}

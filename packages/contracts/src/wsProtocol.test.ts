@@ -40,6 +40,7 @@ import {
 	MCP_TOOL_GRANTS_PROTOCOL_VERSION,
 	MEMORY_ENGINE_PROTOCOL_VERSION,
 	MEMORY_NOTES_PROTOCOL_VERSION,
+	MEMORY_PI_CONFIG_PROTOCOL_VERSION,
 	MEMORY_PROJECTS_PROTOCOL_VERSION,
 	MODEL_PICKER_PROTOCOL_VERSION,
 	normalizeSessionTitle,
@@ -281,6 +282,13 @@ test("memory projects are pinned to v115", () => {
 	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(MEMORY_PROJECTS_PROTOCOL_VERSION);
 	expect(WS_METHODS.memoryProjects).toBe("memory.projects");
 	expect(WS_METHODS.memoryRevealProject).toBe("memory.revealProject");
+});
+
+test("the per-project Pi config is pinned to v116", () => {
+	expect(MEMORY_PI_CONFIG_PROTOCOL_VERSION).toBe(116);
+	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(MEMORY_PI_CONFIG_PROTOCOL_VERSION);
+	expect(WS_METHODS.memoryPiConfig).toBe("memory.piConfig");
+	expect(WS_METHODS.memorySavePiConfig).toBe("memory.savePiConfig");
 });
 
 test("user-selectable fonts are pinned to v102", () => {

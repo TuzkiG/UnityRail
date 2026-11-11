@@ -154,9 +154,11 @@ import {
 	openMemoryInstallTerminal,
 	probeMemoryEngine,
 	readMemoryNote,
+	readMemoryPiConfig,
 	readMemoryProjects,
 	requireMemoryProject,
 	saveMemoryNote,
+	saveMemoryPiConfig,
 } from "../memory";
 import {
 	deleteRemoteBranch,
@@ -701,6 +703,12 @@ function invalidSurveyOnThrow<T>(build: () => T): T {
 	} catch {
 		throw new CodedError("SURVEY_INVALID", "Invalid survey submission");
 	}
+}
+
+function projectPath(projectId: string): string {
+	const project = listProjects().find((candidate) => candidate.id === projectId);
+	if (!project) throw new CodedError("PROJECT_NOT_FOUND", `unknown project: ${projectId}`);
+	return project.path;
 }
 
 const handlers: WsHandlers = {
@@ -1334,6 +1342,8 @@ const handlers: WsHandlers = {
 	},
 	"memory.projects": () => readMemoryProjects(),
 	"memory.revealProject": (p) => revealDataFolder(requireMemoryProject(p.project).path),
+	"memory.piConfig": (p) => readMemoryPiConfig(projectPath(p.projectId)),
+	"memory.savePiConfig": (p) => saveMemoryPiConfig(projectPath(p.projectId), p.config),
 	"memory.listNotes": (p) => listMemoryNotes(p.project),
 	"memory.readNote": (p) => readMemoryNote(p.project, p.path),
 	"memory.saveNote": (p) => saveMemoryNote(p.project, p.path, p.content),

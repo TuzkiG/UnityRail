@@ -77,7 +77,7 @@ internals**. The edges between them are owned here (see the dependency graph), n
 | `themes` | the user's theme files in `<dataDir>/themes/`: read, watch, `themes.list`/`changed` (the client validates) | [themes/SPEC.md](src/themes/SPEC.md) |
 | `fonts` | the user's font files in `<dataDir>/fonts/` (in-house sfnt reader, uploads, watch) and the OS's installed families: `fonts.list`/`installed`/`changed` | [fonts/SPEC.md](src/fonts/SPEC.md) |
 | `speech` | on-demand local voice input: pinned `nemo-speech` + Nemotron download, PATH reuse, `speech.*` state | [speech/SPEC.md](src/speech/SPEC.md) |
-| `memory` | Basic Memory install probe + terminal install (`memory.status`/`install`), its project registry (`memory.projects`/`revealProject`) and note I/O (`memory.listNotes`/`readNote`/`saveNote`); never downloads, vendors or configures Basic Memory | [memory/SPEC.md](src/memory/SPEC.md) |
+| `memory` | Basic Memory install probe + terminal install (`memory.status`/`install`), its project registry (`memory.projects`/`revealProject`) note I/O (`memory.listNotes`/`readNote`/`saveNote`) and the per-project Pi config (`memory.piConfig`/`savePiConfig`); never downloads, vendors or configures Basic Memory | [memory/SPEC.md](src/memory/SPEC.md) |
 | `projects` | stable known-repo registry: open/recent views + lossless close/reopen (validate, dedupe, slug) | [projects/SPEC.md](src/projects/SPEC.md) |
 | `workspaces` | workspaces = `git worktree`s on their own branch | [workspaces/SPEC.md](src/workspaces/SPEC.md) |
 | `git` | the `git(cwd, args)` runner + worktree status/diff vs base + branch list | [git/SPEC.md](src/git/SPEC.md) |

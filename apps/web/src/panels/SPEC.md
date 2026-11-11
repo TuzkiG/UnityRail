@@ -1297,6 +1297,11 @@ a project picker, the prompt hero, and the reused
     (`memory-note-dialog`) with **Preview** (the shared `chat/Markdown` renderer) and **Edit** (a
     plain textarea) modes, saving through `memory.saveNote` — the Markdown file is Basic Memory's
     source of truth, so the agent sees the change immediately.
+  **`MemoryContinuityCard`** (only at `protocolVersion >= MEMORY_PI_CONFIG_PROTOCOL_VERSION`) lives in
+  `ProjectSettingsDialog` and edits the file the Pi package itself reads: the Basic Memory project it
+  targets (or the package default) plus the two automatic toggles, written one change at a time
+  through `memory.savePiConfig` (a merge that keeps the package's other keys), with the file path
+  shown underneath; `useMemoryPiConfig` owns the read/write state.
   The project menu's **Brain Project memory** opens **`MemoryPane`**, the same manager as a
   center-tab document (`documentKind: "memory"`): a project list, the selected project's notes and an
   in-place editor that saves through the same pair; it starts on the Basic Memory project whose name

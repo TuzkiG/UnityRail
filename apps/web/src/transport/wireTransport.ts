@@ -30,6 +30,7 @@ import {
 	FONTS_PROTOCOL_VERSION,
 	HOST_UPDATE_RUN_PROTOCOL_VERSION,
 	LOCALES_PROTOCOL_VERSION,
+	MEMORY_PI_CONFIG_PROTOCOL_VERSION,
 	MEMORY_PROJECTS_PROTOCOL_VERSION,
 	PI_PACKAGES_PROTOCOL_VERSION,
 	PLAN_REVIEW_SUBAGENT_PROTOCOL_VERSION,
@@ -82,6 +83,10 @@ export function supportsSpeech(protocolVersion: number | null): boolean {
 /** The Basic Memory project registry and its project-scoped notes. */
 export function supportsMemoryProjects(protocolVersion: number | null): boolean {
 	return protocolVersion !== null && protocolVersion >= MEMORY_PROJECTS_PROTOCOL_VERSION;
+}
+
+export function supportsMemoryPiConfig(protocolVersion: number | null): boolean {
+	return protocolVersion !== null && protocolVersion >= MEMORY_PI_CONFIG_PROTOCOL_VERSION;
 }
 
 export function supportsToolResponses(protocolVersion: number | null): boolean {

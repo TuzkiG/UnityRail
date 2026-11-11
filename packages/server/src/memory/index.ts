@@ -13,5 +13,10 @@ export {
 	requireMemoryProject,
 	saveMemoryNote,
 } from "./notes";
+export {
+	memoryPiConfigPath,
+	readMemoryPiConfig,
+	saveMemoryPiConfig,
+} from "./piConfig";
 export type { MemoryProbeOptions } from "./status";
 export { MEMORY_MIN_CLI_MINOR, memoryCliSupported, probeMemoryEngine } from "./status";

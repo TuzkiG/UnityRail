@@ -27,6 +27,7 @@ export {
 	supportsExtensionStringSettings,
 	supportsFonts,
 	supportsHostUpdateRun,
+	supportsMemoryPiConfig,
 	supportsMemoryProjects,
 	supportsPiPackages,
 	supportsPlanReview,

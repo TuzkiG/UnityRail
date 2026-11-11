@@ -42,13 +42,15 @@ writes Basic Memory's own config.
   500 notes per listing, hidden entries skipped and newest first. Writes only overwrite existing
   notes — the agent and the CLI create them. Unknown project names throw
   `MEMORY_PROJECT_NOT_FOUND`.
+- **Pi config** (`readMemoryPiConfig` / `saveMemoryPiConfig`, `<project>/.pi/basic-memory.json`): the file the Basic Memory Pi package itself reads. Reads default to what the package uses (`transport: cli`, `captureFolder: pi/sessions`, `autoRecall`/`autoCapture` on); writes are a **merge** that keeps every key this module does not own (`useHookFlow`, `captureMinChars`, …), validates `transport`/`captureFolder`/booleans with `MEMORY_PI_CONFIG_INVALID`, and normalizes the capture folder to a relative POSIX path. Unknown project ids throw `PROJECT_NOT_FOUND`. The host never creates the `.pi` folder elsewhere and never touches the global Basic Memory config.
 - **Public surface (barrel):** `probeMemoryEngine`, `memoryCliSupported`, `MEMORY_MIN_CLI_MINOR`,
   `openMemoryInstallTerminal`, `memoryInstallCommand`, the two install-command constants,
   `readMemoryProjects`, `requireMemoryProject`, `listMemoryNotes`, `readMemoryNote`,
-  `saveMemoryNote`, `memoryNoteDir`, `memoryConfigDir`, `memoryConfigPath`; wire methods
+  `saveMemoryNote`, `memoryNoteDir`, `memoryConfigDir`, `memoryConfigPath`, `memoryPiConfigPath`,
+  `readMemoryPiConfig`, `saveMemoryPiConfig`; wire methods
   `memory.status` / `memory.install` / `memory.projects` / `memory.revealProject` /
-  `memory.listNotes` / `memory.readNote` / `memory.saveNote` live in [[submodule-server-host]] like
-  every other request.
+  `memory.piConfig` / `memory.savePiConfig` / `memory.listNotes` / `memory.readNote` /
+  `memory.saveNote` live in [[submodule-server-host]] like every other request.
 - Forbidden: fetching, vendoring or executing Basic Memory code; importing the extension packages;
   writing `config.json`, registering projects or creating notes (the CLI, `bm project add`, and the
   agent own that); touching the settings store.

@@ -103,6 +103,8 @@ export type {
 	MemoryEngineStatus,
 	MemoryNoteSummary,
 	MemoryNotesSnapshot,
+	MemoryPiConfig,
+	MemoryPiConfigPatch,
 	MemoryProject,
 	MemoryProjectsSnapshot,
 } from "./memory";

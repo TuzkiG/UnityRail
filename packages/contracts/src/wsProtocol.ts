@@ -89,7 +89,13 @@ import type {
 	Workspace,
 } from "./domain";
 import { isDelegationRunDetails } from "./domain";
-import type { MemoryEngineStatus, MemoryNotesSnapshot, MemoryProjectsSnapshot } from "./memory";
+import type {
+	MemoryEngineStatus,
+	MemoryNotesSnapshot,
+	MemoryPiConfig,
+	MemoryPiConfigPatch,
+	MemoryProjectsSnapshot,
+} from "./memory";
 import type {
 	ExtUiResponse,
 	ImageContent,
@@ -178,7 +184,7 @@ export type TemplateReadLocation =
 	| { projectId: string; workspaceId?: never }
 	| { workspaceId?: never; projectId?: never };
 
-export const PROTOCOL_VERSION = 115;
+export const PROTOCOL_VERSION = 116;
 export const PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION = 110;
 export const EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION = 111;
 export const AUTO_MODEL_SETTING_PROTOCOL_VERSION = 107;
@@ -191,6 +197,8 @@ export const MEMORY_ENGINE_PROTOCOL_VERSION = 112;
 export const MEMORY_NOTES_PROTOCOL_VERSION = 113;
 /** The Basic Memory project registry (its `config.json`) and project-scoped notes. */
 export const MEMORY_PROJECTS_PROTOCOL_VERSION = 115;
+/** The per-project `.pi/basic-memory.json` the Basic Memory Pi package reads. */
+export const MEMORY_PI_CONFIG_PROTOCOL_VERSION = 116;
 export const WORKSPACE_CREATION_PROTOCOL_VERSION = 104;
 export const EXTENSION_SETTINGS_PROTOCOL_VERSION = 105;
 export const ASK_DISCUSS_PROTOCOL_VERSION = 105;
@@ -420,6 +428,8 @@ export const WS_METHODS = {
 	memoryInstall: "memory.install",
 	memoryProjects: "memory.projects",
 	memoryRevealProject: "memory.revealProject",
+	memoryPiConfig: "memory.piConfig",
+	memorySavePiConfig: "memory.savePiConfig",
 	memoryListNotes: "memory.listNotes",
 	memoryReadNote: "memory.readNote",
 	memorySaveNote: "memory.saveNote",
@@ -1144,6 +1154,11 @@ export interface WsMethodMap {
 	"memory.install": { params: Record<string, never>; result: Ack };
 	"memory.projects": { params: Record<string, never>; result: MemoryProjectsSnapshot };
 	"memory.revealProject": { params: { project: string }; result: Ack };
+	"memory.piConfig": { params: { projectId: string }; result: MemoryPiConfig };
+	"memory.savePiConfig": {
+		params: { projectId: string; config: MemoryPiConfigPatch };
+		result: MemoryPiConfig;
+	};
 	"memory.listNotes": { params: { project: string }; result: MemoryNotesSnapshot };
 	"memory.readNote": { params: { project: string; path: string }; result: { content: string } };
 	"memory.saveNote": { params: { project: string; path: string; content: string }; result: Ack };
@@ -1657,6 +1672,8 @@ export type WsErrorCode =
 	| "WORKTREE_CHECKOUT_STALLED"
 	| "WORKSPACE_PATH_TAKEN"
 	| "FILE_TOO_LARGE"
+	| "PROJECT_NOT_FOUND"
+	| "MEMORY_PI_CONFIG_INVALID"
 	| "MEMORY_PROJECT_NOT_FOUND"
 	| "MEMORY_NOTE_NOT_FOUND"
 	| "MEMORY_NOTE_OUTSIDE_ROOT"

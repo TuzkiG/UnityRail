@@ -1279,7 +1279,7 @@ a project picker, the prompt hero, and the reused
   `settings.update { extensionSettings: { "oh-my-pi": { key } } }` and converge on the broadcast. Against an
   older host the page renders only its description and disabled controls. The six capabilities behind the
   switches are the extension's business, not the panel's. **`MemorySettings`** (the **Memory**
-  section, nav `settings-nav-memory`, listed only at `protocolVersion >= MEMORY_ENGINE_PROTOCOL_VERSION`)
+  section, nav `settings-nav-memory`, listed only at `protocolVersion >= MEMORY_PROJECTS_PROTOCOL_VERSION`)
   is the Basic Memory surface, following the official Pi integration
   ([[submodule-server-memory]]):
   - **Engine group** (`memory-engine`): `useMemoryEngine` probes `memory.status` on mount and after

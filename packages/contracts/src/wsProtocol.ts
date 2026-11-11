@@ -193,8 +193,6 @@ export const UNITY_PROTOCOL_VERSION = 105;
 export const OTHER_AGENT_SKILLS_PROTOCOL_VERSION = 108;
 export const SPEECH_PROTOCOL_VERSION = 107;
 export const SEARCH_PROTOCOL_VERSION = 106;
-export const MEMORY_ENGINE_PROTOCOL_VERSION = 112;
-export const MEMORY_NOTES_PROTOCOL_VERSION = 113;
 /** The Basic Memory project registry (its `config.json`) and project-scoped notes. */
 export const MEMORY_PROJECTS_PROTOCOL_VERSION = 115;
 /** The per-project `.pi/basic-memory.json` the Basic Memory Pi package reads. */

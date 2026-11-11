@@ -1302,12 +1302,7 @@ const handlers: WsHandlers = {
 			admissionContextFor(project, ws.skillOverrides ?? {}, getConfig().otherAgentSkills),
 		);
 	},
-	"extension.list": () =>
-		listExtensionCatalog(
-			new Set(getConfig().disabledExtensions),
-			undefined,
-			(extension, key) => getConfig().extensionSettings?.[extension]?.[key],
-		),
+	"extension.list": () => listExtensionCatalog(new Set(getConfig().disabledExtensions)),
 	"packages.list": (p) => packagesList(p),
 	"packages.install": (p) => packagesInstall(p),
 	"packages.remove": (p) => packagesRemove(p),

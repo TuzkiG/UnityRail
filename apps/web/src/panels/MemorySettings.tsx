@@ -1,81 +1,16 @@
-import type { ExtensionSettingValue } from "@thinkrail/contracts";
-import {
-	MEMORY_EXTENSION,
-	MEMORY_FIELD_COPY,
-	MEMORY_FIELDS,
-	MEMORY_TOGGLE_COPY,
-	MEMORY_TOGGLES,
-	type MemoryString,
-	type MemoryToggle,
-} from "@thinkrail/ext-memory/web";
 import { useT } from "@thinkrail/locales/react";
 import { Button } from "@thinkrail/ui/button";
 import { cn } from "@thinkrail/ui/utils";
 import { toast, useAppStore } from "../store";
-import { supportsExtensionStringSettings } from "../transport";
+import { supportsMemoryEngine } from "../transport";
 import { SettingsGroup, SettingsPageContainer } from "./SettingsGroup";
 import { SettingsRow } from "./SettingsRow";
-import { SettingsSwitch } from "./SettingsSwitch";
-import { saveSettings } from "./saveSettings";
-import { SETTINGS_INPUT, useSettingsDraft } from "./settingsDraft";
 import { useMemoryEngine } from "./useMemoryEngine";
-
-const NO_SETTINGS: Readonly<Record<string, ExtensionSettingValue>> = {};
-const TOGGLES = Object.keys(MEMORY_TOGGLES) as MemoryToggle[];
-
-function stringValue(value: ExtensionSettingValue | undefined): string {
-	return typeof value === "string" ? value : "";
-}
-
-function extensionUpdate(key: string, value: ExtensionSettingValue) {
-	return { extensionSettings: { [MEMORY_EXTENSION]: { [key]: value } } };
-}
-
-function TextSetting({
-	field,
-	value,
-	disabled,
-}: {
-	field: MemoryString;
-	value: string;
-	disabled: boolean;
-}) {
-	const t = useT();
-	const { inputProps } = useSettingsDraft({
-		saved: value,
-		isValid: () => true,
-		commit: (draft) => {
-			const next = draft.trim();
-			if (next === value) return undefined;
-			return saveSettings(extensionUpdate(field, next), t("settings.memory.saveFailed"));
-		},
-	});
-
-	return (
-		<SettingsRow
-			testId={`memory-field-${field}`}
-			label={t(MEMORY_FIELD_COPY[field].title)}
-			description={t(MEMORY_FIELD_COPY[field].description)}
-			control={
-				<input
-					type="text"
-					{...inputProps}
-					placeholder={t(MEMORY_FIELD_COPY[field].placeholder)}
-					aria-label={t(MEMORY_FIELD_COPY[field].title)}
-					disabled={disabled}
-					data-testid={`memory-input-${field}`}
-					className={cn(SETTINGS_INPUT, "w-240")}
-				/>
-			}
-		/>
-	);
-}
 
 export function MemorySettings() {
 	const t = useT();
 	const protocolVersion = useAppStore((state) => state.protocolVersion);
-	const supported = supportsExtensionStringSettings(protocolVersion);
-	const values = useAppStore((state) => state.extensionSettings[MEMORY_EXTENSION]) ?? NO_SETTINGS;
+	const supported = supportsMemoryEngine(protocolVersion);
 	const engine = useMemoryEngine();
 
 	const installInTerminal = async () => {
@@ -91,20 +26,20 @@ export function MemorySettings() {
 					{t(supported ? "settings.memory.description" : "settings.memory.unavailable")}
 				</p>
 			</section>
-			{engine.supported && (
+			{supported && (
 				<SettingsGroup
 					testId="memory-engine"
 					title={t("settings.memory.engine.title")}
 					description={t("settings.memory.engine.description")}
 				>
 					<SettingsRow
-						label={t("settings.memory.engine.binary")}
+						label={t("settings.memory.engine.command")}
 						control={
 							engine.status === null ? (
 								<span className="text-text-muted">{t("settings.memory.engine.checking")}</span>
 							) : (
 								<span
-									data-testid="memory-engine-binary"
+									data-testid="memory-engine-command"
 									className={cn(
 										"tr-text-metadata",
 										engine.status.engine === "missing"
@@ -114,36 +49,30 @@ export function MemorySettings() {
 								>
 									{t(
 										engine.status.engine === "installed"
-											? "settings.memory.engine.binaryInstalled"
-											: "settings.memory.engine.binaryMissing",
-										{ path: engine.status.binary },
+											? "settings.memory.engine.commandInstalled"
+											: "settings.memory.engine.commandMissing",
 									)}
 								</span>
 							)
 						}
 					/>
 					<SettingsRow
-						label={t("settings.memory.engine.server")}
+						label={t("settings.memory.engine.uvx")}
 						control={
 							engine.status === null ? (
 								<span className="text-text-muted">{t("settings.memory.engine.checking")}</span>
 							) : (
 								<span
-									data-testid="memory-engine-server"
+									data-testid="memory-engine-uvx"
 									className={cn(
 										"tr-text-metadata",
-										engine.status.server === "running"
-											? "text-text-default"
-											: "text-feedback-error",
+										engine.status.uvx === "missing" ? "text-feedback-error" : "text-text-default",
 									)}
 								>
 									{t(
-										engine.status.server === "running"
-											? "settings.memory.engine.serverRunning"
-											: engine.status.server === "foreign"
-												? "settings.memory.engine.serverForeign"
-												: "settings.memory.engine.serverAbsent",
-										{ url: engine.status.url },
+										engine.status.uvx === "installed"
+											? "settings.memory.engine.uvxInstalled"
+											: "settings.memory.engine.uvxMissing",
 									)}
 								</span>
 							)
@@ -165,37 +94,6 @@ export function MemorySettings() {
 					</div>
 				</SettingsGroup>
 			)}
-			{TOGGLES.map((toggle) => (
-				<SettingsGroup
-					key={toggle}
-					testId={`memory-group-${toggle}`}
-					title={t(MEMORY_TOGGLE_COPY[toggle].title)}
-					description={t(MEMORY_TOGGLE_COPY[toggle].description)}
-				>
-					<SettingsRow
-						label={t("settings.memory.enable")}
-						control={
-							<SettingsSwitch
-								checked={values[toggle] === true}
-								disabled={!supported}
-								label={t(MEMORY_TOGGLE_COPY[toggle].title)}
-								testId={`memory-toggle-${toggle}`}
-								onChange={(next) => {
-									void saveSettings(extensionUpdate(toggle, next), t("settings.memory.saveFailed"));
-								}}
-							/>
-						}
-					/>
-					{MEMORY_FIELDS[toggle].map((field) => (
-						<TextSetting
-							key={field}
-							field={field}
-							value={stringValue(values[field])}
-							disabled={!supported}
-						/>
-					))}
-				</SettingsGroup>
-			))}
 		</SettingsPageContainer>
 	);
 }

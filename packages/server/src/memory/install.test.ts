@@ -14,7 +14,7 @@ describe("openMemoryInstallTerminal", () => {
 			argv: readonly string[];
 			options: { windowsHide: boolean; detached: boolean };
 		};
-		expect(argv.at(-1)).toBe("pi install npm:@cloudfrog/memory");
+		expect(argv.at(-1)).toBe("uv tool install basic-memory --prerelease=allow");
 		expect(options.windowsHide).toBe(false);
 		expect(options.detached).toBe(true);
 	});

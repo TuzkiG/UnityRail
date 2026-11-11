@@ -16,10 +16,7 @@ third-party pi package — with its UnityRail-specific halves: what the host bun
 the web client presents the capability's tools. The host composes extensions from **one registry file per
 side**. A user sees the server registry in Settings → Extensions and can switch each extension off (a
 host-level setting keyed on the descriptor `name`; the extension declares nothing for it); how a user would
-install or discover a new extension is deliberately not designed. A bundled extension may wrap a
-**third-party pi package** instead of a [[module-pi-extensions]] one: memory
-([[module-ext-memory]]) pins `@cloudfrog/memory` exactly and contributes settings only — the
-upstream adapter's tools render through the default tool card.
+install or discover a new extension is deliberately not designed.
 
 The first extension (`visualize`, [[module-ext-visualize]]) ships both halves; the host composes them from
 the two registry files below ([[submodule-server-extensions]], [[submodule-web-extensions]]). **Per-extension

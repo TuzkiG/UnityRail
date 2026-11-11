@@ -1,4 +1,4 @@
-export const MEMORY_INSTALL_COMMAND = "pi install npm:@cloudfrog/memory";
+export const MEMORY_INSTALL_COMMAND = "uv tool install basic-memory --prerelease=allow";
 
 export interface MemoryTerminalOptions {
 	/** Test seam: the terminal spawn; defaults to Bun.spawn. */

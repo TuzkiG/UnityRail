@@ -36,20 +36,11 @@ const inertSession: HostSessionServices = {
 
 type ExtensionDescription = Omit<ExtensionCatalogEntry, "enabled">;
 
-type ExtensionSettingValue = (extension: string, key: string) => boolean | string | undefined;
-
-const noValues: ExtensionSettingValue = () => undefined;
-
-async function describeEntry(
-	entry: ServerExtensionEntry,
-	settingValue: ExtensionSettingValue,
-): Promise<ExtensionDescription> {
+async function describeEntry(entry: ServerExtensionEntry): Promise<ExtensionDescription> {
 	const { extension } = entry;
 	const factories = [
 		...extension.extensions,
-		...(extension.sessionExtensions?.(
-			extensionSessionServices(extension, inertSession, settingValue),
-		) ?? []),
+		...(extension.sessionExtensions?.(extensionSessionServices(extension, inertSession)) ?? []),
 	];
 	const tools = (await Promise.all(factories.map(recordToolNames))).flat();
 	const settings = Object.entries(extension.settings ?? {}).map(([key, setting]) => ({
@@ -72,11 +63,10 @@ const described = new WeakMap<readonly ServerExtensionEntry[], Promise<Extension
 export async function listExtensionCatalog(
 	disabled: ReadonlySet<string>,
 	entries: readonly ServerExtensionEntry[] = serverExtensions,
-	settingValue: ExtensionSettingValue = noValues,
 ): Promise<ExtensionCatalogEntry[]> {
 	let descriptions = described.get(entries);
 	if (!descriptions) {
-		descriptions = Promise.all(entries.map((entry) => describeEntry(entry, settingValue)));
+		descriptions = Promise.all(entries.map(describeEntry));
 		described.set(entries, descriptions);
 	}
 	return (await descriptions).map((description) => ({

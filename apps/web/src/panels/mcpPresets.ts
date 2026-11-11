@@ -56,6 +56,16 @@ export const MCP_PRESETS: readonly McpPreset[] = [
 		modifiesData: "mcp.preset.playwright.modifiesData",
 		optInPerProject: true,
 	},
+	{
+		id: "basic-memory",
+		name: "basic-memory",
+		title: "mcp.preset.basicMemory.title",
+		description: "mcp.preset.basicMemory.description",
+		entry: { command: "uvx", args: ["--prerelease=allow", "basic-memory", "mcp"], enabled: false },
+		scope: "user",
+		modifiesData: "mcp.preset.basicMemory.modifiesData",
+		optInPerProject: true,
+	},
 ];
 
 export const GITHUB_MCP_RECIPE_JSON = JSON.stringify(

@@ -1271,18 +1271,17 @@ a project picker, the prompt hero, and the reused
   `saveSettings`, so a rejected write reverts); both write
   `settings.update { extensionSettings: { "oh-my-pi": { key } } }` and converge on the broadcast. Against an
   older host the page renders only its description and disabled controls. The six capabilities behind the
-  switches are the extension's business, not the panel's. **`MemorySettings`** (the **Memory** section, nav
-  `settings-nav-memory`, listed only at
-  `protocolVersion >= EXTENSION_STRING_SETTINGS_PROTOCOL_VERSION`) is the same shape for
-  `@thinkrail/ext-memory` (`MEMORY_TOGGLES`, `MEMORY_FIELDS`): one switch (`memory-toggle-enabled`) plus
-  the adapter's three strings (`memory-input-memoryUrl` / `-memoryPort` / `-memoryBin`), written through
-  `settings.update { extensionSettings: { memory: { key } } }`; the copy maps live in the extension's
-  `./web` half. Only `enabled` applies live — the strings bind when the adapter first loads (see
-  [[module-ext-memory]]). The page also owns the **engine group** (`memory-engine`, only at
-  `protocolVersion >= MEMORY_ENGINE_PROTOCOL_VERSION`): `useMemoryEngine` probes `memory.status` on
-  mount and after an install, renders the binary/server findings (`memory-engine-binary`,
-  `memory-engine-server`), runs `memory.install` — the host opens a visible OS terminal with the
-  official install command — and re-polls for a minute so the result lands without a manual refresh. **Skills** (only at
+  `settings.update { extensionSettings: { "oh-my-pi": { key } } }` and converge on the broadcast. Against an
+  older host the page renders only its description and disabled controls. The six capabilities behind the
+  switches are the extension's business, not the panel's. **`MemorySettings`** (the **Memory** section,
+  nav `settings-nav-memory`, listed only at `protocolVersion >= MEMORY_ENGINE_PROTOCOL_VERSION`) owns
+  the Basic Memory engine group (`memory-engine`): `useMemoryEngine` probes `memory.status` on mount
+  and after an install, renders the `basic-memory` command and `uvx` findings
+  (`memory-engine-command`, `memory-engine-uvx`), runs `memory.install` — the host opens a visible OS
+  terminal with `uv tool install basic-memory --prerelease=allow` — and re-polls for a minute. The MCP
+  server itself is added from the MCP servers page's **Basic Memory preset** (`uvx
+  --prerelease=allow basic-memory mcp`, opt-in per project); the panel manages the engine, never the
+  server. **Skills** (only at
   `protocolVersion >= OTHER_AGENT_SKILLS_PROTOCOL_VERSION`) is one switch, `other-agent-skills-toggle`, over
   `store.otherAgentSkills`, writing `settings.update { otherAgentSkills }`; per-project choices made in the
   Skills dialog still win over it. **Installed** and **pi built-in**

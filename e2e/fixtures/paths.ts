@@ -58,6 +58,9 @@ export const E2E_SPEECH_PORT = PORT_BASE + 6;
 
 export const E2E_DATA_DIR = join(E2E_DATA_ROOT, `thinkrail-e2e-${E2E_STATE_KEY}`);
 
+/** The Basic Memory config dir the host reads in this run (hermetic, never the user's real one). */
+export const E2E_BASIC_MEMORY_DIR = join(E2E_DATA_DIR, "basic-memory");
+
 export const E2E_HOME_DIR = join(E2E_DATA_DIR, "home");
 
 export const E2E_FAKE_BIN_DIR = join(E2E_DATA_DIR, ".bun", "bin");

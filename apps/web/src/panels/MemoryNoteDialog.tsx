@@ -60,8 +60,12 @@ export function MemoryNoteDialog({
 					onSelect={setMode}
 					testId="memory-note-mode"
 					options={[
-						{ id: "preview", label: t("settings.memory.note.preview") },
-						{ id: "edit", label: t("settings.memory.note.edit") },
+						{
+							id: "preview",
+							label: t("settings.memory.note.preview"),
+							testId: "memory-note-mode-preview",
+						},
+						{ id: "edit", label: t("settings.memory.note.edit"), testId: "memory-note-mode-edit" },
 					]}
 				/>
 				{mode === "preview" ? (

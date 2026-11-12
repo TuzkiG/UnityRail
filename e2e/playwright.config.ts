@@ -11,6 +11,7 @@ import {
 } from "./fixtures/centralAgent";
 import { hermeticE2ePath, hermeticE2eShell, resolveBunExecutable } from "./fixtures/executables";
 import {
+	E2E_BASIC_MEMORY_DIR,
 	E2E_CENTRAL_BAD_EXTENSION_SOURCE,
 	E2E_CENTRAL_EXTENSION_SOURCE,
 	E2E_CENTRAL_LOG,
@@ -86,6 +87,7 @@ export default defineConfig({
 			THINKRAIL_PORT: String(PORT),
 			THINKRAIL_STATIC_DIR: staticDir,
 			THINKRAIL_DATA_DIR: E2E_DATA_DIR,
+			BASIC_MEMORY_CONFIG_DIR: E2E_BASIC_MEMORY_DIR,
 			DISPLAY: "",
 			WAYLAND_DISPLAY: "",
 			// Stub the host's native directory picker so "Open project" is drivable headlessly. It names a

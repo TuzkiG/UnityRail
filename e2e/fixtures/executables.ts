@@ -1,4 +1,5 @@
 import { chmodSync, existsSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LOGIN_ENV_MARKER } from "@thinkrail/shared/shellEnv";
@@ -7,13 +8,22 @@ const POSIX_SYSTEM_DIRS = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"];
 
 export function resolveBunExecutable(env: NodeJS.ProcessEnv = process.env): string {
 	const name = process.platform === "win32" ? "bun.exe" : "bun";
-	const executable = (env.PATH ?? "")
-		.split(delimiter)
-		.filter(Boolean)
-		.map((directory) => join(directory, name))
-		.find(existsSync);
-	if (!executable) throw new Error("bun executable not found for the e2e host");
-	return executable;
+	const directories = (env.PATH ?? "").split(delimiter).filter(Boolean);
+	const direct = directories.map((directory) => join(directory, name)).find(existsSync);
+	if (direct) return direct;
+	// An npm-installed Bun puts only a `bun.cmd`/`bun.ps1` shim on PATH; the real binary sits in
+	// that prefix's own `node_modules/bun/bin`. A bun-managed install keeps it under BUN_INSTALL.
+	const candidates = [
+		...directories.map((directory) => join(directory, "node_modules", "bun", "bin", name)),
+		env.BUN_INSTALL ? join(env.BUN_INSTALL, "bin", name) : "",
+		join(homedir(), ".bun", "bin", name),
+		process.execPath,
+	].filter(Boolean);
+	const candidate = candidates.find(
+		(candidate) => existsSync(candidate) && /(?:^|[\\/])bun(?:\.exe)?$/i.test(candidate),
+	);
+	if (!candidate) throw new Error("bun executable not found for the e2e host");
+	return candidate;
 }
 
 /**

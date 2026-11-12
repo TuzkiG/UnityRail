@@ -2279,7 +2279,7 @@ const diskOpens = new Map<string, Promise<OpenedDiskSession>>();
 /** One open+repair per session while a disk read and an attach race. Repair appends entries, so two
  * independent managers repairing the same dangling call would leave duplicate acks. */
 function openDiskManager(sessionId: string, cwd: string): Promise<OpenedDiskSession> {
-	const key = `${sessionId} ${resolve(cwd)}`;
+	const key = `${sessionId}\0${resolve(cwd)}`;
 	const existing = diskOpens.get(key);
 	if (existing) return existing;
 	const pending = (async () => {

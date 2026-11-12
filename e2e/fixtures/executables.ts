@@ -89,7 +89,17 @@ export function hermeticE2ePath(fakeBinDir: string, env: NodeJS.ProcessEnv = pro
 	const git = findOnPath("git.exe", env);
 	if (!git) throw new Error("git executable not found for the e2e host");
 	const systemRoot = env.SystemRoot ?? env.SYSTEMROOT ?? "C:\\Windows";
-	const ambient = [dirname(git), join(systemRoot, "System32"), systemRoot].join(delimiter);
+	// Git's own `usr/bin` carries the POSIX userland (`cat`, `printf`, `sh`) the stub CLIs and terminal
+	// specs run under its bash; the PowerShell directory keeps the host's child-process probe working.
+	const ambient = [
+		dirname(git),
+		join(windowsGitRoot(env), "usr", "bin"),
+		join(systemRoot, "System32"),
+		join(systemRoot, "System32", "WindowsPowerShell", "v1.0"),
+		systemRoot,
+	]
+		.map(windowsPath)
+		.join(delimiter);
 	for (const tool of FAKED_TOOLS) {
 		const real = executableOnPath(ambient, tool, env);
 		if (real) throw new Error(`e2e host PATH would expose a real ${tool}: ${real}`);

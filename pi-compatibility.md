@@ -69,10 +69,12 @@ with this evidence:
 **1.5.2 re-check (this merge).** Installed `@earendil-works/pi-coding-agent@1.5.2`: the Anthropic SSE
 patch applies at the same offsets (`agent/anthropicStreamFraming.test.ts` passes, "defects the patch
 fixes" still grouped as expected), `check:seams` keeps its four known opaque occurrences across the same
-eight pi packages, and the host typechecks against the new dist. The bundled catalogue moved to 1,639
-pairs with `claude-opus-5-5` as the default `anthropic` model. **Open:** `check:pi-packages` fails —
-`@thinkrail/pi-ask-user-question` does not load under Node 24 with pi 1.5.2's loader, so the vanilla
-parity gate needs re-checking before release.
+eight pi packages, `check:pi-packages` passes under Node 24 once the parity runner compares package
+paths with posix separators, and the host typechecks against the new dist. The bundled catalogue moved
+to 1,639 pairs with `claude-opus-5-5` as the default `anthropic` model. **Open**: on Windows
+`mcpSessions.test.ts`'s "a failed chat-local disable keeps its intent…" never settles its `/hold` turn
+(the same test fails identically on the pre-merge commit with 1.5.2, so the difference is pi-side or
+platform-side, not this merge), and that file leaves a handle open after its last test.
 
 ## Upgrade contract
 

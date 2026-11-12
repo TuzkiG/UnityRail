@@ -431,8 +431,16 @@ an app release. `validateBuild` fails a build that drops it. Discord clicks emit
 
 `public/favicon.svg` is the IDE-shell landing/blog tab icon: the same monochrome UnityRail symbol the app
 serves — the rail-border cube as stroked paths in `currentColor`, near-black in light browser chrome and
-near-white in dark — with no tile behind it, so a tab shows the outline rather than a filled square. It is
-wired via `<link rel="icon" type="image/svg+xml">` in `index.html`; there is no `.ico` fallback.
+near-white in dark — with no tile behind it, so a tab shows the outline rather than a filled square.
+next to two raster fallbacks for clients that skip SVG icons (Safari 18 and earlier, tools and feed
+readers that only fetch `/favicon.ico`):
+- `favicon.ico` (48/32/16);
+- a 180 px `apple-touch-icon.png` filled with the tile green, because iOS masks its own corners.
+
+`scripts/generate-favicons.ts` (`favicons:generate`) renders both from `favicon.svg`. They are committed
+rather than built, since rasterizer output is not byte-stable across platforms. The RSS channel names
+the touch icon as its `<image>`. The build check fails when either file or the landing/blog links go
+missing.
 
 `public/og.png` is a capture of the site's own hero inside the IDE shell (dark theme, Landing
 selected, terminal install transcript finished, worktree note visible). The transcript in the

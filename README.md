@@ -45,7 +45,8 @@ For latest version, see the [Releases page](https://github.com/JetBrains/thinkra
 - **Isolated workspaces.** Open any git repo as a project and cut workspaces from it as `git worktree`s,
   each with its own branch and working directory. Agents work in parallel without touching your
   checkout; merge the good branch, delete the rest. New worktrees initialize their submodules, and
-  Changes/Review follow edits inside nested repositories at any depth, including a business checkout mounted by a directory link. You can also attach existing worktrees or explicitly
+  Changes/Review follow edits inside nested repositories at any depth, including a business checkout mounted by a directory link. Ask a chat to do something "in a side workspace" and the agent starts that workspace and its chat
+  itself, then checks how its chats and pull requests are doing. You can also attach existing worktrees or explicitly
   work in the project folder itself, and each project can preset which of the two its New-Workspace dialog
   opens in. Finished and dormant workspaces settle onto a per-project shelf on
   their own — when their pull request merges or closes, or after a quiet week — and come back the moment
@@ -172,10 +173,10 @@ Download the `thinkrail-desktop-*` asset for your platform:
 
 - **macOS 14+ (Apple Silicon or Intel)**: open the DMG for your architecture: `thinkrail-desktop-darwin-arm64.dmg` or `thinkrail-desktop-darwin-x64.dmg`.
 - **Windows x64**: extract the complete setup ZIP, then run the executable.
-- **Linux x64 / ARM64**: extract the setup tarball and run `installer`. Desktop builds need glibc 2.38+ with GTK 3, WebKitGTK 4.1, Ayatana AppIndicator 3, librsvg 2, and Ubuntu 24.04 or newer:
+- **Linux x64 / ARM64**: extract the setup tarball and run `installer`. Desktop builds need glibc 2.38+ with GTK 3, WebKitGTK 4.1, Ayatana AppIndicator 3, librsvg 2, and Ubuntu 24.04 or newer, plus `libnotify-bin` for desktop notifications:
 
   ```bash
-  sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0 libayatana-appindicator3-1 librsvg2-2
+  sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0 libayatana-appindicator3-1 librsvg2-2 libnotify-bin
   ```
 
 Packaged stable and nightly desktop builds check for updates in the background and offer them in

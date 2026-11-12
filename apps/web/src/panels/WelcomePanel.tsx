@@ -1,17 +1,26 @@
 import {
 	RiFolderOpenLine as FolderOpen,
 	RiHome2Line as House,
+	RiChat3Line,
 	RiRocketLine as Rocket,
 	RiSparkling2Line as Sparkles,
 } from "@remixicon/react";
 import { useT } from "@thinkrail/locales/react";
 import { useEffect, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { PRODUCT_NAME } from "../constants/branding";
-import { selectOnboardingEligible, selectSupportsOnboarding, toast, useAppStore } from "../store";
+import {
+	selectOnboardingEligible,
+	selectRepoProjects,
+	selectSupportsOnboarding,
+	toast,
+	useAppStore,
+} from "../store";
 import { errorText, getTransport } from "../transport";
 import { AddProjectMenu } from "./AddProjectMenu";
 import { ConnectedLine, type ConnectedSummary } from "./ConnectedLine";
 import { connectedProviderName } from "./ConnectProviderOptions";
+import { canStartProjectlessChat, startProjectlessChat } from "./chatActions";
 import { enterDefaultWorkspace } from "./defaultWorkspace";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
 import { OnboardingWizard } from "./OnboardingWizard";
@@ -29,7 +38,7 @@ import { projectWorkspaceTarget } from "./workspaceTarget";
 
 export function WelcomePanel() {
 	const t = useT();
-	const projects = useAppStore((s) => s.projects);
+	const projects = useAppStore(useShallow(selectRepoProjects));
 	const recentProjects = useAppStore((s) => s.recentProjects);
 	const selectedProjectId = useAppStore((s) => s.selectedProjectId);
 	const protocolVersion = useAppStore((s) => s.protocolVersion);
@@ -87,6 +96,7 @@ export function WelcomePanel() {
 			if (setup) void startProjectSetupChat(opened.id);
 		});
 	const noProjects = project == null;
+	const canStartChat = useAppStore(canStartProjectlessChat);
 	const showWizard = wizard === "shown" && noProjects;
 
 	useEffect(() => {
@@ -155,6 +165,17 @@ export function WelcomePanel() {
 		</AddProjectMenu>
 	);
 
+	const chatCard = () =>
+		canStartChat ? (
+			<Card
+				icon={RiChat3Line}
+				title={t("panels.welcome.chatTitle")}
+				subtitle={t("panels.welcome.chatSubtitle")}
+				onClick={() => void startProjectlessChat()}
+				className="motion-safe:animate-reveal"
+			/>
+		) : null;
+
 	const noProjectCards = () =>
 		supportsOnboarding ? (
 			<>
@@ -167,9 +188,13 @@ export function WelcomePanel() {
 					onClick={startNewProject}
 				/>
 				{openProjectCard(false)}
+				{chatCard()}
 			</>
 		) : (
-			openProjectCard(true)
+			<>
+				{openProjectCard(true)}
+				{chatCard()}
+			</>
 		);
 
 	return (

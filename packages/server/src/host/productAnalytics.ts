@@ -9,6 +9,7 @@ import type {
 import { isJbcentralConnected } from "@thinkrail/contracts";
 import { errorCodeOf } from "@thinkrail/shared/codedError";
 import { settledAvailableModels, usePiRuntime } from "../agent";
+import { isVirtualModel } from "../agent/modelDefaults";
 import {
 	type AdditionalAnalyticsCapture,
 	type AdditionalAnalyticsEvent,
@@ -19,6 +20,7 @@ import {
 	setAdditionalAnalyticsEnabled,
 } from "../analytics";
 import { listProjects } from "../projects";
+import { isChatsContainer } from "../workspaces";
 
 type SetupState = Extract<AdditionalAnalyticsEvent, { name: "setup_state_observed" }>["params"];
 type SetupResult = Extract<AdditionalAnalyticsEvent, { name: "setup_action_finished" }>["params"];
@@ -167,10 +169,15 @@ export class SetupObservation {
 export const setupObservation = new SetupObservation();
 
 async function currentSetupState(): Promise<SetupState> {
-	const project_present = listProjects().length > 0 ? "yes" : "no";
+	const project_present = listProjects().some((project) => !isChatsContainer(project))
+		? "yes"
+		: "no";
 	try {
 		return await usePiRuntime((runtime, generation) => {
-			const modelsAvailable = settledAvailableModels(runtime).length > 0;
+			// The Auto entry is virtual: it exists without any provider, so it never counts as available.
+			const modelsAvailable = settledAvailableModels(runtime).some(
+				(model) => !isVirtualModel(model),
+			);
 			const providerAvailable =
 				modelsAvailable ||
 				[...generation.providerStatusIds].some(

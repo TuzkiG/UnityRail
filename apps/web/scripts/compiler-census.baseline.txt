@@ -16,7 +16,7 @@ src/chat/ChatTranscript.tsx ChatTranscript
 src/chat/ChatTranscript.tsx useVirtualRows
 src/chat/HistoryOverlay.tsx Highlight
 src/chat/resources/ResourcesInspector.tsx ResourcesInspectorImpl
-src/panels/GithubSettings.tsx GithubSettings
+src/panels/NewWorkspaceDialog.tsx NewWorkspaceDialog
 src/panels/ProjectTree.tsx ProjectTree
 src/panels/VerifyPanel.tsx VerifyPanel
 src/panels/branches.ts useBranchList

@@ -15,7 +15,14 @@ import {
 } from "@thinkrail/ui/dropdown-menu";
 import { ToggleSegment } from "@thinkrail/ui/toggle-segment";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { selectActiveFilePath, selectDiffScope, selectFilesTreeView, useAppStore } from "../store";
+import {
+	isChatWorkspace,
+	selectActiveFilePath,
+	selectDiffScope,
+	selectFilesTreeView,
+	selectWorkspaceById,
+	useAppStore,
+} from "../store";
 import { ChangesPanel } from "./ChangesPanel";
 import {
 	buildChangeMarks,
@@ -31,12 +38,16 @@ import { useGitStatus } from "./useGitStatus";
 
 export function FilesPanel({ workspaceId }: { workspaceId: string }) {
 	const t = useT();
-	const mode = useAppStore((s) => s.filesMode);
+	const chat = useAppStore((s) => {
+		const workspace = selectWorkspaceById(s, workspaceId);
+		return workspace !== null && isChatWorkspace(workspace);
+	});
+	const mode = useAppStore((s) => (chat ? "all" : s.filesMode));
 	const setMode = useAppStore((s) => s.setFilesMode);
 	const setFilesRepo = useAppStore((s) => s.setFilesRepo);
 	const setDiffScope = useAppStore((s) => s.setDiffScope);
 	const changesView = useAppStore((s) => s.changesView);
-	const { status, error, reload } = useGitStatus(workspaceId);
+	const { status, error, reload } = useGitStatus(chat ? null : workspaceId);
 	const selectedRepo = useAppStore((s) => selectFilesTreeView(s, workspaceId).repo ?? "");
 	const visibleChanges = useMemo(
 		() => changesForRepo(status?.changes ?? [], selectedRepo),
@@ -83,12 +94,16 @@ export function FilesPanel({ workspaceId }: { workspaceId: string }) {
 					active={mode === "all"}
 					onClick={() => setMode("all")}
 				/>
-				<ToggleSegment
-					testid="files-mode-changed"
-					label={count > 0 ? t("panels.files.changedCount", { count }) : t("panels.files.changed")}
-					active={mode === "changed"}
-					onClick={() => setMode("changed")}
-				/>
+				{chat ? null : (
+					<ToggleSegment
+						testid="files-mode-changed"
+						label={
+							count > 0 ? t("panels.files.changedCount", { count }) : t("panels.files.changed")
+						}
+						active={mode === "changed"}
+						onClick={() => setMode("changed")}
+					/>
+				)}
 				<div className="ml-auto flex min-w-0 shrink-0 items-center gap-4">
 					{repos.length > 0 || selectedRepo ? (
 						<RepoPicker

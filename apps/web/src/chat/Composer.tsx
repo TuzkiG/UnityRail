@@ -55,7 +55,12 @@ import {
 	type ModelSelection,
 } from "./ModelEffortPicker";
 import { isModelCommand, parseModelCommand } from "./nativeCommands";
-import { imagePasteDropHandlers, PromptImageChips, usePromptImages } from "./promptImages";
+import {
+	imagePasteDropHandlers,
+	PromptImageChips,
+	type PromptImagesOwner,
+	usePromptImages,
+} from "./promptImages";
 import type { ChatAttachment } from "./types";
 import { UnitySelectionChip } from "./UnitySelectionChip";
 import type { UnityEditorSelection } from "./unitySelection";
@@ -171,7 +176,9 @@ interface ComposerProps {
 	sessionId: string;
 	workspaceId: string;
 	loadTemplate: (name: string) => Promise<Template>;
+	imageOwner?: PromptImagesOwner;
 	isStreaming: boolean;
+	awaitingResponse: boolean;
 	growthLimit: ComposerGrowthLimit;
 	commands: SlashCommandItem[];
 	mentionCandidates: MentionCandidate[];
@@ -212,7 +219,9 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 		sessionId,
 		workspaceId,
 		loadTemplate,
+		imageOwner,
 		isStreaming,
+		awaitingResponse,
 		growthLimit,
 		commands,
 		mentionCandidates,
@@ -245,7 +254,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 	const ref = useRef<HTMLTextAreaElement>(null);
 	const pickerRef = useRef<ModelEffortPickerHandle>(null);
 	const [caret, setCaret] = useState(0);
-	const attachedImages = usePromptImages();
+	const attachedImages = usePromptImages(imageOwner);
 	const { images } = attachedImages;
 	const [submitError, setSubmitError] = useState<string | null>(null);
 	const pendingImages = attachedImages.pending;
@@ -710,11 +719,13 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 							onDrop={onDrop}
 							rows={1}
 							placeholder={
-								isStreaming
-									? t("chat.composer.placeholderStreaming")
-									: expanded
-										? t("chat.composer.placeholderExpanded")
-										: t("chat.composer.placeholder")
+								awaitingResponse
+									? t("chat.composer.placeholderQuestion")
+									: isStreaming
+										? t("chat.composer.placeholderStreaming")
+										: expanded
+											? t("chat.composer.placeholderExpanded")
+											: t("chat.composer.placeholder")
 							}
 							className={cn(
 								"absolute inset-0 size-full resize-none overflow-x-hidden overflow-y-auto rounded-sm bg-transparent px-12 py-8 tr-text-ui text-text-default outline-none placeholder:text-text-muted",

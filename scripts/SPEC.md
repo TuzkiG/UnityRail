@@ -85,7 +85,8 @@ UI text in four shapes: JSX text; text-bearing JSX attributes (`aria-label`, `ti
 conditionals, `||`/`??`, `+`, and template parts; literal children inside `{…}`; prose in text-named object
 properties (`label`, `title`, `description`, `detail`, `hint`, `message`, `reason`, …); and literal
 `toast.*()` messages or `errorText()` fallbacks. "Text" means a run of two or more letters after trimming
-symbols, so `⌘K`, `·`, and counts pass; the bare brand `UnityRail` is the one allowed word. It is a
+symbols, so `⌘K`, `·`, and counts pass; the bare brand `UnityRail` is the one allowed word. The literal scan also unwraps
+parentheses, type assertions (`as` and `<T>`), `satisfies`, and non-null assertions. It is a
 heuristic floor, not a proof: review still owns strings returned from plain functions. It also checks
 `packages/locales/en.json`: keys sorted, values non-empty, and every key (plural base for `_one`/`_other`)
 referenced as a string literal by some UI, desktop, or locales source, so removed UI leaves no orphaned

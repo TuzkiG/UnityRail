@@ -13,13 +13,17 @@ import { scopeKey } from "./changesModel";
 import { peekGitStatus, readGitStatus } from "./gitStatusCache";
 import { useWorkspaceRead } from "./useWorkspaceRead";
 
-export function useGitStatus(workspaceId: string) {
+/** `null` reads nothing: a chat without a project has no git status to ask for. */
+export function useGitStatus(workspaceId: string | null) {
 	const setDiffScope = useAppStore((s) => s.setDiffScope);
-	const scope = useAppStore((s) => selectDiffScope(s, workspaceId));
-	const baseRef = useAppStore((s) => selectDiffBaseRef(s, workspaceId));
-	const targetRef = useAppStore((s) => selectDiffTabTargetRef(s, { workspaceId, scope }));
+	const effectiveWorkspaceId = workspaceId ?? "";
+	const scope = useAppStore((s) => selectDiffScope(s, effectiveWorkspaceId));
+	const baseRef = useAppStore((s) => selectDiffBaseRef(s, effectiveWorkspaceId));
+	const targetRef = useAppStore((s) =>
+		selectDiffTabTargetRef(s, { workspaceId: effectiveWorkspaceId, scope }),
+	);
 	const [status, setStatus] = useState<GitStatus | null>(() =>
-		peekGitStatus(workspaceId, scope, targetRef),
+		workspaceId ? peekGitStatus(workspaceId, scope, targetRef) : null,
 	);
 	const [error, setError] = useState<string | null>(null);
 	const warnedRef = useRef(false);
@@ -34,7 +38,7 @@ export function useGitStatus(workspaceId: string) {
 				warnedRef.current = false;
 			},
 			onFailure: (_id, failure) => {
-				if (wsErrorCode(failure) === "UNKNOWN_COMMIT") {
+				if (wsErrorCode(failure) === "UNKNOWN_COMMIT" && workspaceId) {
 					setDiffScope(workspaceId, { kind: "branch" });
 					toast.info(
 						scope.kind === "turn" ? t("changes.panel.turnGone") : t("changes.panel.commitGone"),
@@ -48,7 +52,7 @@ export function useGitStatus(workspaceId: string) {
 				setError(errorText(failure));
 			},
 			onSwitch: () => {
-				setStatus(peekGitStatus(workspaceId, scope, targetRef));
+				setStatus(workspaceId ? peekGitStatus(workspaceId, scope, targetRef) : null);
 				setError(null);
 				warnedRef.current = false;
 			},

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { expect, type Locator, type Page } from "@playwright/test";
 import { JBCENTRAL_STATUS_TTL_MS } from "@thinkrail/shared/jbcentral";
@@ -79,11 +79,12 @@ export function setCentralInstalled(installed: boolean): void {
  * `central` and reports a probe failure instead of "absent".
  */
 export function renameCentralStub(from: string, to: string): void {
-	execFileSync("mv", [from, to]);
+	// renameSync, not `mv`: the runner's PATH need not carry a POSIX userland on Windows.
+	renameSync(from, to);
 	if (process.platform === "win32") {
 		const fromShim = `${from}.cmd`;
 		const toShim = `${to}.cmd`;
-		if (existsSync(fromShim)) execFileSync("mv", [fromShim, toShim]);
+		if (existsSync(fromShim)) renameSync(fromShim, toShim);
 	}
 }
 

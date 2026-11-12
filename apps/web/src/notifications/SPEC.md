@@ -63,7 +63,15 @@ channel-agnostic above it:
 - **Desktop** (`desktopNotifications`): the native OS channel via the frozen
   `__THINKRAIL_NATIVE_NOTIFICATIONS__` bridge ([[module-desktop]]), using `subtitle` as a distinct field.
   The OS owns permission, so `permission()` is always `granted` and the in-app preface never shows.
-  Electrobun click callbacks are not landed yet, so a native notification carries no click action.
+  Electrobun 2.0.5 exposes no notification-click callback, so the channel cannot run the `onClick`
+  it is given. The **return proxy** (`notificationReturn`) stands in for it: when an OS notification is
+  emitted while unfocused, its target is remembered, and the next window focus inside
+  `NOTIFICATION_RETURN_GRACE_MS` (2 min) opens that chat through the same `activateWorkspaceFromRoute`
+  a click would use — only while the session is still lit and never for an aggregate (`search`) target.
+  Clicking the Windows tray balloon or the macOS banner activates the window, so the visible result is
+  the requested "click the notification, land on the finished chat"; an ordinary return inside the grace
+  window lands there too, which is the accepted approximation until a real click event exists
+  ([[electrobun-compatibility]]).
 
 Selection is capability-detection only (the bridge's presence), never a `desktop` branch. No Service
 Worker on either channel: a fully-closed app has no live client and raises nothing by design.
@@ -79,7 +87,7 @@ application icon. It carries no App User Model ID of its own, so the sender Wind
 process's ID ([[module-desktop]]); that attribution is unverified. **Limitation:** the bridge exposes no
 way to read the OS permission state, so the desktop channel reports `granted` unconditionally; if the user
 has denied notifications at the OS level the call is accepted and silently not shown. Querying/handling OS
-permission (and click callbacks) is deferred.
+permission is deferred; click callbacks are approximated by the return proxy above.
 
 ## Suppression
 

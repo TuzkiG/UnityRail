@@ -70,6 +70,18 @@ product contract (it then guards upstream's behavior instead).
   ([electrobun#514](https://github.com/blackboardsh/electrobun/issues/514)). Verify
   `windowsTaskbarIdentity.test.ts` and the Windows real-shortcut test.
 
+## Notifications
+
+- **Notification-click return proxy.** Owner [[submodule-web-notifications]],
+  `notifications/notificationReturn.ts` plus `useAttentionNotifications`. Electrobun 2.0.5's
+  `Utils.showNotification` takes title/body/subtitle/silent only — no click callback (its Windows path is a
+  `Shell_NotifyIconW` tray balloon) — so a returning window inside the grace window opens the newest
+  notified chat instead. **Removal gate:** the SDK delivers a notification activation (or the balloon's
+  `NIN_BALLOONUSERCLICK`) to the main process; then pass the real click through
+  `NativeNotificationBridge`, delete the proxy and its tests, and keep a test asserting the bridge's
+  `onClick` reaches `activateWorkspaceFromRoute`. Verify `notificationReturn.test.ts` and the
+  notification smoke.
+
 ## Lifecycle and updates
 
 - **Async shutdown behind the synchronous `before-quit`.** Owner [[module-desktop]],

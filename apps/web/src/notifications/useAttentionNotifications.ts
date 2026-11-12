@@ -1,5 +1,6 @@
 import { currentTranslator } from "@thinkrail/locales/react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useWindowFocused } from "@/chat/useWindowFocused";
 import {
 	selectCompletionMarkedUnread,
 	selectWorkspaceById,
@@ -12,6 +13,7 @@ import { selectNotificationChannel } from "./channel";
 import { type AttentionCandidate, isLit } from "./detectAttention";
 import type { NotificationSpec } from "./formatNotification";
 import { isPromptSnoozed } from "./notificationPrompt";
+import { type PendingReturn, pickReturnTarget, rememberReturnTarget } from "./notificationReturn";
 
 /** Collection-window length: enqueued edges accumulate this long, then flush as one batch. */
 export const ATTENTION_WINDOW_MS = 1000;
@@ -58,6 +60,32 @@ function navigate(spec: NotificationSpec): void {
  * rising edges into the engine, and renders surviving batches as browser notifications. Mount once.
  */
 export function useAttentionNotifications(): void {
+	// The desktop shell has no notification-click callback (SPEC), so a window that comes back right
+	// after an emitted notification stands in for the click: open the chat it named when still lit.
+	const pendingReturns = useRef<PendingReturn[]>([]);
+	const focused = useWindowFocused();
+	const wasFocused = useRef(focused);
+
+	useEffect(() => {
+		const returned = !wasFocused.current && focused;
+		wasFocused.current = focused;
+		if (!returned || pendingReturns.current.length === 0) return;
+		const target = pickReturnTarget(pendingReturns.current, Date.now(), (sessionId) => {
+			const state = useAppStore.getState();
+			for (const records of Object.values(state.sessionStateByWorkspace)) {
+				const record = records[sessionId];
+				if (record) return isLit(record.state) && !selectCompletionMarkedUnread(state, record);
+			}
+			return false;
+		});
+		pendingReturns.current = [];
+		if (!target) return;
+		const state = useAppStore.getState();
+		const projectId = selectWorkspaceById(state, target.workspaceId)?.projectId;
+		if (!projectId) return;
+		state.activateWorkspaceFromRoute({ id: target.workspaceId, projectId }, target.sessionId);
+	}, [focused]);
+
 	useEffect(() => {
 		const channel = selectNotificationChannel();
 		const engine = createAttentionNotificationEngine({
@@ -73,7 +101,16 @@ export function useAttentionNotifications(): void {
 				}
 				return false;
 			},
-			emit: (spec) => channel.show(spec, () => navigate(spec)),
+			emit: (spec) => {
+				if (channel.kind === "os") {
+					pendingReturns.current = rememberReturnTarget(
+						pendingReturns.current,
+						spec.target,
+						Date.now(),
+					);
+				}
+				channel.show(spec, () => navigate(spec));
+			},
 			onPermissionNeeded: () => {
 				const permission = channel.permission();
 				if (permission === "denied" || permission === "unsupported") return;

@@ -71,7 +71,13 @@ export function setSyncGitTimeoutForTests(timeoutMs: number | undefined): void {
 }
 
 export function nonInteractiveGitEnv(): Record<string, string | undefined> {
-	return { ...process.env, GIT_TERMINAL_PROMPT: "0" };
+	// Windows keeps the variable under its original `Path` spelling; children and callers read `PATH`.
+	const path = process.env.PATH ?? process.env.Path;
+	return {
+		...process.env,
+		...(path === undefined ? {} : { PATH: path }),
+		GIT_TERMINAL_PROMPT: "0",
+	};
 }
 
 function syncDeadline(timeoutMs: number | null | undefined) {

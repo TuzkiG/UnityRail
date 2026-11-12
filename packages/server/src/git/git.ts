@@ -1,4 +1,5 @@
-import { readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import type { Dirent } from "node:fs";
+import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import type {
@@ -258,17 +259,39 @@ function gitDirFor(repo: string): string | null {
 	return dir;
 }
 
-/** HEAD, the checked-out ref and the ref directories' mtimes: a branch add, delete, move or
- * checkout invalidates it. */
+/** HEAD, the checked-out ref and the ref tree's names, mtimes and sizes: a branch add, delete,
+ * move, checkout or remote HEAD retarget invalidates it. Windows leaves a directory's mtime alone
+ * when a file appears inside it, so each ref file is statted rather than its parent directory. */
 function refsFingerprint(repo: string, head: string | null): string | null {
 	const dir = gitDirFor(repo);
 	if (!dir) return null;
 	const parts = [head ?? ""];
-	for (const rel of ["HEAD", "refs", "refs/heads", "refs/remotes", "packed-refs"]) {
+	for (const rel of ["HEAD", "packed-refs"]) {
 		const stat = statSync(join(dir, rel), { bigint: true, throwIfNoEntry: false });
 		parts.push(stat ? `${stat.mtimeNs}:${stat.size}` : "-");
 	}
+	parts.push(refTreeSignature(join(dir, "refs"), 0));
 	return parts.join("|");
+}
+
+const REF_TREE_DEPTH = 2;
+
+function refTreeSignature(path: string, depth: number): string {
+	let entries: Dirent[];
+	try {
+		entries = readdirSync(path, { withFileTypes: true });
+	} catch {
+		return "-";
+	}
+	const rows: string[] = [];
+	for (const entry of entries) {
+		const child = join(path, entry.name);
+		const stat = statSync(child, { bigint: true, throwIfNoEntry: false });
+		rows.push(`${entry.name}:${stat ? `${stat.mtimeNs}:${stat.size}` : "-"}`);
+		if (entry.isDirectory() && depth < REF_TREE_DEPTH)
+			rows.push(`${entry.name}/${refTreeSignature(child, depth + 1)}`);
+	}
+	return rows.sort().join(",");
 }
 
 export async function listBranchesAt(repo: string): Promise<BranchList> {

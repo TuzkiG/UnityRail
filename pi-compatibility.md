@@ -71,10 +71,12 @@ patch applies at the same offsets (`agent/anthropicStreamFraming.test.ts` passes
 fixes" still grouped as expected), `check:seams` keeps its four known opaque occurrences across the same
 eight pi packages, `check:pi-packages` passes under Node 24 once the parity runner compares package
 paths with posix separators, and the host typechecks against the new dist. The bundled catalogue moved
-to 1,639 pairs with `claude-opus-5-5` as the default `anthropic` model. **Open**: on Windows
-`mcpSessions.test.ts`'s "a failed chat-local disable keeps its intent…" never settles its `/hold` turn
-(the same test fails identically on the pre-merge commit with 1.5.2, so the difference is pi-side or
-platform-side, not this merge), and that file leaves a handle open after its last test.
+to 1,639 pairs with `claude-opus-5-5` as the default `anthropic` model. **Open**: on Windows two
+`mcpSessions.test.ts` reload tests (`a failed chat-local disable keeps its intent…`, `same-value disable
+retries after a failed loader…`) hang — a mocked `AgentSession.reload` never settles and strands the next
+test's spy — and the file then cannot exit. Both fail identically on the pre-merge commit with 1.5.2, so
+the difference is pi-side or platform-side rather than this merge; the file's tests skip on Windows and
+keep running everywhere else.
 
 ## Upgrade contract
 

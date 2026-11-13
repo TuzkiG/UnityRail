@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type Workspace, WS_CHANNELS } from "@thinkrail/contracts";
@@ -132,9 +132,26 @@ async function exitTerminalWithMarker(
 	return marker;
 }
 
+/** The fixtures speak POSIX shell; on Windows that means Git for Windows' bash, never pwsh. */
+function windowsPosixBin(): string | undefined {
+	if (process.platform !== "win32") return undefined;
+	for (const root of ["C:\\Program Files\\Git", "C:\\Program Files (x86)\\Git"]) {
+		const bin = join(root, "usr", "bin");
+		if (existsSync(join(bin, "bash.exe"))) return bin;
+	}
+	return undefined;
+}
+
+const windowsBin = windowsPosixBin();
+const savedShell = process.env.SHELL;
+const savedPath = process.env.PATH;
 beforeEach(() => {
 	dataDir = mkdtempSync(join(tmpdir(), "trpi-terminal-test-"));
 	process.env.THINKRAIL_DATA_DIR = dataDir;
+	if (windowsBin) {
+		process.env.SHELL = join(windowsBin, "bash.exe");
+		process.env.PATH = [windowsBin, savedPath ?? ""].filter(Boolean).join(";");
+	}
 	// Shells find rc files and history via HOME, ZDOTDIR, XDG dirs or an exported HISTFILE; keep all in dataDir.
 	Object.assign(process.env, {
 		HOME: dataDir,
@@ -171,6 +188,10 @@ afterEach(() => {
 		if (value === undefined) delete process.env[name];
 		else process.env[name] = value;
 	}
+	if (savedShell === undefined) delete process.env.SHELL;
+	else process.env.SHELL = savedShell;
+	if (savedPath === undefined) delete process.env.PATH;
+	else process.env.PATH = savedPath;
 });
 
 test("a shell spawn failure is actionable and preserves replay for retry", () => {

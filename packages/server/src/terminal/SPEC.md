@@ -70,7 +70,11 @@ identities. A tab's shell outlives every client that looks at it; each frontend 
   (`git`, `npm`, `bun`, `python`, `docker`, `node`, ...) are still external executables and stay correctly
   detected — this is a real but narrow gap, same accepted-limitation category as `shellBusy.test.ts`'s
   "an unanswerable platform reports not busy" case. A user who hits it can pick **Command Prompt (cmd)**
-  and get the exact prior, fully-detectable behavior back.
+  and get the exact prior, fully-detectable behavior back. The walk counts **descendants**, not direct
+  children: Git Bash runs each command through its fork server, so the started process is a grandchild
+  of the shell — and when an MSYS shell reuses a long-lived fork server the command can hang off the
+  server rather than the PTY's shell at all, which no process-tree walk can attribute. That last case is
+  why the close-confirmation e2e fixtures stay POSIX-only.
 - **Not building a `listAvailableShells`-style host probe** to gray out an uninstalled pick in the Settings
   picker, unlike `editors`' `listAvailableEditors`: `auto` already gets the graceful substitution most users
   want, while a probe cannot prove ConPTY launchability and would duplicate the real spawn check. A failed

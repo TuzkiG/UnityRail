@@ -24,20 +24,65 @@ function childrenViaPgrep(pid: number): boolean | null {
 	return null;
 }
 
-export const WINDOWS_CHILD_COUNT = [
+// Git Bash runs a command through a fork helper, so the process it starts is a grandchild of the
+// shell; a direct-child filter reports an idle shell while work is still running.
+/** The Windows process table, reduced to the parentage the busy walk needs. */
+export const WINDOWS_PROCESS_TABLE = [
 	"$ErrorActionPreference = 'Stop'",
-	'$kids = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$env:TR_PARENT_PID")',
-	"Write-Output $kids.Count",
+	"Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId | ConvertTo-Json -Compress",
 ].join("; ");
+
+interface ProcessRow {
+	ProcessId?: number;
+	ParentProcessId?: number;
+}
+
+/**
+ * Whether any process descends from `parent`. Git Bash runs a command through its fork server, so the
+ * process a shell starts is often a grandchild rather than a child; walking the table finds both, and
+ * a cycle in a hostile table terminates instead of hanging.
+ */
+export function descendantsOfPid(
+	parent: number,
+	rows: readonly Pick<ProcessRow, "ProcessId" | "ParentProcessId">[],
+): boolean {
+	const childrenOf = new Map<number, number[]>();
+	for (const row of rows) {
+		if (typeof row.ProcessId !== "number" || typeof row.ParentProcessId !== "number") continue;
+		const siblings = childrenOf.get(row.ParentProcessId);
+		if (siblings) siblings.push(row.ProcessId);
+		else childrenOf.set(row.ParentProcessId, [row.ProcessId]);
+	}
+	const seen = new Set<number>([parent]);
+	const queue = [parent];
+	while (queue.length > 0) {
+		const current = queue.shift() as number;
+		for (const child of childrenOf.get(current) ?? []) {
+			if (seen.has(child)) continue;
+			seen.add(child);
+			queue.push(child);
+			return true;
+		}
+	}
+	return false;
+}
+
+function parseProcessTable(output: string): ProcessRow[] {
+	try {
+		const parsed = JSON.parse(output) as ProcessRow | ProcessRow[];
+		return Array.isArray(parsed) ? parsed : [parsed];
+	} catch {
+		return [];
+	}
+}
 
 function childrenViaCim(pid: number): boolean | null {
 	for (const shell of ["powershell.exe", "pwsh.exe"]) {
-		const run = spawnSyncCaptured([shell, "-NoProfile", "-Command", WINDOWS_CHILD_COUNT], {
+		const run = spawnSyncCaptured([shell, "-NoProfile", "-Command", WINDOWS_PROCESS_TABLE], {
 			env: { ...process.env, TR_PARENT_PID: String(pid) },
 		});
 		if (!run.launched || run.exitCode !== 0) continue;
-		const count = Number.parseInt(run.stdout.trim(), 10);
-		if (Number.isInteger(count)) return count > 0;
+		return descendantsOfPid(pid, parseProcessTable(run.stdout));
 	}
 	return null;
 }

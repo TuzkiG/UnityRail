@@ -748,6 +748,9 @@ test("a second client takes a terminal over and the first is told", async ({ pag
 });
 
 test("closing a tab with a running process asks first", async ({ page }) => {
+	// An MSYS shell hands commands to a fork server the PTY does not own, so the host cannot see the
+	// shell as busy and never asks.
+	test.skip(process.platform === "win32", "Windows cannot attribute a Git Bash command to its PTY");
 	await openFixtureProject(page);
 	await createWorkspaceViaDialog(page);
 	await waitTerminalReady(page);
@@ -770,6 +773,7 @@ test("closing a tab with a running process asks first", async ({ page }) => {
 });
 
 test("a rejected forced close stays correlated and permits a clean retry", async ({ page }) => {
+	test.skip(process.platform === "win32", "needs the busy-close confirmation");
 	let rejectNextForce = true;
 	await page.routeWebSocket(/\/ws(\?|$)/, (ws) => {
 		const server = ws.connectToServer();

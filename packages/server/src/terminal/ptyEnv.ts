@@ -98,9 +98,24 @@ export function terminalPtyEnv(
 ): Record<string, string> {
 	const result: Record<string, string> = {};
 	const askpassOverrides = pairedAskpassOverrides(Object.keys(env));
+	const windows = platform === "win32";
+	const emitted = new Set<string>();
+	const put = (name: string, value: string): void => {
+		const key = windows ? name.toUpperCase() : name;
+		if (emitted.has(key)) return;
+		emitted.add(key);
+		result[name] = value;
+	};
+	// A Windows environment block is case-insensitive while `process.env` enumerates every spelling,
+	// so a PTY could receive both `Path` and `PATH` and resolve the shell's search path arbitrarily.
+	// Emit one spelling, and for PATH the one callers and tests actually set.
+	if (windows) {
+		const path = env.PATH ?? env.Path;
+		if (typeof path === "string" && !isInherited("PATH")) put("PATH", path);
+	}
 	for (const [name, value] of Object.entries(env)) {
 		if (typeof value === "string" && !isInherited(name) && !askpassOverrides.has(name)) {
-			result[name] = value;
+			put(name, value);
 		}
 	}
 	result.TERM = "xterm-256color";

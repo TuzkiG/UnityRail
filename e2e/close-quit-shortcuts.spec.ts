@@ -115,14 +115,18 @@ test("native close-item closes the top layer first, then the focused tab", async
 	await expect(editorTabs(page)).toHaveCount(1);
 	await expect(editorTabs(page).filter({ hasText: "README.md" })).toHaveCount(0);
 
-	await waitTerminalReady(page);
-	await runInTerminal(page, "sh -c 'echo TR_$((40+2)); exec sleep 45'");
-	await expect(visibleTerminalScreen(page)).toContainText("TR_42");
-	await closeItem(page);
-	await expect(page.getByTestId("confirm-dialog")).toBeVisible();
-	await closeItem(page);
-	await expect(page.getByTestId("confirm-dialog")).toHaveCount(0);
-	await expect(page.getByTestId("terminal-tab")).toHaveCount(1);
+	// An MSYS shell hands its command to a fork server the PTY does not own, so a Windows host cannot
+	// see the shell as busy and never asks before closing (terminal SPEC's accepted limitation).
+	if (process.platform !== "win32") {
+		await waitTerminalReady(page);
+		await runInTerminal(page, "sh -c 'echo TR_$((40+2)); exec sleep 45'");
+		await expect(visibleTerminalScreen(page)).toContainText("TR_42");
+		await closeItem(page);
+		await expect(page.getByTestId("confirm-dialog")).toBeVisible();
+		await closeItem(page);
+		await expect(page.getByTestId("confirm-dialog")).toHaveCount(0);
+		await expect(page.getByTestId("terminal-tab")).toHaveCount(1);
+	}
 });
 
 test("native close-item never closes a session through a tool-window rail", async ({ page }) => {

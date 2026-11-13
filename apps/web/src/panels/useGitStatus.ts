@@ -27,6 +27,8 @@ export function useGitStatus(workspaceId: string | null) {
 	);
 	const [error, setError] = useState<string | null>(null);
 	const warnedRef = useRef(false);
+	/** A peeked status is another read's answer; only a fresh result may outlive a failure. */
+	const freshRef = useRef(false);
 
 	const { reload } = useWorkspaceRead(
 		workspaceId,
@@ -36,6 +38,7 @@ export function useGitStatus(workspaceId: string | null) {
 				setStatus(result);
 				setError(null);
 				warnedRef.current = false;
+				freshRef.current = true;
 			},
 			onFailure: (_id, failure) => {
 				if (wsErrorCode(failure) === "UNKNOWN_COMMIT" && workspaceId) {
@@ -49,12 +52,14 @@ export function useGitStatus(workspaceId: string | null) {
 					warnedRef.current = true;
 					toast.error(t("changes.refreshFailed", { error: errorText(failure) }));
 				}
+				if (!freshRef.current) setStatus(null);
 				setError(errorText(failure));
 			},
 			onSwitch: () => {
 				setStatus(workspaceId ? peekGitStatus(workspaceId, scope, targetRef) : null);
 				setError(null);
 				warnedRef.current = false;
+				freshRef.current = false;
 			},
 		},
 		`${scopeKey(scope)}:${baseRef}`,

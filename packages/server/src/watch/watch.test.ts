@@ -160,6 +160,10 @@ test("isIgnoredPath skips .git and node_modules subtrees and .DS_Store noise", (
 
 test("isIgnoredPath skips the host's own state and Unity/IDE churn directories", () => {
 	expect(isIgnoredPath(".thinkrail/sessions/a.jsonl")).toBe(true);
+	// The scratch dir holds mockups and task notes the previews follow live.
+	expect(isIgnoredPath(".thinkrail/context/mockups/live.html")).toBe(false);
+	expect(isIgnoredPath(".thinkrail/context/TASK-1.md")).toBe(false);
+	expect(isIgnoredPath(".thinkrail\\context\\mockups\\gone.html")).toBe(false);
 	expect(isIgnoredPath("Library/ScriptAssemblies/Assembly-CSharp.dll")).toBe(true);
 	expect(isIgnoredPath("Temp/UnityLockfile")).toBe(true);
 	expect(isIgnoredPath("Logs/Packages-Update.log")).toBe(true);

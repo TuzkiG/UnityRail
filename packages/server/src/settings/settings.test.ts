@@ -952,7 +952,7 @@ test("a custom preset may place every layout tool, the TODO List and Unity inclu
 					id: "custom-right",
 					weight: 1,
 					folded: false,
-					tools: ["specs", "plan", "review", "unity"],
+					tools: ["specs", "plan", "review", "unity", "unity-project", "verify"],
 				},
 			],
 		},

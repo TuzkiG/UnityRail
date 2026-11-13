@@ -2402,8 +2402,10 @@ async function readDiskSession(
 		live: false,
 		state: stateFromDisk(sessionId, manager),
 	};
-	const messages = context.messages.filter((message) =>
-		isTranscriptMessageRole(message.role),
+	// The transcript keeps the summarized prefix so the restore matches a live chat; pi's context
+	// alone starts after the compaction.
+	const messages = displayTranscriptMessages(manager.getEntries(), manager.getLeafId()).filter(
+		(message) => isTranscriptMessageRole(message.role),
 	) as TranscriptMessage[];
 	return { manager, summary, messages };
 }

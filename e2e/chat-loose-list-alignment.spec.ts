@@ -167,7 +167,9 @@ for (const width of [1280, 900]) {
 			await page.screenshot({ path: testInfo.outputPath(`list-boundaries-${width}.png`) });
 			await answer.getByTestId("chat-copy").click();
 			await expect(async () => {
-				expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(markdown);
+				// A Windows clipboard hands newlines back as CRLF; the message text is what must match.
+				const copied = await page.evaluate(() => navigator.clipboard.readText());
+				expect(copied.replaceAll("\r\n", "\n")).toBe(markdown);
 			}).toPass();
 		} finally {
 			rmSync(session.path, { force: true });

@@ -1439,6 +1439,18 @@ export type LayoutToolId =
 	| "unity"
 	| "verify";
 
+/** The exhaustive runtime list; a preset validator must never drift from the union above. */
+export const LAYOUT_TOOL_IDS: readonly LayoutToolId[] = [
+	"projects",
+	"unity-project",
+	"specs",
+	"files",
+	"review",
+	"plan",
+	"unity",
+	"verify",
+];
+
 export type LayoutBottomAlignment = "center" | "center-left" | "center-right" | "full";
 
 export interface LayoutPresetCenterGroup {

@@ -39,24 +39,26 @@ function ProjectRow({
 				variant={active ? "soft-primary" : "ghost"}
 				size="m"
 				data-testid={`memory-project-${project.name}`}
-				className="min-w-0 flex-1 justify-start gap-8"
+				className="min-w-0 flex-1"
 				onClick={onSelect}
 			>
-				<span className="truncate">{project.name}</span>
-				{project.isDefault && (
-					<span className="shrink-0 rounded-full bg-container-elevated-bg px-6 tr-text-metadata text-text-subtle">
-						{t("settings.memory.projects.default")}
+				<span className="flex min-w-0 flex-1 items-center justify-start gap-8">
+					<span className="truncate">{project.name}</span>
+					{project.isDefault && (
+						<span className="shrink-0 rounded-full bg-container-elevated-bg px-6 tr-text-metadata text-text-subtle">
+							{t("settings.memory.projects.default")}
+						</span>
+					)}
+					<span className="min-w-0 flex-1 truncate text-left tr-text-metadata text-text-muted">
+						{project.path}
 					</span>
-				)}
-				<span className="min-w-0 flex-1 truncate text-left tr-text-metadata text-text-muted">
-					{project.path}
+					{project.mode === "cloud" && (
+						<span className="shrink-0 tr-text-metadata text-text-subtle">
+							{t("settings.memory.projects.cloud")}
+						</span>
+					)}
+					{!project.exists && <Warning className="size-12 shrink-0 text-feedback-warning" />}
 				</span>
-				{project.mode === "cloud" && (
-					<span className="shrink-0 tr-text-metadata text-text-subtle">
-						{t("settings.memory.projects.cloud")}
-					</span>
-				)}
-				{!project.exists && <Warning className="size-12 shrink-0 text-feedback-warning" />}
 			</Button>
 			<Button variant="ghost" size="s" onClick={onReveal}>
 				{t("settings.memory.projects.reveal")}
@@ -283,11 +285,13 @@ export function MemorySettings() {
 										variant="ghost"
 										size="m"
 										data-testid={`memory-note-${note.path}`}
-										className="min-w-0 flex-1 justify-start gap-8"
+										className="min-w-0 flex-1"
 										onClick={() => void openNoteDialog(note)}
 									>
-										<span className="truncate text-text-default">{note.title}</span>
-										<span className="truncate text-text-muted tr-text-metadata">{note.path}</span>
+										<span className="flex min-w-0 flex-1 items-center justify-start gap-8">
+											<span className="truncate text-text-default">{note.title}</span>
+											<span className="truncate text-text-muted tr-text-metadata">{note.path}</span>
+										</span>
 									</Button>
 								</li>
 							))}

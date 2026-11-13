@@ -97,7 +97,7 @@ test("entering a workspace and returning to Project Home keeps the same left chr
 	await enterDefaultWorkspace(page);
 	const workbenchRail = await page.getByTestId("left-layout-rail").boundingBox();
 	const workbenchHeader = await page
-		.locator('[data-testid="side-group"][data-tools="projects"]')
+		.locator('[data-testid="side-group"][data-tools~="projects"]')
 		.getByTestId("auxiliary-pane-header")
 		.boundingBox();
 	if (!workbenchRail || !workbenchHeader) throw new Error("workbench chrome has no bounding box");

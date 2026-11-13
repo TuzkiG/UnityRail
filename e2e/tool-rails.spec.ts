@@ -239,6 +239,8 @@ test("rail clusters include unplaced tools, boundary drops create panes, and too
 	expect(await railClusters(page, "right-layout-rail")).toEqual([
 		["tool-rail-specs", "tool-rail-files", "tool-rail-unity"],
 		["tool-rail-plan", "tool-rail-review"],
+		// Verify ships unplaced in every preset, so its rail cluster trails the placed groups.
+		["tool-rail-verify"],
 	]);
 
 	await startDrag(page, page.getByTestId("tool-rail-files"));
@@ -252,6 +254,7 @@ test("rail clusters include unplaced tools, boundary drops create panes, and too
 		["tool-rail-specs", "tool-rail-unity"],
 		["tool-rail-files"],
 		["tool-rail-plan", "tool-rail-review"],
+		["tool-rail-verify"],
 	]);
 
 	await startDrag(page, page.getByTestId("tool-rail-files"));
@@ -261,6 +264,7 @@ test("rail clusters include unplaced tools, boundary drops create panes, and too
 		["tool-rail-specs", "tool-rail-unity"],
 		["empty-rail-group"],
 		["tool-rail-plan", "tool-rail-review", "tool-rail-files"],
+		["tool-rail-verify"],
 	]);
 	await expect(page.locator('[data-side="right"][data-group-id]')).toHaveCount(3);
 
@@ -269,7 +273,7 @@ test("rail clusters include unplaced tools, boundary drops create panes, and too
 	await startDrag(page, title);
 	await finishDrag(page, page.locator('[data-drop-label="Join left group"]'));
 	expect(await railClusters(page, "left-layout-rail")).toEqual([
-		["tool-rail-projects", "tool-rail-files"],
+		["tool-rail-projects", "tool-rail-unity-project", "tool-rail-files"],
 	]);
 	await expect(page.getByTestId("auxiliary-pane-title").filter({ hasText: "Files" })).toBeVisible();
 
@@ -279,7 +283,7 @@ test("rail clusters include unplaced tools, boundary drops create panes, and too
 		["tool-rail-specs", "tool-rail-unity"],
 		["empty-rail-group"],
 		["tool-rail-plan"],
-		["tool-rail-review"],
+		["tool-rail-review", "tool-rail-verify"],
 	]);
 	await expect(page.getByTestId("tool-rail-review")).toHaveClass(/text-text-subtle/);
 	await page.getByTestId("tool-rail-review").click();

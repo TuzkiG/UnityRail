@@ -339,6 +339,8 @@ test("a shell survives a trip to Project Home and back", async ({ page }) => {
 });
 
 test("historical terminal queries do not become input on remount", async ({ page }) => {
+	// The query fixture is a python3 one-liner; the hermetic host PATH carries no interpreter.
+	test.skip(process.platform === "win32", "needs python3 in the terminal's PATH");
 	const writes: string[] = [];
 	await page.routeWebSocket(/\/ws(\?|$)/, (ws) => {
 		const server = ws.connectToServer();

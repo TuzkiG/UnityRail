@@ -250,8 +250,14 @@ function syncRemoteRefWatch(workspaceId: string, entry: WatchEntry): void {
 	);
 }
 
+/** The workspace scratch dir agents write mockups and task notes into; previews must follow it. */
+const WATCHED_SCRATCH_DIR = ".thinkrail/context";
+
 export function isIgnoredPath(relPath: string): boolean {
-	const segments = relPath.split(/[\\/]/);
+	const normalized = relPath.replaceAll("\\", "/");
+	if (normalized === WATCHED_SCRATCH_DIR || normalized.startsWith(`${WATCHED_SCRATCH_DIR}/`))
+		return false;
+	const segments = normalized.split("/");
 	if (segments.some((s) => IGNORED_SEGMENTS.has(s))) return true;
 	if (segments.slice(0, ROOT_NOISE_DEPTH).some((s) => ROOT_NOISE_SEGMENTS.has(s))) return true;
 	const name = segments[segments.length - 1];

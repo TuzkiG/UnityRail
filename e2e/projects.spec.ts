@@ -361,19 +361,26 @@ test("project context actions stay compact and close/reopen is lossless across c
 
 	const createFromMenu = page.getByTestId("project-menu-create-workspace");
 	const openExistingFromMenu = page.getByTestId("project-menu-open-existing-worktree");
+	const browseFilesFromMenu = page.getByTestId("project-menu-browse-files");
+	const memoryFromMenu = page.getByTestId("project-menu-memory");
 	const settingsFromMenu = page.getByTestId("project-menu-settings");
 	const renameFromMenu = page.getByTestId("project-menu-rename");
 	const closeFromMenu = page.getByTestId("project-menu-close");
 	const menuParts = projectActions.locator('[role="menuitem"], [role="separator"]');
-	await expect(menuParts).toHaveCount(6);
+	// UnityRail adds Browse files and the project's memory page above the shared settings group.
+	await expect(menuParts).toHaveCount(8);
 	await expect(menuParts.nth(0)).toHaveText("Create workspace");
 	await expect(menuParts.nth(1)).toHaveText("Open existing worktree…");
-	await expect(menuParts.nth(2)).toHaveAttribute("role", "separator");
-	await expect(menuParts.nth(3)).toHaveText("Project settings…");
-	await expect(menuParts.nth(4)).toHaveText("Rename");
-	await expect(menuParts.nth(5)).toHaveText("Close project");
+	await expect(menuParts.nth(2)).toHaveText("Browse project files");
+	await expect(menuParts.nth(3)).toHaveText("Project memory");
+	await expect(menuParts.nth(4)).toHaveAttribute("role", "separator");
+	await expect(menuParts.nth(5)).toHaveText("Project settings…");
+	await expect(menuParts.nth(6)).toHaveText("Rename");
+	await expect(menuParts.nth(7)).toHaveText("Close project");
 	await expect(createFromMenu.locator("svg.remixicon")).toHaveCount(1);
 	await expect(openExistingFromMenu.locator("svg.remixicon")).toHaveCount(1);
+	await expect(browseFilesFromMenu.locator("svg.remixicon")).toHaveCount(1);
+	await expect(memoryFromMenu.locator("svg.remixicon")).toHaveCount(1);
 	await expect(settingsFromMenu.locator("svg.remixicon")).toHaveCount(1);
 	await expect(renameFromMenu.locator("svg.remixicon")).toHaveCount(1);
 	await expect(closeFromMenu.locator("svg.remixicon")).toHaveCount(1);
@@ -381,6 +388,10 @@ test("project context actions stay compact and close/reopen is lossless across c
 	await expect(createFromMenu).toBeFocused();
 	await page.keyboard.press("ArrowDown");
 	await expect(openExistingFromMenu).toBeFocused();
+	await page.keyboard.press("ArrowDown");
+	await expect(browseFilesFromMenu).toBeFocused();
+	await page.keyboard.press("ArrowDown");
+	await expect(memoryFromMenu).toBeFocused();
 	await page.keyboard.press("ArrowDown");
 	await expect(settingsFromMenu).toBeFocused();
 	await page.keyboard.press("ArrowDown");

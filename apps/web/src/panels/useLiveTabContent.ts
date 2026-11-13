@@ -8,7 +8,7 @@ export function useLiveTabContent<T>(
 	reloadKey?: string,
 	loadedKey?: string,
 ) {
-	const change = useAppStore((s) => s.fsChangesByWorkspace[tab.workspaceId]);
+	const changeTick = useAppStore((s) => selectWorkspaceTick(s, tab.workspaceId));
 	const opsRef = useRef(ops);
 	const tabRef = useRef(tab);
 	opsRef.current = ops;
@@ -27,8 +27,9 @@ export function useLiveTabContent<T>(
 	const { sequencer } = reader;
 
 	useEffect(() => {
+		const change = useAppStore.getState().fsChangesByWorkspace[tab.workspaceId];
 		if (change) reader.onTick(change.tick, fsChangedPaths(change));
-	}, [change, tab.path, tab.loadedTick, reader, settled]);
+	}, [changeTick, tab.path, tab.loadedTick, reader, settled]);
 
 	const lastKey = useRef(loadedKey ?? reloadKey);
 	useEffect(() => {

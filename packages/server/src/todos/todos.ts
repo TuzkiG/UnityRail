@@ -22,9 +22,10 @@ import {
 	readCommitSubject,
 	resolveListedCommit,
 } from "../git";
-import { getWorkspace } from "../workspaces";
+import { getWorkspace, isChatWorkspace } from "../workspaces";
 import { enqueueTodoMutation, settleChangeArtifacts, unattributedChanges } from "./artifacts";
 import { dropItemBaseline, readBaselines, removeSessionBaselines } from "./baselines";
+import { prefetchCommitFiles, resolveCommitFiles } from "./commitFiles";
 import {
 	clearAutoCycles,
 	clearReviewPending,
@@ -35,6 +36,7 @@ import {
 	readAutoCycles,
 	readReviewMeta,
 	readReviewRecords,
+	readReviewsFile,
 	removeSessionReviews,
 	restoreReviewRecord,
 	type TodoReviewRecord,
@@ -88,24 +90,6 @@ function changeSetLine(item: StoredItem, repos: readonly string[]): string {
 	];
 	if (listed.length === 0) return head;
 	return `${head}${shas.length > 0 ? "; uncommitted paths: " : ": "}${listed.join(", ")}`;
-}
-
-const commitFilesCache = new Map<string, GitFileChange[]>();
-
-async function resolveCommitFiles(
-	workspaceId: string,
-	sha: string,
-): Promise<GitFileChange[] | undefined> {
-	const key = `${workspaceId}\u0000${sha}`;
-	const hit = commitFilesCache.get(key);
-	if (hit) return hit;
-	try {
-		const files = (await gitStatus(workspaceId, { kind: "commit", sha })).changes;
-		commitFilesCache.set(key, files);
-		return files;
-	} catch {
-		return undefined;
-	}
 }
 
 async function toWireItem(
@@ -184,6 +168,10 @@ async function resolveAdoptedCommits(
 		const { commits } = await listCommits(workspaceId);
 		const adopted = commits.filter((c) => !owned.has(c.sha));
 		if (adopted.length === 0) return [];
+		await prefetchCommitFiles(
+			workspaceId,
+			adopted.map((c) => c.sha),
+		);
 		return await Promise.all(
 			adopted.map(async (c): Promise<TodoItem> => {
 				const id = `commit:${c.sha}`;
@@ -213,8 +201,10 @@ export async function listTodos(params: {
 	await settleChangeArtifacts(params.workspaceId);
 	const root = getWorkspace(params.workspaceId).worktreePath;
 	const plan = new TodoStore(root, params.sessionId).read();
-	const records = readReviewRecords(root, params.sessionId);
-	const pending = readReviewMeta(root, params.sessionId).pending;
+	const reviews = readReviewsFile(root, params.sessionId);
+	const records = reviews.items;
+	const pending = reviews.pending;
+	await prefetchCommitFiles(params.workspaceId, flatItems(plan).flatMap(commitShas));
 	const wire: TodoPlan = {
 		todos: await Promise.all(
 			plan.todos.map((t) => toWireItem(params.workspaceId, t, records[t.id], t.id in pending)),
@@ -230,6 +220,7 @@ export async function listTodos(params: {
 		),
 	};
 	if (plan.summary) wire.summary = plan.summary;
+	if (isChatWorkspace(getWorkspace(params.workspaceId))) return wire;
 	const unattributed = await resolveUnattributed(params.workspaceId, root, params.sessionId, plan);
 	if (unattributed.length > 0) wire.unattributed = unattributed;
 	const adoptedCommits = await resolveAdoptedCommits(params.workspaceId, plan, records, pending);

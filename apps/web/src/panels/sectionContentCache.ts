@@ -1,4 +1,6 @@
-import type { ResourceMeta } from "@thinkrail/contracts";
+import type { GitDiffScope, ResourceMeta } from "@thinkrail/contracts";
+import { useAppStore } from "../store";
+import { scopeKey } from "./changesModel";
 
 export interface SectionContent {
 	original: string;
@@ -20,6 +22,57 @@ export interface SectionContentCache {
 		loadedTick: number,
 		loadedTarget: string,
 	): Promise<SectionContent>;
+}
+
+export const SECTION_CONTENT_CACHE_SIZE = 64;
+
+interface CacheEntry {
+	workspaceId: string;
+	cache: SectionContentCache;
+}
+
+const caches = new Map<string, CacheEntry>();
+let watchingRemovals = false;
+
+const cacheKey = (workspaceId: string, scope: GitDiffScope, targetRef: string) =>
+	`${workspaceId}\u0000${scopeKey(scope)}\u0000${targetRef}`;
+
+function forgetRemovedWorkspaces(removed: Record<string, true>): void {
+	for (const [key, entry] of caches) if (removed[entry.workspaceId]) caches.delete(key);
+}
+
+function watchRemovals(): void {
+	if (watchingRemovals) return;
+	watchingRemovals = true;
+	useAppStore.subscribe((state, previous) => {
+		if (state.removedWorkspaceIds !== previous.removedWorkspaceIds) {
+			forgetRemovedWorkspaces(state.removedWorkspaceIds);
+		}
+	});
+}
+
+/** The section-content cache for one diff view; remounting the review tab reuses it. */
+export function sectionContentCacheFor(
+	workspaceId: string,
+	scope: GitDiffScope,
+	targetRef: string,
+): SectionContentCache {
+	const key = cacheKey(workspaceId, scope, targetRef);
+	const current = caches.get(key);
+	if (current) {
+		caches.delete(key);
+		caches.set(key, current);
+		return current.cache;
+	}
+	if (useAppStore.getState().removedWorkspaceIds[workspaceId]) return createSectionContentCache();
+	watchRemovals();
+	const cache = createSectionContentCache();
+	caches.set(key, { workspaceId, cache });
+	for (const oldest of caches.keys()) {
+		if (caches.size <= SECTION_CONTENT_CACHE_SIZE) break;
+		caches.delete(oldest);
+	}
+	return cache;
 }
 
 export function createSectionContentCache(): SectionContentCache {

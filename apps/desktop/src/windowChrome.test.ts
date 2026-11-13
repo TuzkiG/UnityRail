@@ -5,11 +5,11 @@ import {
 	desktopWindowChrome,
 	INITIAL_WINDOW_CHROME_GLOBAL,
 	injectInitialWindowChrome,
-	installWindowChromeGeometry,
-	installWindowChromePublisher,
+	installWindowChromeUpdates,
 	MAX_WINDOW_CHROME_INSET,
 	readWindowChromeFlag,
 	readWindowChromeGeometry,
+	type WindowChromeRoot,
 	windowChromeGeometry,
 	windowChromePreloadSeed,
 } from "./windowChrome";
@@ -107,19 +107,22 @@ test("window chrome preload seeds include the web controls policy", () => {
 });
 
 test("the style writer keeps the latest geometry until the document root exists", () => {
-	let style: { setProperty(property: string, value: string): void } | null = null;
+	let root: WindowChromeRoot | null = null;
 	const writes: Array<[property: string, value: string]> = [];
-	const writer = createWindowChromeStyleWriter(() => style);
+	const writer = createWindowChromeStyleWriter(() => root);
 	writer.update({ insetLeft: 64, insetRight: 0, dragRegion: true });
 	writer.update({ insetLeft: 12, insetRight: 8, dragRegion: false });
 	expect(writes).toEqual([]);
 
-	style = { setProperty: (property, value) => writes.push([property, value]) };
+	root = {
+		style: { setProperty: (property, value) => writes.push([property, value ?? ""]) },
+		setAttribute: (name, value) => writes.push([name, value]),
+	};
 	writer.flush();
 	expect(writes).toEqual([
 		["--window-chrome-inset-left", "12px"],
 		["--window-chrome-inset-right", "8px"],
-		["--window-chrome-drag-region", "no-drag"],
+		["data-window-chrome-drag-region", "no-drag"],
 	]);
 	writer.update({ insetLeft: "invalid", insetRight: 0, dragRegion: true });
 	expect(writes).toHaveLength(3);
@@ -128,80 +131,98 @@ test("the style writer keeps the latest geometry until the document root exists"
 	expect(writes.slice(-3)).toEqual([
 		["--window-chrome-inset-left", "2px"],
 		["--window-chrome-inset-right", "3px"],
-		["--window-chrome-drag-region", "no-drag"],
+		["data-window-chrome-drag-region", "no-drag"],
 	]);
 });
 
-test("window chrome geometry publishes on dom-ready and only changed resize geometry", () => {
+function chromeHost(): {
+	window: {
+		on(name: "resize", listener: () => void): void;
+		webview: { on(name: "dom-ready", listener: () => void): void };
+	};
+	resize(): void;
+	domReady(): void;
+	registrations: string[];
+} {
 	const registrations: string[] = [];
 	let resizeListener: (() => void) | undefined;
 	let domReadyListener: (() => void) | undefined;
-	const window = {
-		on(name: "resize", listener: () => void) {
-			registrations.push(name);
-			resizeListener = listener;
-		},
-		webview: {
-			on(name: "dom-ready", listener: () => void) {
+	return {
+		registrations,
+		window: {
+			on(name: "resize", listener: () => void) {
 				registrations.push(name);
-				domReadyListener = listener;
+				resizeListener = listener;
+			},
+			webview: {
+				on(name: "dom-ready", listener: () => void) {
+					registrations.push(name);
+					domReadyListener = listener;
+				},
 			},
 		},
+		resize: () => resizeListener?.(),
+		domReady: () => domReadyListener?.(),
 	};
-	let geometry = { insetLeft: 64, insetRight: 0 };
-	const published: Array<{ insetLeft: number; insetRight: number }> = [];
-	installWindowChromeGeometry(
-		window,
-		() => geometry,
-		(next) => published.push(next),
-	);
-	expect(registrations).toEqual(["resize", "dom-ready"]);
+}
 
-	resizeListener?.();
-	resizeListener?.();
-	geometry = { insetLeft: 64, insetRight: 8 };
-	resizeListener?.();
-	domReadyListener?.();
-	domReadyListener?.();
+test("window chrome coalesces a resize burst and publishes immediately on dom-ready", async () => {
+	const host = chromeHost();
+	let reads = 0;
+	let geometry = { insetLeft: 64, insetRight: 0 };
+	let state = { maximized: false, fullScreen: false };
+	const published: Array<{ geometry: typeof geometry; state?: typeof state }> = [];
+	installWindowChromeUpdates(
+		host.window,
+		() => {
+			reads += 1;
+			return { geometry, state };
+		},
+		(next) => published.push(next),
+		5,
+	);
+	expect(host.registrations).toEqual(["resize", "dom-ready"]);
+
+	host.domReady();
 	expect(published).toEqual([
-		{ insetLeft: 64, insetRight: 0 },
-		{ insetLeft: 64, insetRight: 8 },
-		{ insetLeft: 64, insetRight: 8 },
-		{ insetLeft: 64, insetRight: 8 },
+		{ geometry: { insetLeft: 64, insetRight: 0 }, state: { maximized: false, fullScreen: false } },
 	]);
+	geometry = { insetLeft: 64, insetRight: 8 };
+	host.resize();
+	host.resize();
+	host.resize();
+	expect(published).toHaveLength(1);
+	await Bun.sleep(20);
+	expect(published).toEqual([
+		{ geometry: { insetLeft: 64, insetRight: 0 }, state: { maximized: false, fullScreen: false } },
+		{ geometry: { insetLeft: 64, insetRight: 8 }, state: { maximized: false, fullScreen: false } },
+	]);
+	state = { maximized: true, fullScreen: false };
+	host.resize();
+	await Bun.sleep(20);
+	expect(published.at(-1)).toEqual({
+		geometry: { insetLeft: 64, insetRight: 8 },
+		state: { maximized: true, fullScreen: false },
+	});
+	expect(reads).toBe(3);
+	host.resize();
+	await Bun.sleep(20);
+	expect(published).toHaveLength(3);
 });
 
-test("window chrome publishers send state on dom-ready and changed resize", () => {
-	let resizeListener: (() => void) | undefined;
-	let domReadyListener: (() => void) | undefined;
-	const window = {
-		on(name: "resize", listener: () => void) {
-			expect(name).toBe("resize");
-			resizeListener = listener;
-		},
-		webview: {
-			on(name: "dom-ready", listener: () => void) {
-				expect(name).toBe("dom-ready");
-				domReadyListener = listener;
-			},
-		},
-	};
-	let state = { maximized: false, fullScreen: false };
-	const published: (typeof state)[] = [];
-	installWindowChromePublisher(
-		window,
-		() => state,
+test("window chrome dom-ready cancels a pending resize publish", async () => {
+	const host = chromeHost();
+	const published: unknown[] = [];
+	installWindowChromeUpdates(
+		host.window,
+		() => ({ geometry: { insetLeft: 0, insetRight: 138 } }),
 		(next) => published.push(next),
-		(a, b) => a.maximized === b.maximized && a.fullScreen === b.fullScreen,
+		5,
 	);
-	domReadyListener?.();
-	resizeListener?.();
-	state = { maximized: true, fullScreen: false };
-	resizeListener?.();
-	expect(published).toEqual([
-		{ maximized: false, fullScreen: false },
-		{ maximized: true, fullScreen: false },
-	]);
+	host.resize();
+	host.domReady();
+	await Bun.sleep(20);
+	expect(published).toEqual([{ geometry: { insetLeft: 0, insetRight: 138 } }]);
 });
 
 test("preload injection installs initial geometry and policies before bundled source", () => {

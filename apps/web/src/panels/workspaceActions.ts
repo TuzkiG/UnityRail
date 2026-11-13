@@ -17,6 +17,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { tupleKey } from "../lib";
 import { supportsWorkspaceSettling, toast, useAppStore } from "../store";
 import { errorText, getTransport, prewarmWorkspaceSkillLoad } from "../transport";
 
@@ -39,6 +40,32 @@ export async function loadProjectWorkspaces(projectId: string): Promise<Workspac
 	return rows;
 }
 
+/**
+ * Opens the project's memory notes as a center tab. The document-scoped tab needs a workspace to live
+ * in, so it reuses the project's own folder workspace (its `default` row) and opens there.
+ */
+export function openProjectMemory(projectId: string, projectName: string): void {
+	const store = useAppStore.getState();
+	const workspace = projectFilesWorkspace(store.workspaces[projectId] ?? []);
+	if (!workspace) return;
+	store.activateWorkspace(workspace);
+	useAppStore.getState().openDoc({
+		kind: "memory",
+		id: tupleKey("memory", projectId),
+		workspaceId: workspace.id,
+		name: projectName,
+		projectId,
+	});
+}
+
+/**
+ * The project's own directory as a browsable workspace: its `default` row, whose worktree IS the project
+ * folder. Falls back to the first row so an older host without `kind` still opens something.
+ */
+export function projectFilesWorkspace(rows: readonly Workspace[]): Workspace | undefined {
+	return rows.find((workspace) => workspace.kind === "default") ?? rows[0];
+}
+
 export function canRenameWorkspace(protocolVersion: number | null, workspace: Workspace): boolean {
 	return (
 		protocolVersion !== null &&
@@ -49,7 +76,11 @@ export function canRenameWorkspace(protocolVersion: number | null, workspace: Wo
 }
 
 export function canSettleWorkspace(protocolVersion: number | null, workspace: Workspace): boolean {
-	return supportsWorkspaceSettling(protocolVersion) && workspace.kind !== "default";
+	return (
+		supportsWorkspaceSettling(protocolVersion) &&
+		workspace.kind !== "default" &&
+		workspace.kind !== "chat"
+	);
 }
 
 export function settleWorkspace(workspaceId: string): void {

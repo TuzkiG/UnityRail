@@ -20,13 +20,14 @@ import {
 import { useCallback, useEffect, useInsertionEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useNow } from "@/components/useNow";
-import { type ParsedTemplate, templateToSlashCommand, useTemplateCommandPicker } from "@/prompt";
+import { templateToSlashCommand } from "@/prompt";
 import {
 	EMPTY_RUNTIME,
 	SettingsSection,
 	selectCanRenameChat,
 	selectCatalogModel,
 	selectCompactionTurnIds,
+	selectComposerFocusRequested,
 	selectPickerModels,
 	selectSkillsStale,
 	selectSupportsMcp,
@@ -35,7 +36,7 @@ import {
 	useAppStore,
 	workspaceName,
 } from "@/store";
-import { errorText, getTransport, watchMcpWorkspace } from "@/transport";
+import { errorText, getTransport, watchMcpWorkspace, wsErrorCode } from "@/transport";
 import type { ResultTarget } from "./ChatActions";
 import { ChatHeader } from "./ChatHeader";
 import ChatTranscript, { type ChatTranscriptHandle } from "./ChatTranscript";
@@ -49,6 +50,7 @@ import {
 import { ExtraUsageNotice } from "./ExtraUsageNotice";
 import { mentionLookup } from "./fileTargets";
 import { HistoryOverlay } from "./HistoryOverlay";
+import { awaitingToolCallIdOf } from "./interactionState";
 import { parseModelRef, RunModelLabel } from "./ModelEffortLabel";
 import type { ModelSelection } from "./ModelEffortPicker";
 import {
@@ -57,6 +59,7 @@ import {
 	parseNativeChatCommand,
 	prepareNameChatCommand,
 } from "./nativeCommands";
+import type { PromptImagesOwner } from "./promptImages";
 import { QueueStrip } from "./QueueStrip";
 import { deriveRecentPrompts } from "./recentPrompts";
 import {
@@ -76,12 +79,21 @@ import { useModelCatalog } from "./useModelCatalog";
 import { useModelPreferences } from "./useModelPreferences";
 import { useSessionStats } from "./useSessionStats";
 import "./tools/register";
-import type { ChatAttachment } from "./types";
+import type { ChatAttachment, ChatTurn } from "./types";
 import { useHistorySearch } from "./useHistorySearch";
 import { useUnitySelection } from "./useUnitySelection";
 
 const TRY_AGAIN_PROMPT = "Try again.";
 const NOTHING_EXPANDED: Partial<Record<ResourceKind, boolean>> = {};
+const recentPromptsByTurns = new WeakMap<ChatTurn[], string[]>();
+
+function recentPromptsFor(turns: ChatTurn[]): string[] {
+	const cached = recentPromptsByTurns.get(turns);
+	if (cached) return cached;
+	const prompts = deriveRecentPrompts(turns);
+	recentPromptsByTurns.set(turns, prompts);
+	return prompts;
+}
 
 function renderSubagentModel({ model, thinkingLevel }: SubagentResourceSummary) {
 	return <RunModelLabel model={model} thinkingLevel={thinkingLevel} />;
@@ -99,7 +111,21 @@ export default function ChatView({
 	const t = useT();
 	const sessionExists = useAppStore((s) => s.sessions[sessionId] !== undefined);
 	const isStreaming = useAppStore((s) => s.sessions[sessionId]?.isStreaming ?? false);
-	const draft = useAppStore((s) => s.sessions[sessionId]?.draft ?? "");
+	const awaitingResponse = useAppStore(
+		(s) => awaitingToolCallIdOf(s.sessions[sessionId]?.hostState ?? null) != null,
+	);
+	const imageDraft = useAppStore(
+		(s) => s.sessions[sessionId]?.promptImages ?? EMPTY_RUNTIME.promptImages,
+	);
+	const imageOwner = useMemo<PromptImagesOwner>(
+		() => ({
+			state: imageDraft,
+			read: () =>
+				useAppStore.getState().sessions[sessionId]?.promptImages ?? EMPTY_RUNTIME.promptImages,
+			update: (change) => useAppStore.getState().updateChatPromptImages(sessionId, change),
+		}),
+		[imageDraft, sessionId],
+	);
 	const queue = useAppStore((s) => s.sessions[sessionId]?.queue ?? EMPTY_RUNTIME.queue);
 	const sessionModel = useAppStore((s) => s.sessions[sessionId]?.model ?? null);
 	const thinkingLevel = useAppStore(
@@ -120,7 +146,7 @@ export default function ChatView({
 		(s) => s.sessions[sessionId]?.syncedConnectionGeneration ?? 0,
 	);
 	const recentPrompts = useAppStore(
-		useShallow((s) => deriveRecentPrompts(s.sessions[sessionId]?.turns ?? [])),
+		useShallow((s) => recentPromptsFor(s.sessions[sessionId]?.turns ?? EMPTY_RUNTIME.turns)),
 	);
 	const unitySelection = useUnitySelection(workspaceId);
 
@@ -129,6 +155,8 @@ export default function ChatView({
 	const canRenameChat = useAppStore(selectCanRenameChat);
 	const supportsMcp = useAppStore(selectSupportsMcp);
 	const composerGrowthLimit = useAppStore((state) => state.composerGrowthLimit);
+	const questionPanelHeight = useAppStore((state) => state.questionPanelHeight);
+	const [dockTarget, setDockTarget] = useState<HTMLDivElement | null>(null);
 	const chatLineWidth = useAppStore((state) => state.chatLineWidth);
 	const chatLineWidthBounded = useAppStore((state) => state.chatLineWidthBounded);
 	const chatMessageOrder = useAppStore((state) => state.chatMessageOrder);
@@ -206,10 +234,15 @@ export default function ChatView({
 		resources.groups.recentFinished,
 		resources.visible && resources.authoritative,
 	);
-	const freshIds = new Set([
-		...freshResults.commands.map((command) => command.id),
-		...freshResults.subagents.map((child) => child.childSessionId),
-	]);
+	const freshCommandIds = freshResults.commands.map((command) => command.id).join("\u0000");
+	const freshSubagentIds = freshResults.subagents
+		.map((child) => child.childSessionId)
+		.join("\u0000");
+	const freshIds = useMemo(() => {
+		const ids = new Set(freshCommandIds ? freshCommandIds.split("\u0000") : []);
+		for (const id of freshSubagentIds ? freshSubagentIds.split("\u0000") : []) ids.add(id);
+		return ids;
+	}, [freshCommandIds, freshSubagentIds]);
 	const resourcesTrigger = useRef<HTMLButtonElement>(null);
 	const [stopAllOpen, setStopAllOpen] = useState(false);
 	const [inspector, setInspector] = useState<{
@@ -367,9 +400,10 @@ export default function ChatView({
 					"--chat-transcript-width",
 					`calc(${chatLineWidth}ch + 2 * var(--chat-gutter))`,
 				);
+				element.style.setProperty("--question-panel-height", String(questionPanelHeight));
 			}
 		},
-		[chatLineWidth],
+		[chatLineWidth, questionPanelHeight],
 	);
 
 	const {
@@ -509,7 +543,7 @@ export default function ChatView({
 		const superseded = () => selection !== pairSelection.current;
 		useAppStore.getState().setCurrentModel(sessionId, model);
 		if (level) useAppStore.getState().setThinkingLevel(sessionId, level);
-		getTransport()
+		void getTransport()
 			.request("session.setModel", { sessionId, model })
 			.then(
 				() => (level && !superseded() ? requestLevel(level, previous.level) : undefined),
@@ -602,8 +636,10 @@ export default function ChatView({
 			.request(method, params)
 			.catch((err) => {
 				useAppStore.getState().appendErrorTurn(sessionId, errorText(err));
-				if (queued) restoreTextToDraft(text);
-				else {
+				const tooLarge = wsErrorCode(err) === "FRAME_TOO_LARGE";
+				if (queued || tooLarge) restoreTextToDraft(text);
+				if (tooLarge) composerRef.current?.restoreAttachments(attachments);
+				if (!queued) {
 					const streaming = useAppStore.getState().sessions[sessionId]?.isStreaming ?? false;
 					transcriptRef.current?.cancelImmediateTurn(streaming);
 				}
@@ -680,7 +716,10 @@ export default function ChatView({
 		});
 	};
 
-	const onHistoryOpen = () => (historyState.open ? onDismissHistory() : openOverlay(draft));
+	const onHistoryOpen = () =>
+		historyState.open
+			? onDismissHistory()
+			: openOverlay(useAppStore.getState().sessions[sessionId]?.draft ?? "");
 
 	const onManageTemplates = () => useAppStore.getState().openSettings(SettingsSection.Templates);
 
@@ -716,16 +755,6 @@ export default function ChatView({
 		(name: string) => getTransport().request("template.get", { workspaceId, name }),
 		[workspaceId],
 	);
-	const applyTemplate = useCallback(
-		(template: ParsedTemplate) => composerRef.current?.insertTemplate(template),
-		[],
-	);
-	const { pending: templatePending, pick: onPickTemplate } = useTemplateCommandPicker({
-		draft,
-		contextKey: `${workspaceId}:${sessionId}`,
-		load: loadTemplate,
-		onApply: applyTemplate,
-	});
 
 	const historyOpenRequest = useAppStore((s) => s.historyOpenRequest);
 	const historyOverlayOpen = historyState.open;
@@ -736,6 +765,15 @@ export default function ChatView({
 		if (historyOverlayOpen) cycleScope();
 		else composerRef.current?.openHistory();
 	}, [historyOpenRequest, sessionId, historyOverlayOpen, cycleScope]);
+
+	const composerFocusRequested = useAppStore((s) =>
+		selectComposerFocusRequested(s, workspaceId, sessionId),
+	);
+	useEffect(() => {
+		if (!composerFocusRequested) return;
+		useAppStore.getState().clearComposerFocusRequest();
+		composerRef.current?.refocus();
+	}, [composerFocusRequested]);
 
 	const widgetEntries = Object.entries(extUiWidget);
 	const disableNotice = () => {
@@ -813,6 +851,7 @@ export default function ChatView({
 				openMcpSettings={supportsMcp ? openMcpSettings : undefined}
 				openProviderSettings={openProviderSettings}
 				findModel={findModel}
+				dockTarget={dockTarget}
 				resourcesOverlay={
 					resources.visible ? (
 						<ResourcesInspector
@@ -866,6 +905,11 @@ export default function ChatView({
 					) : null
 				}
 			/>
+			<div
+				ref={setDockTarget}
+				data-testid="chat-dock"
+				className="flex max-h-[calc(var(--question-panel-height)*1cqh)] min-h-0 flex-col"
+			/>
 			{widgetEntries.length > 0 ? (
 				<div className="shrink-0 border-border-default border-t bg-container-elevated-bg px-12 py-4 text-text-muted tr-text-metadata">
 					{widgetEntries.map(([key, lines]) => (
@@ -914,15 +958,20 @@ export default function ChatView({
 					onOpenMessage={openMessage}
 					onSaveAsTemplate={onSaveAsTemplateHit}
 					onDeleteChat={(wsId, id) => void onDeleteHistoryChat(wsId, id)}
+					canDeleteChat={(wsId) =>
+						selectWorkspaceById(useAppStore.getState(), wsId)?.kind !== "chat"
+					}
 				/>
 				<Composer
 					ref={composerRef}
-					value={draft}
-					onChange={(v) => useAppStore.getState().setChatDraft(sessionId, v)}
+					sessionId={sessionId}
+					workspaceId={workspaceId}
+					loadTemplate={loadTemplate}
+					imageOwner={imageOwner}
 					isStreaming={isStreaming}
+					awaitingResponse={awaitingResponse}
 					growthLimit={composerGrowthLimit}
 					commands={mergedCommands}
-					templatePending={templatePending}
 					mentionCandidates={mentionCandidates}
 					recentPrompts={recentPrompts}
 					unitySelection={unitySelection}
@@ -939,7 +988,6 @@ export default function ChatView({
 					onSubmit={onSubmit}
 					onAbort={onAbort}
 					onHistoryOpen={onHistoryOpen}
-					onPickTemplate={onPickTemplate}
 					onManageTemplates={onManageTemplates}
 					templatesEmpty={templatesEmpty}
 				/>

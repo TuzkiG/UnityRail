@@ -1,4 +1,5 @@
-import { readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import type { Dirent } from "node:fs";
+import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import type {
@@ -237,7 +238,83 @@ export async function listBranches(projectId: string): Promise<BranchList> {
 	return listBranchesAt(project.path);
 }
 
+const BRANCH_LIST_TTL_MS = 5_000;
+const DEFAULT_BRANCH_TTL_MS = 30_000;
+const GIT_DIR_TTL_MS = 60_000;
+
+const gitDirByRepo = new Map<string, { dir: string; at: number }>();
+const branchListCache = new Map<string, { fingerprint: string; value: BranchList; at: number }>();
+const branchListFlights = new Map<string, { fingerprint: string; promise: Promise<BranchList> }>();
+const defaultBranchCache = new Map<string, { fingerprint: string; value: string; at: number }>();
+
+function gitDirFor(repo: string): string | null {
+	const cached = gitDirByRepo.get(repo);
+	if (cached && Date.now() - cached.at < GIT_DIR_TTL_MS) return cached.dir;
+	const out = git(repo, ["rev-parse", "--absolute-git-dir"], {
+		action: "resolve the git directory",
+	});
+	if (!out.ok || !out.out) return null;
+	const dir = out.out;
+	gitDirByRepo.set(repo, { dir, at: Date.now() });
+	return dir;
+}
+
+/** HEAD, the checked-out ref and the ref tree's names, mtimes and sizes: a branch add, delete,
+ * move, checkout or remote HEAD retarget invalidates it. Windows leaves a directory's mtime alone
+ * when a file appears inside it, so each ref file is statted rather than its parent directory. */
+function refsFingerprint(repo: string, head: string | null): string | null {
+	const dir = gitDirFor(repo);
+	if (!dir) return null;
+	const parts = [head ?? ""];
+	for (const rel of ["HEAD", "packed-refs"]) {
+		const stat = statSync(join(dir, rel), { bigint: true, throwIfNoEntry: false });
+		parts.push(stat ? `${stat.mtimeNs}:${stat.size}` : "-");
+	}
+	parts.push(refTreeSignature(join(dir, "refs"), 0));
+	return parts.join("|");
+}
+
+const REF_TREE_DEPTH = 2;
+
+function refTreeSignature(path: string, depth: number): string {
+	let entries: Dirent[];
+	try {
+		entries = readdirSync(path, { withFileTypes: true });
+	} catch {
+		return "-";
+	}
+	const rows: string[] = [];
+	for (const entry of entries) {
+		const child = join(path, entry.name);
+		const stat = statSync(child, { bigint: true, throwIfNoEntry: false });
+		rows.push(`${entry.name}:${stat ? `${stat.mtimeNs}:${stat.size}` : "-"}`);
+		if (entry.isDirectory() && depth < REF_TREE_DEPTH)
+			rows.push(`${entry.name}/${refTreeSignature(child, depth + 1)}`);
+	}
+	return rows.sort().join(",");
+}
+
 export async function listBranchesAt(repo: string): Promise<BranchList> {
+	const head = headShaAt(repo, { onTimeout: "return" });
+	const fingerprint = refsFingerprint(repo, head);
+	const cached = fingerprint ? branchListCache.get(repo) : undefined;
+	if (cached && cached.fingerprint === fingerprint && Date.now() - cached.at < BRANCH_LIST_TTL_MS)
+		return cached.value;
+	const flight = fingerprint ? branchListFlights.get(repo) : undefined;
+	if (flight && flight.fingerprint === fingerprint) return flight.promise;
+	const promise = readBranchList(repo, head)
+		.then((value) => {
+			if (fingerprint) branchListCache.set(repo, { fingerprint, value, at: Date.now() });
+			return value;
+		})
+		.finally(() => {
+			if (branchListFlights.get(repo)?.promise === promise) branchListFlights.delete(repo);
+		});
+	if (fingerprint) branchListFlights.set(repo, { fingerprint, promise });
+	return promise;
+}
+
+async function readBranchList(repo: string, head: string | null): Promise<BranchList> {
 	const [localRefs, remoteRefs, remoteNames] = await Promise.all([
 		gitAsync(repo, ["for-each-ref", "--format=%(refname)", "refs/heads"]),
 		gitAsync(repo, ["for-each-ref", "--format=%(refname)\t%(symref)", "refs/remotes"]),
@@ -263,7 +340,7 @@ export async function listBranchesAt(repo: string): Promise<BranchList> {
 		local,
 		remote,
 		remoteGroups: groupRemoteRefs(remote, lines(remoteNames.out)),
-		defaultBranch: resolveDefaultBranch(repo),
+		defaultBranch: resolveDefaultBranch(repo, head),
 		...(upstream.ok && upstream.out ? { upstream: upstream.out } : {}),
 	};
 }
@@ -272,7 +349,24 @@ export function listRemotes(repoPath: string): string[] {
 	return lines(git(repoPath, ["remote"], { action: "list the remotes" }).out);
 }
 
-export function resolveDefaultBranch(repoPath: string): string {
+export function resolveDefaultBranch(
+	repoPath: string,
+	head: string | null = headShaAt(repoPath, { onTimeout: "return" }),
+): string {
+	const fingerprint = refsFingerprint(repoPath, head);
+	const cached = fingerprint ? defaultBranchCache.get(repoPath) : undefined;
+	if (
+		cached &&
+		cached.fingerprint === fingerprint &&
+		Date.now() - cached.at < DEFAULT_BRANCH_TTL_MS
+	)
+		return cached.value;
+	const value = readDefaultBranch(repoPath);
+	if (fingerprint) defaultBranchCache.set(repoPath, { fingerprint, value, at: Date.now() });
+	return value;
+}
+
+function readDefaultBranch(repoPath: string): string {
 	const originHeadRef = `${REMOTE_REF_PREFIX}origin/HEAD`;
 	const action = "resolve the default branch";
 	const originHead = git(repoPath, ["symbolic-ref", originHeadRef], { action });
@@ -345,6 +439,7 @@ export async function remoteRefOidAsync(repoPath: string, ref: string): Promise<
 export async function prefetchBranch(
 	projectId: string,
 	ref: string,
+	signal?: AbortSignal,
 ): Promise<{ ok: boolean; moved: boolean }> {
 	const project = loadProjects().find((p) => p.id === projectId);
 	if (!project || !isSafeRef(ref)) return { ok: false, moved: false };
@@ -354,7 +449,7 @@ export async function prefetchBranch(
 	const result = await gitAsync(
 		project.path,
 		["fetch", remoteName, "--", ref.slice(`${remoteName}/`.length)],
-		{ network: true },
+		{ network: true, ...(signal ? { signal } : {}) },
 	);
 	const after = await remoteRefOidAsync(project.path, ref);
 	const moved = after !== null && after !== before;
@@ -1321,6 +1416,89 @@ export async function listCommitsSince(
 		commits.push({ sha, subject: plainText(sep === -1 ? "" : line.slice(sep + 1)) });
 	}
 	return commits;
+}
+
+const COMMIT_FILES_MARKER = "\u0001";
+
+/** One commit's `git log --raw -z --numstat` body: raw rows in diff order, `+/−` counts joined by path. */
+function parseLogDiffRows(body: string): GitFileChange[] {
+	const fields = nulFields(body.startsWith("\n") ? body.slice(1) : body);
+	const counts = new Map<string, { added: number; removed: number }>();
+	const raw: RawChange[] = [];
+	for (let index = 0; index < fields.length; ) {
+		const field = fields[index++] ?? "";
+		if (field.startsWith(":")) {
+			const [srcMode, dstMode, , , code] = field.slice(1).split(" ");
+			let path = fields[index++] ?? "";
+			if ((code ?? "").startsWith("R") || (code ?? "").startsWith("C"))
+				path = fields[index++] ?? "";
+			if (path)
+				raw.push({
+					code: code ?? "",
+					path,
+					gitlink: srcMode === "160000" || dstMode === "160000",
+				});
+			continue;
+		}
+		const firstTab = field.indexOf("\t");
+		const secondTab = firstTab < 0 ? -1 : field.indexOf("\t", firstTab + 1);
+		if (firstTab < 0 || secondTab < 0) continue;
+		const added = Number(field.slice(0, firstTab));
+		const removed = Number(field.slice(firstTab + 1, secondTab));
+		let path = field.slice(secondTab + 1);
+		if (!path) {
+			index++;
+			path = fields[index++] ?? "";
+		}
+		if (!path || !Number.isFinite(added) || !Number.isFinite(removed)) continue;
+		counts.set(path, { added, removed });
+	}
+	return raw
+		.map(({ code, path, gitlink }) => ({
+			path,
+			status: mapStatus(code),
+			...(gitlink ? { submodule: true } : counts.get(path)),
+		}))
+		.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** The `commit:{sha}` scope's rows (see `gitStatus`) for many commits in ONE `git log`, which is what
+ * the TODO decoration pass needs — a per-commit scope costs ~5 subprocesses each. A merge commit reads
+ * its first-parent diff, the same rows the per-commit scope produces. A sha git cannot resolve, and
+ * any sha that is not a full object name, is absent from the map: the caller keeps its thin-artifact
+ * fallback, so a GC'd commit still ships no `files`. */
+export async function gitCommitFilesBulk(
+	workspaceId: string,
+	shas: readonly string[],
+): Promise<Map<string, GitFileChange[]>> {
+	const files = new Map<string, GitFileChange[]>();
+	const wanted = [...new Set(shas)].filter((sha) => /^[0-9a-f]{40,64}$/.test(sha));
+	if (wanted.length === 0) return files;
+	const log = await gitAsync(
+		workspace(workspaceId).worktreePath,
+		[
+			"log",
+			"--no-walk=unsorted",
+			"--ignore-missing",
+			"--diff-merges=first-parent",
+			`--format=${COMMIT_FILES_MARKER}%H`,
+			"--raw",
+			"--numstat",
+			"-z",
+			"--end-of-options",
+			...wanted,
+			"--",
+		],
+		{ raw: true },
+	);
+	if (log.failure) throw new Error(`Could not read the commit files: ${log.err || "git failed"}`);
+	for (const chunk of log.out.split(COMMIT_FILES_MARKER)) {
+		const sep = chunk.indexOf("\u0000");
+		const sha = sep === -1 ? "" : chunk.slice(0, sep);
+		if (!/^[0-9a-f]{40,64}$/.test(sha)) continue;
+		files.set(sha, parseLogDiffRows(chunk.slice(sep + 1)));
+	}
+	return files;
 }
 
 export interface OriginUrls {

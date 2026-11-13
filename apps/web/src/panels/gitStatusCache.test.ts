@@ -44,15 +44,26 @@ test("a vanished commit forgets its entry", async () => {
 	expect(peekGitStatus("ws-a", scope, "")).toBeNull();
 });
 
-test("an older reply that lands last does not overwrite a newer one", async () => {
-	const older = readGitStatus("ws-order", branch, "main");
-	const newer = readGitStatus("ws-order", branch, "main");
-	const [first, second] = replies.splice(0, 2);
-	second?.resolve(status("newer"));
-	await newer;
-	first?.resolve(status("older"));
-	await older;
-	expect(peekGitStatus("ws-order", branch, "main")?.branch).toBe("newer");
+test("concurrent reads for one key share a single request and reply", async () => {
+	const first = readGitStatus("ws-share", branch, "main");
+	const second = readGitStatus("ws-share", branch, "main");
+	expect(replies).toHaveLength(1);
+	replies.shift()?.resolve(status("shared"));
+	const [one, two] = await Promise.all([first, second]);
+	expect(two).toBe(one);
+	expect(peekGitStatus("ws-share", branch, "main")?.branch).toBe("shared");
+});
+
+test("a different scope target is read separately even while one read is pending", async () => {
+	const main = readGitStatus("ws-split", branch, "main");
+	const release = readGitStatus("ws-split", branch, "release");
+	expect(replies).toHaveLength(2);
+	const [mainReply, releaseReply] = replies.splice(0, 2);
+	releaseReply?.resolve(status("release"));
+	mainReply?.resolve(status("main"));
+	await Promise.all([main, release]);
+	expect(peekGitStatus("ws-split", branch, "main")?.branch).toBe("main");
+	expect(peekGitStatus("ws-split", branch, "release")?.branch).toBe("release");
 });
 
 test("the cache keeps only the most recently used entries", async () => {

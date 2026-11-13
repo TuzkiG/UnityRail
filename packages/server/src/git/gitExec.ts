@@ -71,7 +71,13 @@ export function setSyncGitTimeoutForTests(timeoutMs: number | undefined): void {
 }
 
 export function nonInteractiveGitEnv(): Record<string, string | undefined> {
-	return { ...process.env, GIT_TERMINAL_PROMPT: "0" };
+	// Windows keeps the variable under its original `Path` spelling; children and callers read `PATH`.
+	const path = process.env.PATH ?? process.env.Path;
+	return {
+		...process.env,
+		...(path === undefined ? {} : { PATH: path }),
+		GIT_TERMINAL_PROMPT: "0",
+	};
 }
 
 function syncDeadline(timeoutMs: number | null | undefined) {
@@ -198,7 +204,7 @@ function executionDiagnostics(run: {
 export async function gitAsync(
 	cwd: string,
 	args: string[],
-	opts: GitAsyncOptions & { raw?: boolean } = {},
+	opts: GitAsyncOptions & { raw?: boolean; stdin?: Blob } = {},
 ): Promise<GitResult> {
 	const run = await runBounded(["git", "-C", cwd, ...args], {
 		timeoutMs: opts.timeoutMs ?? NETWORK_TIMEOUT_MS,
@@ -206,6 +212,7 @@ export async function gitAsync(
 		...(opts.signal ? { signal: opts.signal } : {}),
 		...(opts.idleTimeoutMs !== undefined ? { idleTimeoutMs: opts.idleTimeoutMs } : {}),
 		...(opts.onStderr ? { onStderr: opts.onStderr } : {}),
+		...(opts.stdin ? { stdin: opts.stdin } : {}),
 	});
 	if (opts.redactStderr) run.err = opts.redactStderr(run.err);
 	if (run.timedOut) {

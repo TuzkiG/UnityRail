@@ -13,6 +13,7 @@ export {
 	prewarmWorkspaceSkillLoad,
 	reloadSessionResourcesWithSkillBaseline,
 } from "./skillLoad";
+export { openSpeechSocket } from "./speech";
 export type { ConnectionStatus, TransportOptions } from "./transport";
 export {
 	forgetInAppSurvey,
@@ -26,10 +27,14 @@ export {
 	supportsExtensionStringSettings,
 	supportsFonts,
 	supportsHostUpdateRun,
+	supportsMemoryPiConfig,
+	supportsMemoryProjects,
 	supportsPiPackages,
 	supportsPlanReview,
 	supportsPlanSummaryGeneration,
 	supportsRichAnchors,
+	supportsSpeech,
+	supportsTextSearch,
 	supportsToolResponses,
 	supportsTurnChanges,
 	supportsUserThemes,

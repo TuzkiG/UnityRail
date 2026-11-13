@@ -52,6 +52,8 @@ beforeEach(() => {
 	git(repo, "config", "user.email", "t@thinkrail.test");
 	git(repo, "config", "user.name", "test");
 	git(repo, "config", "commit.gpgsign", "false");
+	// A Windows checkout would otherwise rewrite every fixture file to CRLF.
+	git(repo, "config", "core.autocrlf", "false");
 	writeFileSync(join(repo, "README.md"), "# repo\n");
 	git(repo, "add", "-A");
 	git(repo, "commit", "-m", "init");
@@ -69,11 +71,56 @@ afterEach(() => {
 	else process.env.PATH = savedPath;
 });
 
+let windowsShimDir: string | undefined;
+
+/** Windows cannot run the POSIX stand-in. A compiled shim reads its subcommand from the sidecar
+ * next to it, so one build per test process serves every `failGitSubcommand` call. */
+function windowsShim(): string {
+	if (windowsShimDir) return windowsShimDir;
+	const dir = mkdtempSync(join(tmpdir(), "trpi-git-shim-"));
+	const source = join(dir, "shim.ts");
+	writeFileSync(
+		source,
+		[
+			'import { readFileSync } from "node:fs";',
+			'import { dirname, join } from "node:path";',
+			'const config = JSON.parse(readFileSync(join(dirname(process.execPath), "git-shim.json"), "utf8"));',
+			"const args = process.argv.slice(2);",
+			"if (args.includes(config.subcommand)) {",
+			"\tif (config.before) {",
+			'\t\tconst real = Bun.spawnSync([config.real, ...args], { stdio: ["inherit", "inherit", "inherit"] });',
+			"\t\tif (real.exitCode !== 0) process.exit(real.exitCode ?? 1);",
+			"\t}",
+			'\tconsole.error("forced " + config.subcommand + " failure");',
+			"\tprocess.exit(70);",
+			"}",
+			'const child = Bun.spawnSync([config.real, ...args], { stdio: ["inherit", "inherit", "inherit"] });',
+			"process.exit(child.exitCode ?? 0);",
+		].join("\n"),
+	);
+	const build = Bun.spawnSync(
+		["bun", "build", "--compile", "--outfile", join(dir, "git.exe"), source],
+		{ stdout: "pipe", stderr: "pipe" },
+	);
+	if (build.exitCode !== 0) throw new Error(`git wrapper build failed: ${build.stderr}`);
+	windowsShimDir = dir;
+	return dir;
+}
+
 function installGitWrapper(subcommand: string, runBeforeFailure = false): void {
 	const executable = Bun.which("git");
 	if (!executable) throw new Error("git not found");
 	const bin = join(dataDir, "bin");
 	mkdirSync(bin);
+	if (process.platform === "win32") {
+		const dir = windowsShim();
+		writeFileSync(
+			join(dir, "git-shim.json"),
+			JSON.stringify({ real: executable, subcommand, before: runBeforeFailure }),
+		);
+		process.env.PATH = dir;
+		return;
+	}
 	const failure = runBeforeFailure
 		? `${JSON.stringify(executable)} "$@" || exit $?\necho "forced ${subcommand} failure" >&2\nexit 70`
 		: `echo "forced ${subcommand} failure" >&2\nexit 70`;
@@ -152,7 +199,7 @@ test("gitDiffFile: untracked → empty original; deleted → empty modified", as
 	expect(deleted.modified).toBe("");
 });
 
-test("git paths preserve legal leading and trailing filename whitespace", async () => {
+posix("git paths preserve legal leading and trailing filename whitespace", async () => {
 	seedWorkspace();
 	writeFileSync(join(repo, " tracked "), "before\n");
 	git(repo, "add", " tracked ");
@@ -187,7 +234,7 @@ posix("gitUncommittedPaths gives its whole-tree reads the slow budget, not the 1
 	}
 });
 
-test("git numstat preserves tabs and newlines in a literal path", async () => {
+posix("git numstat preserves tabs and newlines in a literal path", async () => {
 	seedWorkspace();
 	const path = "line\n\tname";
 	writeFileSync(join(repo, path), "before\n");
@@ -398,6 +445,19 @@ test("prefetch fetches from the remote the ref names, and refuses a remote-shape
 	expect(await prefetchBranch("p1", "upstairs/trunk")).toEqual({ ok: false, moved: false });
 });
 
+test("an aborted prefetch fetches nothing", async () => {
+	addSecondRemote();
+	git(repo, "update-ref", "-d", "refs/remotes/upstream/trunk");
+	const stopped = new AbortController();
+	stopped.abort();
+
+	expect(await prefetchBranch("p1", "upstream/trunk", stopped.signal)).toEqual({
+		ok: false,
+		moved: false,
+	});
+	expect(await prefetchBranch("p1", "upstream/trunk")).toEqual({ ok: true, moved: true });
+});
+
 test("prefetch honors a legal remote name containing a slash", async () => {
 	const nestedRepo = join(dataDir, "team-upstream.git");
 	git(repo, "init", "--bare", nestedRepo);
@@ -482,7 +542,7 @@ test("prefetchBranch fetches a remote ref and no-ops on a local ref or unknown p
 
 	expect(await prefetchBranch("p1", "main")).toEqual({ ok: false, moved: false });
 	expect(await prefetchBranch("nope", "origin/main")).toEqual({ ok: false, moved: false });
-});
+}, 30_000);
 
 test("prefetchBranch refuses a ref git would read as a refspec", async () => {
 	const remoteRepo = join(dataDir, "remote.git");
@@ -649,6 +709,26 @@ test("resolveDiffRange degrades a root commit to an add-style diff (no parent to
 	);
 });
 
+test("an unborn HEAD lists staged and untracked files as added instead of failing", async () => {
+	const fresh = join(dataDir, "fresh");
+	mkdirSync(fresh);
+	git(fresh, "init", "-b", "feature");
+	writeFileSync(join(fresh, "staged.txt"), "a\nb\n");
+	writeFileSync(join(fresh, "loose.txt"), "c\n");
+	git(fresh, "add", "staged.txt");
+	seedWorkspace({ worktreePath: fresh, branch: "feature", baseBranch: "feature" });
+
+	for (const scope of [{ kind: "branch" }, { kind: "uncommitted" }] as const) {
+		const { changes } = await gitStatus("w1", scope);
+		expect(changes).toEqual([
+			{ path: "loose.txt", status: "untracked", added: 1, removed: 0 },
+			{ path: "staged.txt", status: "added", added: 2, removed: 0 },
+		]);
+		const diff = await gitDiffFile("w1", "staged.txt", scope);
+		expect(diff).toMatchObject({ original: "", modified: "a\nb\n", originalOid: null });
+	}
+});
+
 test("resolveDiffRange rejects a non-oid sha before it reaches git, and an unknown commit", async () => {
 	const ws = { baseBranch: "main", worktreePath: repo };
 	await expect(resolveDiffRange(ws, { kind: "commit", sha: "--output=/tmp/pwn" })).rejects.toThrow(
@@ -785,7 +865,7 @@ test("listCommits: a subject carrying the field separator can't shift author or 
 });
 
 test("an option-shaped ref reaches git as a rev, never as an option", async () => {
-	const probe = join(dataDir, "pwn-probe.txt");
+	const probe = "pwn-probe.txt";
 	git(repo, "update-ref", `refs/heads/--output=${probe}`, "HEAD");
 	expect(isSafeRef(`--output=${probe}`)).toBe(false);
 	expect(await (await listBranches("p1")).local).toContain(`--output=${probe}`);
@@ -793,7 +873,7 @@ test("an option-shaped ref reaches git as a rev, never as an option", async () =
 	seedWorkspace({ diffBase: `--output=${probe}` });
 	expect(await (await gitStatus("w1")).changes).toEqual([]);
 	expect(await (await listCommits("w1")).commits).toEqual([]);
-	expect(existsSync(probe)).toBe(false);
+	expect(existsSync(join(repo, probe))).toBe(false);
 });
 
 test("isSafeRef accepts real refs and refuses anything git could re-read as more than a name", async () => {
@@ -1037,26 +1117,29 @@ test("gitCommitPaths leaves the user's own staged work staged (never in the item
 	expect(stagedPaths()).toEqual(["mine.ts"]);
 });
 
-test("gitCommitPaths treats paths literally — a pathspec-magic filename never expands beyond itself", async () => {
-	seedWorkspace();
-	const magic = ":(top)*";
-	writeFileSync(join(repo, magic), "the item's own work\n");
-	writeFileSync(join(repo, "other.ts"), "export const other = 1;\n");
-	mkdirSync(join(repo, ".thinkrail", "context"), { recursive: true });
-	writeFileSync(join(repo, ".thinkrail", "context", "todos.json"), "{}");
+posix(
+	"gitCommitPaths treats paths literally — a pathspec-magic filename never expands beyond itself",
+	async () => {
+		seedWorkspace();
+		const magic = ":(top)*";
+		writeFileSync(join(repo, magic), "the item's own work\n");
+		writeFileSync(join(repo, "other.ts"), "export const other = 1;\n");
+		mkdirSync(join(repo, ".thinkrail", "context"), { recursive: true });
+		writeFileSync(join(repo, ".thinkrail", "context", "todos.json"), "{}");
 
-	const committed = gitCommitPaths("w1", "feat: magic name", [magic]);
-	expect(committed).not.toBeNull();
-	expect(
-		(await gitStatus("w1", { kind: "commit", sha: committed?.sha ?? "" })).changes.map(
-			(c) => c.path,
-		),
-	).toEqual([magic]);
-	expect(
-		(await gitStatus("w1", { kind: "uncommitted" })).changes.map((c) => c.path).sort(),
-	).toEqual([".thinkrail/context/todos.json", "other.ts"]);
-	expect(stagedPaths()).toEqual([]);
-});
+		const committed = gitCommitPaths("w1", "feat: magic name", [magic]);
+		expect(committed).not.toBeNull();
+		expect(
+			(await gitStatus("w1", { kind: "commit", sha: committed?.sha ?? "" })).changes.map(
+				(c) => c.path,
+			),
+		).toEqual([magic]);
+		expect(
+			(await gitStatus("w1", { kind: "uncommitted" })).changes.map((c) => c.path).sort(),
+		).toEqual([".thinkrail/context/todos.json", "other.ts"]);
+		expect(stagedPaths()).toEqual([]);
+	},
+);
 
 test("a failed commit restores the index — the user's staging area is never left mutated", async () => {
 	seedWorkspace();

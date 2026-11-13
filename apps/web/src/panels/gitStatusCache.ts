@@ -12,6 +12,7 @@ interface Entry {
 }
 
 const entries = new Map<string, Entry>();
+const inFlight = new Map<string, Promise<GitStatus>>();
 let requests = 0;
 let watchingRemovals = false;
 
@@ -64,13 +65,22 @@ export async function readGitStatus(
 	targetRef: string,
 ): Promise<GitStatus> {
 	const key = cacheKey(workspaceId, scope, targetRef);
+	const pending = inFlight.get(key);
+	if (pending) return pending;
 	const requested = ++requests;
-	try {
-		const status = await getTransport().request("git.status", { workspaceId, scope });
-		remember(key, { workspaceId, status, requested });
-		return status;
-	} catch (error) {
-		if (wsErrorCode(error) === "UNKNOWN_COMMIT") entries.delete(key);
-		throw error;
-	}
+	const promise = getTransport()
+		.request("git.status", { workspaceId, scope })
+		.then((status) => {
+			remember(key, { workspaceId, status, requested });
+			return status;
+		})
+		.catch((error: unknown) => {
+			if (wsErrorCode(error) === "UNKNOWN_COMMIT") entries.delete(key);
+			throw error;
+		})
+		.finally(() => {
+			if (inFlight.get(key) === promise) inFlight.delete(key);
+		});
+	inFlight.set(key, promise);
+	return promise;
 }

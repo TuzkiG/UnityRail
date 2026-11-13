@@ -34,20 +34,9 @@ function runBun(args: string[]): void {
 	}
 }
 
-function resolveRuntimeSources(): BuildRuntimeSources {
-	const result = spawnSync(
-		"bun",
-		[
-			"--print",
-			'JSON.stringify((await import("@thinkrail/server/build-support")).resolveBuildRuntimeSources())',
-		],
-		{ cwd: desktopDir, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
-	);
-	if (result.error) throw result.error;
-	if (result.status !== 0) {
-		throw new Error(`build-support manifest exited ${result.status ?? result.signal}`);
-	}
-	return JSON.parse(result.stdout) as BuildRuntimeSources;
+async function resolveRuntimeSources(): Promise<BuildRuntimeSources> {
+	const { resolveBuildRuntimeSources } = await import("@thinkrail/server/build-support");
+	return resolveBuildRuntimeSources();
 }
 
 function sourceMapRelease(): string | null {
@@ -112,7 +101,7 @@ const webMaps = listFiles(join(repoRoot, "apps", "web", "dist")).filter((file) =
 if (webMaps.length) throw new Error(`refusing to package web source maps: ${webMaps.join(", ")}`);
 rmSync(stageDir, { recursive: true, force: true });
 mkdirSync(runtimeDir, { recursive: true });
-const sources = resolveRuntimeSources();
+const sources = await resolveRuntimeSources();
 const skillRoutes = new Set<string>();
 for (const skillRoot of sources.skillRoots) {
 	for (const source of listFiles(skillRoot.source).sort()) {

@@ -1,6 +1,5 @@
 import { expect, test } from "bun:test";
-import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
-import { createChatHighlighter } from "@/lib/highlighter";
+import { createChatStreams } from "@/lib/chatHighlighter";
 import { highlightedLines } from "./highlightedLines";
 
 const HTML =
@@ -19,10 +18,11 @@ test("html without a code body yields nothing", () => {
 	expect(highlightedLines("<pre><code></code></pre>")).toEqual([""]);
 });
 
-test("real shiki html yields one snippet per input line", async () => {
-	const highlight = createChatHighlighter(createJavaScriptRegexEngine);
+test("real highlighted html yields one snippet per input line", async () => {
+	const streams = createChatStreams();
 	const code = "public class A\n{\n    void F() { }\n}";
-	const html = await highlight(code, "csharp");
+	const result = streams.highlight("test", code, "csharp");
+	const html = result && "html" in result ? result.html : null;
 	expect(html).not.toBeNull();
 	const lines = highlightedLines(html ?? "");
 	expect(lines).toHaveLength(code.split("\n").length);

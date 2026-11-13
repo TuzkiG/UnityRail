@@ -38,6 +38,7 @@ import { ToggleSegment } from "@thinkrail/ui/toggle-segment";
 import { cn } from "@thinkrail/ui/utils";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { QuietScrollArea } from "../components/QuietScrollArea";
+import { useAppStore } from "../store";
 import { errorText, getTransport } from "../transport";
 import { openFileInTab } from "./openTabs";
 import { editorSelectionPath } from "./unitySelection";
@@ -506,8 +507,12 @@ function ProjectOverview({
 
 export function UnityPanel({ workspaceId }: { workspaceId: string }) {
 	const t = useT();
-	const [snapshot, setSnapshot] = useState<UnityWorkspaceSnapshot | null>(null);
-	const [loading, setLoading] = useState(true);
+	const [snapshot, setSnapshot] = useState<UnityWorkspaceSnapshot | null>(
+		() => useAppStore.getState().unitySnapshotsByWorkspace[workspaceId] ?? null,
+	);
+	const [loading, setLoading] = useState(
+		() => useAppStore.getState().unitySnapshotsByWorkspace[workspaceId] === undefined,
+	);
 	const [snapshotError, setSnapshotError] = useState<string | null>(null);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [notice, setNotice] = useState<string | null>(null);
@@ -535,7 +540,10 @@ export function UnityPanel({ workspaceId }: { workspaceId: string }) {
 	const project = snapshot?.project ?? null;
 	const editorPath = editorSelectionPath(bridge?.selection);
 
+	const previousWorkspaceId = useRef(workspaceId);
 	useEffect(() => {
+		if (previousWorkspaceId.current === workspaceId) return;
+		previousWorkspaceId.current = workspaceId;
 		setSnapshot(null);
 		setLoading(true);
 		setSnapshotError(null);
@@ -563,6 +571,7 @@ export function UnityPanel({ workspaceId }: { workspaceId: string }) {
 				if (snapshotGeneration.current === generation) {
 					setSnapshot(next);
 					setSnapshotError(null);
+					useAppStore.getState().installUnitySnapshot(workspaceId, next);
 				}
 				return true;
 			})

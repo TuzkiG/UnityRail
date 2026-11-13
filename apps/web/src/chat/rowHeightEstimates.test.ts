@@ -82,7 +82,7 @@ describe("chat row height estimates", () => {
 		const canonical: ChatRow[] = [
 			userRow("u1", "first question"),
 			markdownRow("a1:text:0", "Short answer."),
-			{ kind: "system", id: "s1", text: "✓ Done" },
+			{ kind: "system", id: "s1", text: "Heads up" },
 			userRow("u2", "second question"),
 			markdownRow("a2:text:0", paragraph.repeat(30)),
 		];
@@ -112,6 +112,15 @@ describe("chat row height estimates", () => {
 
 		expect(cached).toBe(initial);
 		expect(remounted).toBeGreaterThan(initial ?? 0);
+	});
+
+	test("keeps the previous heights array when every estimate is unchanged", () => {
+		const cache = new Map();
+		const rows = [markdownRow("a1:text:0", "Short answer.")];
+		const first = estimateChatRowHeights(rows, cache);
+		const second = estimateChatRowHeights([{ ...rows[0] } as ChatRow], cache, first);
+
+		expect(second).toBe(first);
 	});
 
 	test("models collapsed reports and expanded visualization payloads", () => {

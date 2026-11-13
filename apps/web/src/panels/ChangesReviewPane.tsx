@@ -42,7 +42,7 @@ import { HeaderIconButton } from "./HeaderIconButton";
 import { NestedRepoTag } from "./NestedRepoTag";
 import { ownsReviewShortcut } from "./reviewShortcuts";
 import { SendAllReviewsButton } from "./SendReviewButton";
-import { createSectionContentCache } from "./sectionContentCache";
+import { sectionContentCacheFor } from "./sectionContentCache";
 import { useReviewReveal } from "./useReviewReveal";
 import { useWorkspaceRead } from "./useWorkspaceRead";
 import { useWorkspaceTurns } from "./useWorkspaceTurns";
@@ -105,7 +105,10 @@ export function ChangesReviewPane({ tab }: { tab: ChangesTab }) {
 	const setActivePath = useAppStore((state) => state.setChangesTabActivePath);
 	const setCollapsed = useAppStore((state) => state.setChangesTabCollapsed);
 	const requestReveal = useAppStore((state) => state.requestChangesTabReveal);
-	const [cache] = useState(createSectionContentCache);
+	const cache = useMemo(
+		() => sectionContentCacheFor(workspaceId, scope, targetRef),
+		[scope, targetRef, workspaceId],
+	);
 	const turns = useWorkspaceTurns(workspaceId);
 	const reviewGuide = useAppStore((state) => state.reviewsByWorkspace[workspaceId]?.review.guide);
 	const reviewComments = useAppStore((state) => state.reviewsByWorkspace[workspaceId]?.comments);

@@ -16,8 +16,6 @@ export interface DiffRange {
 }
 
 const OID = /^[0-9a-f]{4,64}$/;
-/** Discovery caps a workspace at 128 repositories; a scope can never legitimately name more. */
-const MAX_NESTED_TREES = 512;
 
 function throwExecutionFailure(result: GitResult): void {
 	if (result.failure)
@@ -42,8 +40,26 @@ async function resolveCommitOidAsync(worktreePath: string, ref: string): Promise
 	);
 }
 
-/** HEAD → worktree for one repository, including an unborn HEAD (everything it has staged is an
- * addition then). Used for a nested repository, which has no relationship to the workspace's base. */
+const EMPTY_TREE: Record<string, string> = {
+	sha1: "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+	sha256: "6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321",
+};
+
+async function unbornRange(worktreePath: string): Promise<DiffRange | null> {
+	const format = await gitAsync(worktreePath, ["rev-parse", "--show-object-format"]);
+	throwExecutionFailure(format);
+	const emptyTree = EMPTY_TREE[format.out];
+	if (!format.ok || !emptyTree) return null;
+	return {
+		listPrefix: ["diff"],
+		listRevs: [emptyTree],
+		untracked: true,
+		originalRef: null,
+		modifiedRef: null,
+		resolvedOriginalOid: null,
+	};
+}
+
 export async function resolveUncommittedRange(worktreePath: string): Promise<DiffRange> {
 	const head = await gitAsync(worktreePath, ["rev-parse", "--verify", "--quiet", "HEAD"]);
 	if (head.failure)
@@ -73,13 +89,16 @@ export async function resolveDiffRange(
 	scope: GitDiffScope = { kind: "branch" },
 ): Promise<DiffRange> {
 	if (scope.kind === "uncommitted") {
+		const head = await resolveCommitOidAsync(ws.worktreePath, "HEAD");
+		const unborn = head ? null : await unbornRange(ws.worktreePath);
+		if (unborn) return unborn;
 		return {
 			listPrefix: ["diff"],
 			listRevs: ["HEAD"],
 			untracked: true,
 			originalRef: "HEAD",
 			modifiedRef: null,
-			resolvedOriginalOid: await resolveCommitOidAsync(ws.worktreePath, "HEAD"),
+			resolvedOriginalOid: head,
 		};
 	}
 	if (scope.kind === "pinned") {
@@ -105,20 +124,6 @@ export async function resolveDiffRange(
 	if (scope.kind === "turn") {
 		if (!OID.test(scope.baseTree) || !OID.test(scope.headTree))
 			throw new Error(`Not a tree id: ${scope.baseTree}..${scope.headTree}`);
-		const nested = scope.nestedTrees;
-		if (nested !== undefined && (!Array.isArray(nested) || nested.length > MAX_NESTED_TREES))
-			throw new Error("This turn's nested snapshots are not a bounded list.");
-		for (const pair of nested ?? []) {
-			if (
-				typeof pair.repo !== "string" ||
-				!pair.repo ||
-				pair.repo.startsWith("/") ||
-				pair.repo.split("/").includes("..") ||
-				!OID.test(pair.baseTree) ||
-				!OID.test(pair.headTree)
-			)
-				throw new Error("This turn's nested snapshot is malformed.");
-		}
 		for (const tree of [scope.baseTree, scope.headTree]) {
 			const resolved = await gitAsync(ws.worktreePath, [
 				"rev-parse",
@@ -189,6 +194,12 @@ export async function resolveDiffRange(
 	]);
 	throwExecutionFailure(mergeBase);
 	const resolvedForkPoint = mergeBase.ok && mergeBase.out ? mergeBase.out : null;
+	const resolvedOriginalOid =
+		resolvedForkPoint ?? (await resolveCommitOidAsync(ws.worktreePath, base));
+	if (!resolvedOriginalOid && !(await resolveCommitOidAsync(ws.worktreePath, "HEAD"))) {
+		const unborn = await unbornRange(ws.worktreePath);
+		if (unborn) return unborn;
+	}
 	const forkPoint = resolvedForkPoint ?? base;
 	return {
 		listPrefix: ["diff"],
@@ -196,7 +207,7 @@ export async function resolveDiffRange(
 		untracked: true,
 		originalRef: forkPoint,
 		modifiedRef: null,
-		resolvedOriginalOid: resolvedForkPoint ?? (await resolveCommitOidAsync(ws.worktreePath, base)),
+		resolvedOriginalOid,
 	};
 }
 

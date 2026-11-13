@@ -6,6 +6,7 @@ import {
 	readFileSync,
 	renameSync,
 	rmSync,
+	statSync,
 	writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -160,8 +161,13 @@ function archivedReviewFiles(): string[] {
 	return files;
 }
 
+const publishedSnapshots = new Map<string, string>();
+
 function persistAndPublish(workspaceId: string, snapshot: ReviewSnapshot): void {
 	save(workspaceId, snapshot);
+	const serialized = JSON.stringify(snapshot);
+	if (publishedSnapshots.get(workspaceId) === serialized) return;
+	publishedSnapshots.set(workspaceId, serialized);
 	publish({ workspaceId, ...snapshot });
 }
 
@@ -271,20 +277,78 @@ async function mutateSnapshot<T>(
 	return mutate(await ensureSnapshot(workspaceId));
 }
 
-function reanchorSnapshot(workspaceId: string, snapshot: ReviewSnapshot): boolean {
-	const ws = getWorkspace(workspaceId);
+type ReanchorOutcome = ReturnType<typeof reanchor>;
+
+/** Last re-anchor verdict per (workspace, file) at a given on-disk stamp, so an unchanged file is
+ * never read again and each anchor is only re-anchored when the file it belongs to is dirty. */
+const reanchorPasses = new Map<string, { stamp: string; results: Map<string, ReanchorOutcome> }>();
+
+function fileStamp(worktreePath: string, path: string): string {
+	try {
+		const stat = statSync(worktreeFilePath(worktreePath, path), {
+			bigint: true,
+			throwIfNoEntry: false,
+		});
+		return stat ? `${stat.mtimeNs}:${stat.size}` : "missing";
+	} catch {
+		return "unreadable";
+	}
+}
+
+function reanchorFile(
+	worktreePath: string,
+	key: string,
+	path: string,
+	comments: ReviewComment[],
+): boolean {
+	const stamp = fileStamp(worktreePath, path);
+	const previous = reanchorPasses.get(key);
+	const known = previous?.stamp === stamp ? previous.results : undefined;
+	const results = new Map<string, ReanchorOutcome>();
+	let content: string | Uint8Array | null | undefined;
 	let changed = false;
-	snapshot.comments = snapshot.comments.map((comment) => {
+	for (const comment of comments) {
 		const anchor = comment.anchor;
-		if (!anchor || anchor.side === "base") return comment;
-		const content = readWorktreeContent(ws.worktreePath, anchor.path);
-		const result = reanchor(anchor, content);
+		if (!anchor) continue;
+		const anchorKey = JSON.stringify(anchor);
+		let result = known?.get(anchorKey);
+		if (!result) {
+			if (content === undefined) content = readWorktreeContent(worktreePath, path);
+			result = reanchor(anchor, content);
+		}
+		results.set(anchorKey, result);
+		results.set(JSON.stringify(result.anchor), result);
 		const state =
 			result.state === "anchored" && comment.anchorState === "moved" ? "moved" : result.state;
-		if (state === comment.anchorState && result.anchor === anchor) return comment;
+		if (state === comment.anchorState && JSON.stringify(result.anchor) === anchorKey) continue;
 		changed = true;
-		return { ...comment, anchorState: state, anchor: result.anchor };
-	});
+		comment.anchorState = state;
+		comment.anchor = result.anchor;
+	}
+	reanchorPasses.set(key, { stamp, results });
+	return changed;
+}
+
+function reanchorSnapshot(
+	workspaceId: string,
+	snapshot: ReviewSnapshot,
+	paths?: ReadonlySet<string>,
+): boolean {
+	const ws = getWorkspace(workspaceId);
+	const groups = new Map<string, ReviewComment[]>();
+	for (const comment of snapshot.comments) {
+		const anchor = comment.anchor;
+		if (!anchor || anchor.side === "base") continue;
+		if (paths && !paths.has(anchor.path)) continue;
+		const group = groups.get(anchor.path);
+		if (group) group.push(comment);
+		else groups.set(anchor.path, [comment]);
+	}
+	let changed = false;
+	for (const [path, comments] of groups) {
+		if (reanchorFile(ws.worktreePath, `${workspaceId}\u0000${path}`, path, comments))
+			changed = true;
+	}
 	return changed;
 }
 
@@ -295,11 +359,12 @@ export async function getReviewSnapshot(workspaceId: string): Promise<ReviewSnap
 	return snapshot;
 }
 
-export function reanchorWorkspace(workspaceId: string): void {
+export function reanchorWorkspace(workspaceId: string, paths?: readonly string[]): void {
 	try {
 		const snapshot = openSnapshot(workspaceId);
 		if (!snapshot || snapshot.comments.length === 0) return;
-		if (reanchorSnapshot(workspaceId, snapshot)) persistAndPublish(workspaceId, snapshot);
+		const filter = paths && paths.length > 0 ? new Set(paths) : undefined;
+		if (reanchorSnapshot(workspaceId, snapshot, filter)) persistAndPublish(workspaceId, snapshot);
 	} catch {}
 }
 

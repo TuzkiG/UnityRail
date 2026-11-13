@@ -25,7 +25,10 @@ await loader.reload();
 
 const { extensions, errors } = loader.getExtensions();
 for (const error of errors) fail(`extension error at ${error.path}: ${error.error}`);
-const extension = extensions.find((entry) => entry.path.includes(spec.packageDirName));
+// The spec is written with posix separators; Windows reports backslashes here.
+const extension = extensions.find((entry) =>
+	entry.path.replaceAll("\\", "/").includes(spec.packageDirName),
+);
 if (!extension) {
 	fail(
 		`package ${spec.name} did not load (loaded: ${extensions.map((e) => e.path).join(", ") || "none"})`,

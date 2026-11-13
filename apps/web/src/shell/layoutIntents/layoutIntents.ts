@@ -188,6 +188,15 @@ export function toLayoutTab(tab: EditorTab): LayoutCenterTab | null {
 				sourceId: tab.sessionId,
 				docPath: "TODO.md",
 			};
+		case "memory":
+			return {
+				kind: "document",
+				id: tab.id,
+				name: tab.name,
+				documentKind: "memory",
+				sourceId: tab.projectId,
+				docPath: "memory",
+			};
 	}
 }
 

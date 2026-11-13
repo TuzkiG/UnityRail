@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { JbcentralStatus } from "@thinkrail/contracts";
 import { renderToStaticMarkup } from "react-dom/server";
-import { JetBrainsAiCard } from "./JetBrainsAiCard";
+import { JetBrainsAiCard, jbcentralPollDelay } from "./JetBrainsAiCard";
 
 const install = {
 	platform: "darwin" as const,
@@ -14,6 +14,11 @@ function render(status: JbcentralStatus): string {
 		<JetBrainsAiCard status={status} install={install} onChanged={() => {}} />,
 	);
 }
+
+test("configuring polls back off to a five-second cap", () => {
+	expect([1, 2, 3, 4, 5, 6].map(jbcentralPollDelay)).toEqual([500, 1000, 2000, 4000, 5000, 5000]);
+	expect(jbcentralPollDelay(60)).toBe(5000);
+});
 
 describe("JetBrains quota settings", () => {
 	test("renders the synchronized switch and bounded whole-second field", () => {

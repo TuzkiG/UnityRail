@@ -75,3 +75,55 @@ test("markClientStale flags only an outdated finding whose reviewed sha was supe
 	expect(byId.rc_anchored).toBeUndefined(); // code still there → not outdated
 	expect(byId.rc_noorigin).toBeUndefined(); // no provenance to judge against
 });
+
+test("markClientStale reads the plan once for a batch of findings, not once each", () => {
+	const todo = new TodoStore(worktree, SESSION).add({
+		title: "t",
+		artifacts: [
+			{ kind: "commit", sha: "sha1", label: "a" },
+			{ kind: "commit", sha: "sha2", label: "b" },
+		],
+	});
+	const origin = { todoId: todo.id, sessionId: SESSION, reviewedSha: "sha1" };
+	const snapshot: ReviewSnapshot = {
+		review: { id: "rev_1", workspaceId: WS, status: "open", baseSha: "x", createdAt: 0 },
+		comments: Array.from({ length: 5 }, (_, index) =>
+			comment(`rc_${index}`, { anchorState: "outdated", origin }),
+		),
+	};
+	const original = TodoStore.prototype.read;
+	let reads = 0;
+	TodoStore.prototype.read = function (this: TodoStore) {
+		reads += 1;
+		return original.call(this);
+	};
+	try {
+		const marked = markClientStale(snapshot, WS);
+		expect(marked.comments.every((entry) => entry.stale === true)).toBe(true);
+		expect(reads).toBe(1);
+	} finally {
+		TodoStore.prototype.read = original;
+	}
+});
+
+test("markClientStale judges an adopted commit id without touching git", () => {
+	const snapshot: ReviewSnapshot = {
+		review: { id: "rev_1", workspaceId: WS, status: "open", baseSha: "x", createdAt: 0 },
+		comments: [
+			comment("rc_adopted", {
+				anchorState: "outdated",
+				origin: { todoId: "commit:abc123", sessionId: SESSION, reviewedSha: "older" },
+			}),
+		],
+	};
+	expect(markClientStale(snapshot, WS).comments[0]?.stale).toBe(true);
+});
+
+test("markClientStale hands back the same snapshot when nothing can be stale", () => {
+	const origin = { todoId: "t_1", sessionId: SESSION, reviewedSha: "sha1" };
+	const snapshot: ReviewSnapshot = {
+		review: { id: "rev_1", workspaceId: WS, status: "open", baseSha: "x", createdAt: 0 },
+		comments: [comment("rc_anchored", { anchorState: "anchored", origin })],
+	};
+	expect(markClientStale(snapshot, WS)).toBe(snapshot);
+});

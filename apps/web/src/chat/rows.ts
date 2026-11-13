@@ -1,6 +1,8 @@
 import {
 	assistantToolCallsAreExecutable,
 	type BackgroundCommandCompletionDetails,
+	type ChatHandoffDetails,
+	type ContinueInWorkspaceRequestDetails,
 	completionDelivery,
 	type GitDiffScope,
 	type GitFileChange,
@@ -12,7 +14,7 @@ import {
 } from "@thinkrail/contracts";
 import { strArg } from "@thinkrail/extension-api/web";
 import { projectRelativePath } from "../lib";
-import type { AssistantFailure } from "./assistantFailure";
+import { type AssistantFailure, assistantFailure } from "./assistantFailure";
 import type { ChatMessageOrder } from "./chatPreferences";
 import { pulledResult, resultKey } from "./pulledResults";
 import { resolveProminence } from "./toolRegistry";
@@ -50,7 +52,7 @@ export type ActivityStep = RoutineToolStep | ThinkingStep;
 
 export type ChatRow =
 	| { kind: "user"; id: string; message: UserMessage; attachmentNames?: string[] }
-	| { kind: "system"; id: string; text?: string }
+	| { kind: "system"; id: string; text: string }
 	| {
 			kind: "error";
 			id: string;
@@ -71,6 +73,8 @@ export type ChatRow =
 	| { kind: "backgroundCommandCompletion"; id: string; details: BackgroundCommandCompletionDetails }
 	| { kind: "subagentCompletion"; id: string; details: SubagentCompletionDetails; text: string }
 	| { kind: "reviewFix"; id: string; details: ReviewFixDetails; text: string }
+	| { kind: "continuationRequest"; id: string; details: ContinueInWorkspaceRequestDetails }
+	| { kind: "handoff"; id: string; details: ChatHandoffDetails }
 	| ({ kind: "tool"; id: string } & ToolCallData)
 	| {
 			kind: "activity";
@@ -137,6 +141,8 @@ export function opensRound(turn: ChatTurn): boolean {
 	switch (turn.kind) {
 		case "user":
 		case "reviewFix":
+		case "continuationRequest":
+		case "handoff":
 			return true;
 		case "backgroundCommandCompletion":
 		case "subagentCompletion":
@@ -165,6 +171,214 @@ function modelCall(message: Extract<ChatTurn, { kind: "assistant" }>["message"])
 	};
 }
 
+type AssistantTurn = Extract<ChatTurn, { kind: "assistant" }>;
+type AssistantBlock = AssistantTurn["message"]["content"][number];
+type ModelCall = ReturnType<typeof modelCall>;
+
+type BlockDerivation =
+	| { kind: "step"; step: ActivityStep }
+	| { kind: "row"; row: ChatRow; addedKey: string | null }
+	| { kind: "none" };
+
+interface BlockCacheEntry {
+	turnId: string;
+	blockIndex: number;
+	tool: ToolResultState | undefined;
+	toolResultSeen: boolean;
+	dead: boolean;
+	streaming: boolean;
+	model: string | undefined;
+	thinkingLevel: ThinkingLevel | undefined;
+	result: BlockDerivation;
+}
+
+const blockDerivations = new WeakMap<object, BlockCacheEntry>();
+
+function deriveAssistantBlock(
+	turn: AssistantTurn,
+	block: AssistantBlock,
+	blockIndex: number,
+	dead: boolean,
+	call: ModelCall,
+	toolResults: Record<string, ToolResultState>,
+	received: Set<string>,
+): BlockDerivation {
+	let tool: ToolResultState | undefined;
+	let seen = false;
+	let pulled: ReturnType<typeof pulledResult> | undefined;
+	if (block.type === "toolCall") {
+		tool = toolResults[block.id];
+		pulled = pulledResult(block.name, block.arguments, tool);
+		seen = pulled ? received.has(pulled.key) : false;
+	}
+	const cached = blockDerivations.get(block);
+	if (
+		cached &&
+		cached.turnId === turn.id &&
+		cached.blockIndex === blockIndex &&
+		cached.tool === tool &&
+		cached.toolResultSeen === seen &&
+		cached.dead === dead &&
+		cached.streaming === turn.streaming &&
+		cached.model === call.model &&
+		cached.thinkingLevel === call.thinkingLevel
+	) {
+		if (cached.result.kind === "row" && cached.result.addedKey !== null) {
+			received.add(cached.result.addedKey);
+		}
+		return cached.result;
+	}
+	let result: BlockDerivation = { kind: "none" };
+	if (block.type === "thinking") {
+		if (block.thinking.trim().length > 0) {
+			result = {
+				kind: "step",
+				step: {
+					kind: "thinking",
+					id: `${turn.id}:thinking:${blockIndex}`,
+					text: block.thinking,
+					streaming: turn.streaming,
+					tools: [],
+					...call,
+				},
+			};
+		}
+	} else if (block.type === "text") {
+		if (block.text.trim().length > 0) {
+			result = {
+				kind: "row",
+				row: { kind: "markdown", id: `${turn.id}:text:${blockIndex}`, text: block.text, ...call },
+				addedKey: null,
+			};
+		}
+	} else if (block.type === "toolCall") {
+		const data: ToolCallData = {
+			toolCallId: block.id,
+			toolName: block.name,
+			args: block.arguments,
+			tool,
+			dead,
+			streaming: turn.streaming,
+			...call,
+		};
+		if (pulled && !seen) {
+			result = {
+				kind: "row",
+				row:
+					pulled.kind === "subagentCompletion"
+						? { kind: pulled.kind, id: block.id, details: pulled.details, text: pulled.text }
+						: { kind: pulled.kind, id: block.id, details: pulled.details },
+				addedKey: pulled.key,
+			};
+			received.add(pulled.key);
+		} else if (resolveProminence(block.name).prominence === "primary") {
+			result = { kind: "row", row: { kind: "tool", id: block.id, ...data }, addedKey: null };
+		} else {
+			result = { kind: "step", step: { kind: "tool", id: block.id, ...data } };
+		}
+	}
+	blockDerivations.set(block, {
+		turnId: turn.id,
+		blockIndex,
+		tool,
+		toolResultSeen: seen,
+		dead,
+		streaming: turn.streaming,
+		model: call.model,
+		thinkingLevel: call.thinkingLevel,
+		result,
+	});
+	return result;
+}
+
+interface ActivityCacheEntry {
+	steps: ActivityStep[];
+	live: boolean;
+	row: ChatRow;
+}
+
+const activityRows = new WeakMap<ActivityStep, ActivityCacheEntry>();
+
+function sameSteps(left: readonly ActivityStep[], right: readonly ActivityStep[]): boolean {
+	if (left.length !== right.length) return false;
+	for (let i = 0; i < left.length; i++) if (left[i] !== right[i]) return false;
+	return true;
+}
+
+function activityRow(steps: ActivityStep[], live: boolean): ChatRow {
+	const first = steps[0];
+	if (!first) throw new Error("activityRow requires a step");
+	const cached = activityRows.get(first);
+	if (cached && cached.live === live && sameSteps(cached.steps, steps)) return cached.row;
+	const row: ChatRow = {
+		kind: "activity",
+		id: `activity:${first.id}`,
+		steps: nestRoutineRun(steps),
+		live,
+	};
+	activityRows.set(first, { steps, live, row });
+	return row;
+}
+
+const singleTurnRows = new WeakMap<ChatTurn, ChatRow | null>();
+
+function singleTurnRow(turn: ChatTurn): ChatRow | null {
+	if (singleTurnRows.has(turn)) return singleTurnRows.get(turn) ?? null;
+	let row: ChatRow | null = null;
+	switch (turn.kind) {
+		case "user":
+			row = {
+				kind: "user",
+				id: turn.id,
+				message: turn.message,
+				...(turn.attachmentNames ? { attachmentNames: turn.attachmentNames } : {}),
+			};
+			break;
+		case "system":
+			if (turn.text !== undefined) row = { kind: "system", id: turn.id, text: turn.text };
+			break;
+		case "error":
+			row = {
+				kind: "error",
+				id: turn.id,
+				text: turn.text,
+				...(turn.failure ? { failure: turn.failure } : {}),
+				...(turn.recovery ? { recovery: turn.recovery } : {}),
+			};
+			break;
+		case "compaction":
+			row = turn;
+			break;
+		case "retry":
+			row = {
+				kind: "retry",
+				id: turn.id,
+				source: turn.source,
+				attempt: turn.attempt,
+				maxAttempts: turn.maxAttempts,
+				delayMs: turn.delayMs,
+			};
+			break;
+		case "backgroundCommandCompletion":
+			row = { kind: "backgroundCommandCompletion", id: turn.id, details: turn.details };
+			break;
+		case "subagentCompletion":
+			row = { kind: "subagentCompletion", id: turn.id, details: turn.details, text: turn.text };
+			break;
+		case "reviewFix":
+			row = { kind: "reviewFix", id: turn.id, details: turn.details, text: turn.text };
+			break;
+		case "continuationRequest":
+			row = { kind: "continuationRequest", id: turn.id, details: turn.details };
+			break;
+		case "handoff":
+			row = { kind: "handoff", id: turn.id, details: turn.details };
+			break;
+	}
+	singleTurnRows.set(turn, row);
+	return row;
+}
+
 export function deriveRows(
 	turns: ChatTurn[],
 	toolResults: Record<string, ToolResultState>,
@@ -182,9 +396,8 @@ export function deriveRows(
 	}
 
 	const flushRun = (live = false) => {
-		const first = run[0];
-		if (!first) return;
-		rows.push({ kind: "activity", id: `activity:${first.id}`, steps: nestRoutineRun(run), live });
+		if (run.length === 0) return;
+		rows.push(activityRow(run, live));
 		run = [];
 	};
 
@@ -198,107 +411,17 @@ export function deriveRows(
 			for (let b = 0; b < message.content.length; b++) {
 				const block = message.content[b];
 				if (!block) continue;
-				if (block.type === "thinking") {
-					if (block.thinking.trim().length === 0) continue;
-					run.push({
-						kind: "thinking",
-						id: `${turn.id}:thinking:${b}`,
-						text: block.thinking,
-						streaming: turn.streaming,
-						tools: [],
-						...call,
-					});
-				} else if (block.type === "text") {
-					if (block.text.trim().length === 0) continue;
+				const derivation = deriveAssistantBlock(turn, block, b, dead, call, toolResults, received);
+				if (derivation.kind === "step") run.push(derivation.step);
+				else if (derivation.kind === "row") {
 					flushRun();
-					rows.push({
-						kind: "markdown",
-						id: `${turn.id}:text:${b}`,
-						text: block.text,
-						...call,
-					});
-				} else if (block.type === "toolCall") {
-					const data: ToolCallData = {
-						toolCallId: block.id,
-						toolName: block.name,
-						args: block.arguments,
-						tool: toolResults[block.id],
-						dead,
-						streaming: turn.streaming,
-						...call,
-					};
-					const pulled = pulledResult(block.name, block.arguments, data.tool);
-					if (pulled && !received.has(pulled.key)) {
-						received.add(pulled.key);
-						flushRun();
-						rows.push(
-							pulled.kind === "subagentCompletion"
-								? { kind: pulled.kind, id: block.id, details: pulled.details, text: pulled.text }
-								: { kind: pulled.kind, id: block.id, details: pulled.details },
-						);
-					} else if (resolveProminence(block.name).prominence === "primary") {
-						flushRun();
-						rows.push({ kind: "tool", id: block.id, ...data });
-					} else {
-						run.push({ kind: "tool", id: block.id, ...data });
-					}
+					rows.push(derivation.row);
 				}
 			}
 		} else {
 			flushRun();
-			switch (turn.kind) {
-				case "user":
-					rows.push({
-						kind: "user",
-						id: turn.id,
-						message: turn.message,
-						...(turn.attachmentNames ? { attachmentNames: turn.attachmentNames } : {}),
-					});
-					break;
-				case "system":
-					rows.push({
-						kind: "system",
-						id: turn.id,
-						...(turn.text !== undefined ? { text: turn.text } : {}),
-					});
-					break;
-				case "error":
-					rows.push({
-						kind: "error",
-						id: turn.id,
-						text: turn.text,
-						...(turn.failure ? { failure: turn.failure } : {}),
-						...(turn.recovery ? { recovery: turn.recovery } : {}),
-					});
-					break;
-				case "compaction":
-					rows.push(turn);
-					break;
-				case "retry":
-					rows.push({
-						kind: "retry",
-						id: turn.id,
-						source: turn.source,
-						attempt: turn.attempt,
-						maxAttempts: turn.maxAttempts,
-						delayMs: turn.delayMs,
-					});
-					break;
-				case "backgroundCommandCompletion":
-					rows.push({ kind: "backgroundCommandCompletion", id: turn.id, details: turn.details });
-					break;
-				case "subagentCompletion":
-					rows.push({
-						kind: "subagentCompletion",
-						id: turn.id,
-						details: turn.details,
-						text: turn.text,
-					});
-					break;
-				case "reviewFix":
-					rows.push({ kind: "reviewFix", id: turn.id, details: turn.details, text: turn.text });
-					break;
-			}
+			const row = singleTurnRow(turn);
+			if (row) rows.push(row);
 		}
 		const next = turns[i + 1];
 		const roundEnded = !opensRound(turn) && (next ? opensRound(next) : !isStreaming);
@@ -318,6 +441,7 @@ export interface TurnReceipt {
 }
 
 export interface TurnDividerData {
+	outcome: "done" | "stopped" | "error" | null;
 	elapsedMs: number | null;
 	toolCount: number;
 	specs: string[];
@@ -422,7 +546,35 @@ export function turnDivider(
 			} else changedFiles.push(change.path);
 		}
 	}
-	return { elapsedMs, toolCount, specs, changedFiles, receipt };
+	return {
+		outcome: roundOutcome(turns, openerIdx, endIndex),
+		elapsedMs,
+		toolCount,
+		specs,
+		changedFiles,
+		receipt,
+	};
+}
+
+function roundOutcome(
+	turns: ChatTurn[],
+	openerIdx: number,
+	endIndex: number,
+): TurnDividerData["outcome"] {
+	let closer: "done" | "error" | null = null;
+	for (let i = endIndex; i > openerIdx; i--) {
+		const turn = turns[i];
+		if (turn?.kind === "assistant") {
+			const { message } = turn;
+			if (assistantFailure(message)) return "error";
+			if (message.stopReason === "aborted") return "stopped";
+			return closer ?? (message.stopReason === "stop" ? "done" : null);
+		}
+		if (closer) continue;
+		if (turn?.kind === "system" && turn.text === undefined) closer = "done";
+		else if (turn?.kind === "error" && turn.failure) closer = "error";
+	}
+	return closer;
 }
 
 export function rowIndexForTurn(rows: ChatRow[], turnId: string): number {
@@ -437,11 +589,11 @@ function valueEqual(a: unknown, b: unknown): boolean {
 		for (let i = 0; i < a.length; i++) if (!valueEqual(a[i], b[i])) return false;
 		return true;
 	}
-	const aKeys = Object.keys(a as Record<string, unknown>);
-	const bKeys = Object.keys(b as Record<string, unknown>);
+	const aKeys = Object.keys(a);
+	const bKeys = Object.keys(b);
 	if (aKeys.length !== bKeys.length) return false;
 	for (const key of aKeys) {
-		if (!Object.hasOwn(b as Record<string, unknown>, key)) return false;
+		if (!Object.hasOwn(b, key)) return false;
 		if (!valueEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]))
 			return false;
 	}

@@ -17,6 +17,7 @@ test("presets are valid, pinned, credential-free entries with unique names", () 
 		"linear",
 		"sentry",
 		"playwright",
+		"basic-memory",
 	]);
 	expect(new Set(MCP_PRESETS.map((preset) => preset.name)).size).toBe(MCP_PRESETS.length);
 	for (const preset of MCP_PRESETS) {
@@ -41,6 +42,16 @@ test("write-capable presets name what they can change, and the stdio preset is o
 		entry: { enabled: false },
 	});
 	expect(byId.playwright?.modifiesData).toBeDefined();
+	expect(byId["basic-memory"]).toMatchObject({
+		scope: "user",
+		optInPerProject: true,
+		entry: {
+			enabled: false,
+			command: "uvx",
+			args: ["--prerelease=allow", "basic-memory", "mcp"],
+		},
+	});
+	expect(byId["basic-memory"]?.modifiesData).toBeDefined();
 });
 
 test("GitHub is a pasteable read-only recipe, not a preset, whose bearer header comes from gh auth token", () => {

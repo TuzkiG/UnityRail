@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type Workspace, WS_CHANNELS } from "@thinkrail/contracts";
@@ -33,9 +33,12 @@ const TERMINAL_CONDITION_TIMEOUT_MS = 15_000;
 const TERMINAL_TEST_TIMEOUT_MS = TERMINAL_CONDITION_TIMEOUT_MS * 3 + 5_000;
 let dataDir: string;
 const savedDataDir = process.env.THINKRAIL_DATA_DIR;
-const savedHistFile = process.env.HISTFILE;
-const savedHistSize = process.env.HISTSIZE;
-const savedZdotdir = process.env.ZDOTDIR;
+const savedShellEnv = Object.fromEntries(
+	["HOME", "ZDOTDIR", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "HISTFILE", "HISTSIZE"].map((name) => [
+		name,
+		process.env[name],
+	]),
+);
 
 let pushed: PublishedFrame[] = [];
 const terminalFrameSignals = new Set<() => void>();
@@ -129,13 +132,38 @@ async function exitTerminalWithMarker(
 	return marker;
 }
 
+/** The fixtures speak POSIX shell; on Windows that means Git for Windows' bash, never pwsh. */
+function windowsPosixBin(): string | undefined {
+	if (process.platform !== "win32") return undefined;
+	for (const root of ["C:\\Program Files\\Git", "C:\\Program Files (x86)\\Git"]) {
+		const bin = join(root, "usr", "bin");
+		if (existsSync(join(bin, "bash.exe"))) return bin;
+	}
+	return undefined;
+}
+
+const windowsBin = windowsPosixBin();
+const savedShell = process.env.SHELL;
+const savedPath = process.env.PATH;
 beforeEach(() => {
 	dataDir = mkdtempSync(join(tmpdir(), "trpi-terminal-test-"));
 	process.env.THINKRAIL_DATA_DIR = dataDir;
-	// Prevent test PTYs from polluting the user's shell history.
-	process.env.HISTFILE = join(dataDir, ".test_history");
-	process.env.HISTSIZE = "0";
-	process.env.ZDOTDIR = dataDir;
+	if (windowsBin) {
+		process.env.SHELL = join(windowsBin, "bash.exe");
+		process.env.PATH = [windowsBin, savedPath ?? ""].filter(Boolean).join(";");
+	}
+	// Shells find rc files and history via HOME, ZDOTDIR, XDG dirs or an exported HISTFILE; keep all in dataDir.
+	Object.assign(process.env, {
+		HOME: dataDir,
+		ZDOTDIR: dataDir,
+		XDG_CONFIG_HOME: dataDir,
+		XDG_DATA_HOME: dataDir,
+		HISTFILE: join(dataDir, ".test_history"),
+		HISTSIZE: "0",
+	});
+	// Without these stubs zsh-newuser-install swallows the first key and fish 3 builds completions in the background.
+	writeFileSync(join(dataDir, ".zshenv"), "");
+	mkdirSync(join(dataDir, "fish", "generated_completions"), { recursive: true });
 	const worktreePath = join(dataDir, "worktree");
 	mkdirSync(worktreePath);
 	saveWorkspaces([{ id: WS, worktreePath } as Workspace]);
@@ -156,12 +184,14 @@ afterEach(() => {
 	removeTree(dataDir);
 	if (savedDataDir === undefined) delete process.env.THINKRAIL_DATA_DIR;
 	else process.env.THINKRAIL_DATA_DIR = savedDataDir;
-	if (savedHistFile === undefined) delete process.env.HISTFILE;
-	else process.env.HISTFILE = savedHistFile;
-	if (savedHistSize === undefined) delete process.env.HISTSIZE;
-	else process.env.HISTSIZE = savedHistSize;
-	if (savedZdotdir === undefined) delete process.env.ZDOTDIR;
-	else process.env.ZDOTDIR = savedZdotdir;
+	for (const [name, value] of Object.entries(savedShellEnv)) {
+		if (value === undefined) delete process.env[name];
+		else process.env[name] = value;
+	}
+	if (savedShell === undefined) delete process.env.SHELL;
+	else process.env.SHELL = savedShell;
+	if (savedPath === undefined) delete process.env.PATH;
+	else process.env.PATH = savedPath;
 });
 
 test("a shell spawn failure is actionable and preserves replay for retry", () => {

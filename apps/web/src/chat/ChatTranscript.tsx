@@ -1,5 +1,6 @@
 import { RiArrowDownLine as ArrowDown, RiArrowUpLine as ArrowUp } from "@remixicon/react";
-import type { GitDiffScope, TurnChangeSet } from "@thinkrail/contracts";
+import type { ChatContinuation, GitDiffScope, TurnChangeSet } from "@thinkrail/contracts";
+import type { ToolRenderProps } from "@thinkrail/extension-api/web";
 import type { MessageKey } from "@thinkrail/locales";
 import { t as translate, useT } from "@thinkrail/locales/react";
 import { ResourceScopeProvider } from "@thinkrail/resource-renderers";
@@ -8,6 +9,7 @@ import { useModalLayerOpen } from "@thinkrail/ui/dialog";
 import { cn } from "@thinkrail/ui/utils";
 import {
 	forwardRef,
+	memo,
 	type ReactNode,
 	type RefCallback,
 	useCallback,
@@ -18,28 +20,36 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { useShallow } from "zustand/react/shallow";
 import {
 	EMPTY_RUNTIME,
 	selectChatAttended,
+	selectChatsContainer,
 	selectReadyCompletionAck,
+	selectWorkspaceById,
 	specPathMatcher,
 	toast,
 	useAppStore,
 } from "@/store";
-import { getTransport, respondToTool } from "@/transport";
+import { errorText, getTransport, respondToTool } from "@/transport";
 import { ACTIVITY_BREADCRUMB_HEIGHT, ActivityBreadcrumbTrail } from "./activityBreadcrumbs";
 import { type ChatActions, ChatActionsContext } from "./ChatActions";
 import type { ChatMessageOrder } from "./chatPreferences";
+import { refreshContinuation, requestContinuation } from "./continuations";
 import { type PendingExtUi, PendingExtUiContext, PendingExtUiPrompt } from "./ExtUiPrompt";
 import { FoldGeometryProvider } from "./foldState";
 import {
 	awaitingToolCallIdOf,
 	deriveInteractionStates,
+	dockedInteraction,
 	InteractionStatesContext,
+	latestPendingInteraction,
+	type PendingInteraction,
 } from "./interactionState";
 import { deriveMessageActions } from "./messageActions";
+import { openWorkspace } from "./openWorkspace";
 import { turnAnchorText } from "./recentPrompts";
 import { estimateChatRowHeights } from "./rowHeightEstimates";
 import {
@@ -51,11 +61,13 @@ import {
 	stabilizeRows,
 } from "./rows";
 import { type StreamStatus, StreamStatusSlot, streamStatus } from "./StreamIndicator";
+import { useToolInteraction } from "./toolInteraction";
+import { getToolRenderer } from "./toolRegistry";
 import { ChatTurnView } from "./turns";
-import { useChatScroll } from "./useChatScroll";
+import { type ChatReadingPosition, useChatScroll } from "./useChatScroll";
 import { useTranscriptSync } from "./useTranscriptSync";
 import { useWindowFocused } from "./useWindowFocused";
-import { advanceVirtualRows, initialVirtualRows } from "./virtualRows";
+import { advanceVirtualRows, initialVirtualRows, type VirtualRowsState } from "./virtualRows";
 
 const CHAT_VIEWPORT_INCREASE = 800;
 const CHAT_MIN_OVERSCAN_ITEMS = 2;
@@ -134,21 +146,53 @@ function useVirtualRows(
 	rows: ChatRow[],
 	messageOrder: ChatMessageOrder,
 	visibleAnchorRowIdRef: React.RefObject<string | null>,
+	owner: object,
+	sessionId: string,
 ) {
-	const [storedVirtualRows, setStoredVirtualRows] = useState(() =>
-		initialVirtualRows(rows, messageOrder),
+	return useMemo(
+		() => resolveVirtualRows(owner, sessionId, rows, messageOrder, visibleAnchorRowIdRef.current),
+		[messageOrder, owner, rows, sessionId, visibleAnchorRowIdRef],
 	);
-	if (storedVirtualRows.rows === rows && storedVirtualRows.order === messageOrder) {
-		return storedVirtualRows;
-	}
-	const virtualRows = advanceVirtualRows(
-		storedVirtualRows,
-		rows,
-		messageOrder,
-		visibleAnchorRowIdRef.current,
-	);
-	setStoredVirtualRows(virtualRows);
-	return virtualRows;
+}
+
+type VirtualRowsOwner = { sessionId: string; state: VirtualRowsState<ChatRow> };
+const virtualRowsByRows = new WeakMap<ChatRow[], VirtualRowsState<ChatRow>>();
+const virtualRowsByOwner = new WeakMap<object, VirtualRowsOwner>();
+
+function resolveVirtualRows(
+	owner: object,
+	sessionId: string,
+	rows: ChatRow[],
+	order: ChatMessageOrder,
+	visibleAnchorId: string | null,
+): VirtualRowsState<ChatRow> {
+	const cached = virtualRowsByRows.get(rows);
+	if (cached && cached.order === order) return cached;
+	const held = virtualRowsByOwner.get(owner);
+	const previous = held?.sessionId === sessionId ? held.state : initialVirtualRows(rows, order);
+	const next = advanceVirtualRows(previous, rows, order, visibleAnchorId);
+	virtualRowsByRows.set(rows, next);
+	virtualRowsByOwner.set(owner, { sessionId, state: next });
+	return next;
+}
+
+const stableRowsByDerived = new WeakMap<ChatRow[], ChatRow[]>();
+const stableRowsByOwner = new WeakMap<object, { sessionId: string; rows: ChatRow[] }>();
+
+function resolveStableRows(owner: object, sessionId: string, derived: ChatRow[]): ChatRow[] {
+	const cached = stableRowsByDerived.get(derived);
+	if (cached) return cached;
+	const held = stableRowsByOwner.get(owner);
+	const previous = held?.sessionId === sessionId ? held.rows : [];
+	const rows = stabilizeRows(previous, derived);
+	stableRowsByDerived.set(derived, rows);
+	stableRowsByOwner.set(owner, { sessionId, rows });
+	return rows;
+}
+
+function LiveWorkspaceName({ workspaceId, fallback }: { workspaceId: string; fallback: string }) {
+	const name = useAppStore((state) => selectWorkspaceById(state, workspaceId)?.name);
+	return name ?? fallback;
 }
 
 export type ChatTranscriptHandle = {
@@ -185,6 +229,7 @@ const ChatTranscript = forwardRef<
 		openMcpSettings?: ChatActions["openMcpSettings"];
 		openProviderSettings?: ChatActions["openProviderSettings"];
 		findModel?: ChatActions["findModel"];
+		dockTarget?: HTMLElement | null;
 		resourcesOverlay?: ReactNode;
 	}
 >(function ChatTranscript(
@@ -205,6 +250,7 @@ const ChatTranscript = forwardRef<
 		openMcpSettings,
 		openProviderSettings,
 		findModel,
+		dockTarget,
 		resourcesOverlay,
 	},
 	ref,
@@ -242,48 +288,60 @@ const ChatTranscript = forwardRef<
 	});
 	const chatLineWidthBounded = useAppStore((state) => state.chatLineWidthBounded);
 	const chatMessageOrder = useAppStore((state) => state.chatMessageOrder);
-	const streamingResponseMovement = useAppStore((state) => state.streamingResponseMovement);
 	const specNodes = useAppStore((s) => s.specsByWorkspace[workspaceId]);
 	const isSpec = useMemo(() => specPathMatcher(specNodes ?? []), [specNodes]);
 
 	const { turns, toolResults, isStreaming, settlementTick, currentAssistantId } = runtime;
 
-	const workspaceTurns = useAppStore((state) => state.turnsByWorkspace[workspaceId]);
-	const agentTurns = useMemo(
-		() => workspaceTurns?.filter((turn) => turn.sessionId === sessionId) ?? NO_AGENT_TURNS,
-		[sessionId, workspaceTurns],
+	const workspaceTurns = useAppStore(
+		useShallow((s) => {
+			const turns = s.turnsByWorkspace[workspaceId];
+			if (!turns) return NO_AGENT_TURNS;
+			const mine = turns.filter((turn) => turn.sessionId === sessionId);
+			return mine.length > 0 ? mine : NO_AGENT_TURNS;
+		}),
 	);
+	const agentTurns = workspaceTurns;
 	const derivedRows = useMemo(
 		() => deriveRows(turns, toolResults, isStreaming, isSpec, agentTurns, workspaceRoot),
 		[turns, toolResults, isStreaming, isSpec, agentTurns, workspaceRoot],
 	);
-	// Keep the stabilized rows in state (never a ref written during render): a render-written ref both
-	// violates apps/web/SPEC.md and makes the React Compiler skip memoizing this component.
-	const [stableRows, setStableRows] = useState(() => ({ derived: derivedRows, rows: derivedRows }));
-	let chronologicalRows = stableRows.rows;
-	if (stableRows.derived !== derivedRows) {
-		chronologicalRows = stabilizeRows(stableRows.rows, derivedRows);
-		setStableRows({ derived: derivedRows, rows: chronologicalRows });
-	}
+	const [rowsOwner] = useState<object>(() => ({}));
+	const chronologicalRows = useMemo(
+		() => resolveStableRows(rowsOwner, sessionId, derivedRows),
+		[derivedRows, rowsOwner, sessionId],
+	);
 	const rows = useMemo(
 		() => projectRows(chronologicalRows, chatMessageOrder),
 		[chronologicalRows, chatMessageOrder],
 	);
 	const completionId = runtime.hostState?.completion?.completionId ?? null;
 	const completionAnchorRowId = completionId ? (chronologicalRows.at(-1)?.id ?? null) : null;
-	const [rowHeightEstimateCache, setRowHeightEstimateCache] = useState(() => ({
-		messageOrder: chatMessageOrder,
-		heights: new Map<string, number>(),
-	}));
-	if (rowHeightEstimateCache.messageOrder !== chatMessageOrder) {
-		setRowHeightEstimateCache({ messageOrder: chatMessageOrder, heights: new Map() });
-	}
+	const rowHeightEstimateCache = useMemo(
+		() => ({ messageOrder: chatMessageOrder, heights: new Map<string, number>() }),
+		[chatMessageOrder],
+	);
+	const settledHeightsRef = useRef<number[] | null>(null);
 	const rowHeightEstimates = useMemo(
-		() => estimateChatRowHeights(rows, rowHeightEstimateCache.heights),
+		() =>
+			estimateChatRowHeights(
+				rows,
+				rowHeightEstimateCache.heights,
+				settledHeightsRef.current ?? undefined,
+			),
 		[rows, rowHeightEstimateCache],
 	);
+	useInsertionEffect(() => {
+		settledHeightsRef.current = rowHeightEstimates;
+	});
 	const visibleAnchorRowId = useRef<string | null>(null);
-	const virtualRows = useVirtualRows(rows, chatMessageOrder, visibleAnchorRowId);
+	const virtualRows = useVirtualRows(
+		rows,
+		chatMessageOrder,
+		visibleAnchorRowId,
+		rowsOwner,
+		sessionId,
+	);
 	const firstItemIndex = virtualRows.firstItemIndex;
 
 	const messageActions = useMemo(
@@ -311,6 +369,26 @@ const ChatTranscript = forwardRef<
 		const row = rows[index];
 		return row ? { id: row.id, index } : null;
 	}, [chatMessageOrder, rows]);
+
+	const locationRowsRef = useRef(rows);
+	const locationTurnsRef = useRef(turns);
+	const locationTurnMapRef = useRef(runtime.turnIdByMessageIndex);
+	useInsertionEffect(() => {
+		locationRowsRef.current = rows;
+		locationTurnsRef.current = turns;
+		locationTurnMapRef.current = runtime.turnIdByMessageIndex;
+	});
+	const [readingRestore] = useState(
+		() => useAppStore.getState().sessions[sessionId]?.readingAnchor ?? null,
+	);
+	const readingPosition = useMemo<ChatReadingPosition>(
+		() => ({
+			restore: readingRestore,
+			resolveIndex: (rowId) => locationRowsRef.current.findIndex((row) => row.id === rowId),
+			save: (anchor) => useAppStore.getState().setChatReadingAnchor(sessionId, anchor),
+		}),
+		[readingRestore, sessionId],
+	);
 
 	const virtuosoRef = useRef<VirtuosoHandle>(null);
 	const {
@@ -343,7 +421,7 @@ const ChatTranscript = forwardRef<
 		latestRow,
 		firstItemIndex,
 		rowHeightEstimates,
-		streamingResponseMovement,
+		readingPosition,
 	);
 
 	const readyCompletionId = useAppStore((state) =>
@@ -418,14 +496,6 @@ const ChatTranscript = forwardRef<
 
 	const chatLocationRequest = useAppStore((s) => s.chatLocationRequest);
 	const activeChatLocationReveal = useRef<typeof chatLocationRequest>(null);
-	const locationRowsRef = useRef(rows);
-	const locationTurnsRef = useRef(turns);
-	const locationTurnMapRef = useRef(runtime.turnIdByMessageIndex);
-	useInsertionEffect(() => {
-		locationRowsRef.current = rows;
-		locationTurnsRef.current = turns;
-		locationTurnMapRef.current = runtime.turnIdByMessageIndex;
-	});
 	const locationRowsReady = rows.length > 0;
 	const [flashRowId, setFlashRowId] = useState<string | null>(null);
 
@@ -569,11 +639,45 @@ const ChatTranscript = forwardRef<
 		[runtime.turns, runtime.toolResponses, runtime.toolResults],
 	);
 	const awaitingToolCallId = awaitingToolCallIdOf(runtime.hostState);
+	const dockedCall = useMemo(
+		() =>
+			dockedInteraction(
+				latestPendingInteraction(runtime.turns, runtime.toolResults, interactionStates),
+				awaitingToolCallId,
+			),
+		[runtime.turns, runtime.toolResults, interactionStates, awaitingToolCallId],
+	);
+	const dockedToolCallId = dockedCall?.toolCallId;
 	const interactionContext = useMemo(
-		() => ({ states: interactionStates, focusScope: interactionFocusScope, awaitingToolCallId }),
-		[interactionStates, interactionFocusScope, awaitingToolCallId],
+		() => ({
+			states: interactionStates,
+			focusScope: interactionFocusScope,
+			awaitingToolCallId,
+			dockedToolCallId,
+		}),
+		[interactionStates, interactionFocusScope, awaitingToolCallId, dockedToolCallId],
 	);
 
+	const continuations = useAppStore((s) => s.chatContinuations);
+	const continuationOf = useCallback(
+		(operationId: string): ChatContinuation | undefined => continuations[operationId],
+		[continuations],
+	);
+	const welcomeGeneration = useAppStore((s) => s.welcomeGeneration);
+	const cardOperations = useMemo(
+		() =>
+			runtime.turns.flatMap((turn) =>
+				turn.kind === "continuationRequest" ? [turn.details.operationId] : [],
+			),
+		[runtime.turns],
+	);
+	useEffect(() => {
+		if (welcomeGeneration === 0) return;
+		const known = useAppStore.getState().chatContinuations;
+		for (const operationId of cardOperations) {
+			if (!known[operationId]) refreshContinuation(operationId, { workspaceId, sessionId });
+		}
+	}, [cardOperations, welcomeGeneration, workspaceId, sessionId]);
 	const chatActions = useMemo<ChatActions>(
 		() => ({
 			cancelAutomaticReveal,
@@ -588,9 +692,30 @@ const ChatTranscript = forwardRef<
 			openMcpSettings,
 			openProviderSettings,
 			findModel,
+			continuationOf,
+			retryContinuation: (details) => {
+				void requestContinuation(workspaceId, details.projectId).catch((err: unknown) =>
+					toast.error(errorText(err), t("chat.turn.continuation.retryFailed")),
+				);
+			},
+			openHandoffSource: (details) => {
+				const container = selectChatsContainer(useAppStore.getState());
+				if (!container) return;
+				void openWorkspace(
+					{
+						workspaceId: details.sourceWorkspaceId,
+						projectId: container.id,
+						sessionId: details.sourceSessionId,
+					},
+					t("chat.turn.handoff.sourceGone"),
+				);
+			},
+			openWorkspace,
+			WorkspaceName: LiveWorkspaceName,
 		}),
 		[
 			cancelAutomaticReveal,
+			continuationOf,
 			findModel,
 			focusComposer,
 			markResultSeen,
@@ -601,6 +726,8 @@ const ChatTranscript = forwardRef<
 			resultOpener,
 			revealElement,
 			sessionId,
+			t,
+			workspaceId,
 		],
 	);
 	const resourceScope = useMemo(() => ({ workspaceId, sessionId }), [workspaceId, sessionId]);
@@ -750,10 +877,38 @@ const ChatTranscript = forwardRef<
 						) : null}
 						{resourcesOverlay}
 					</div>
+					{dockTarget && dockedCall
+						? createPortal(
+								<ResourceScopeProvider value={resourceScope}>
+									<DockedTool
+										key={dockedCall.toolCallId}
+										call={dockedCall}
+										workspaceRoot={workspaceRoot}
+										onOpenFile={onOpenFile}
+									/>
+								</ResourceScopeProvider>,
+								dockTarget,
+							)
+						: null}
 				</InteractionStatesContext.Provider>
 			</PendingExtUiContext.Provider>
 		</ChatActionsContext.Provider>
 	);
 });
 
-export default ChatTranscript;
+function DockedTool({
+	call,
+	workspaceRoot,
+	onOpenFile,
+}: {
+	call: PendingInteraction;
+	workspaceRoot: string | undefined;
+	onOpenFile: ((path: string) => void) | undefined;
+}) {
+	const Renderer = getToolRenderer(call.toolName);
+	const interaction = useToolInteraction(call.toolCallId, call.toolName, "dock");
+	const props: ToolRenderProps = { ...call, workspaceRoot, onOpenFile, interaction };
+	return <Renderer {...props} />;
+}
+
+export default memo(ChatTranscript);

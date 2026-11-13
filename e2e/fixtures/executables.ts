@@ -1,35 +1,23 @@
 import { chmodSync, existsSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LOGIN_ENV_MARKER } from "@thinkrail/shared/shellEnv";
 
-const POSIX_SYSTEM_DIRS = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"];
-
-export function resolveBunExecutable(env: NodeJS.ProcessEnv = process.env): string {
-	const name = process.platform === "win32" ? "bun.exe" : "bun";
-	const executable = (env.PATH ?? "")
+function findOnPath(name: string, env: NodeJS.ProcessEnv): string | undefined {
+	return (env.PATH ?? "")
 		.split(delimiter)
 		.filter(Boolean)
 		.map((directory) => join(directory, name))
 		.find(existsSync);
-	if (!executable) throw new Error("bun executable not found for the e2e host");
-	return executable;
 }
 
-/**
- * Git for Windows' install root. The interpreter a Windows host needs for both `git` and the POSIX
- * terminal specs (coreutils, `sh`) is this distribution's, and it is only discoverable from the
- * runner's own PATH — never from the hermetic PATH this resolves for the host.
- */
 let gitRoot: string | null = null;
 
-function windowsGitRoot(): string {
+/** Git for Windows' install root: the interpreter both `git` and the POSIX terminal specs need. */
+function windowsGitRoot(env: NodeJS.ProcessEnv = process.env): string {
 	if (gitRoot) return gitRoot;
-	const executable = (process.env.PATH ?? "")
-		.split(delimiter)
-		.filter(Boolean)
-		.map((directory) => join(directory, "git.exe"))
-		.find(existsSync);
+	const executable = findOnPath("git.exe", env);
 	if (!executable) throw new Error("git executable not found to build the e2e host PATH");
 	for (let directory = dirname(executable); ; directory = dirname(directory)) {
 		const complete =
@@ -55,18 +43,68 @@ function windowsPath(path: string): string {
 	return path.replaceAll("\\", "/");
 }
 
-function windowsSystemDirs(): string[] {
-	const root = windowsGitRoot();
-	const dirs = [join(root, "mingw64", "bin"), join(root, "usr", "bin")];
-	const systemRoot = process.env.SystemRoot ?? process.env.windir;
-	// The host's own child-process probe spawns `powershell.exe` by bare name on Windows.
-	if (systemRoot) dirs.push(join(systemRoot, "System32", "WindowsPowerShell", "v1.0"));
-	return dirs.map(windowsPath);
+export function resolveBunExecutable(env: NodeJS.ProcessEnv = process.env): string {
+	const name = process.platform === "win32" ? "bun.exe" : "bun";
+	const executable = findOnPath(name, env);
+	if (executable) return executable;
+	// An npm-installed Bun puts only a `bun.cmd`/`bun.ps1` shim on PATH; the real binary sits inside
+	// that prefix's own `node_modules/bun/bin`. A bun-managed install keeps it under BUN_INSTALL.
+	const directories = (env.PATH ?? "").split(delimiter).filter(Boolean);
+	const candidates = [
+		...directories.map((directory) => join(directory, "node_modules", "bun", "bin", name)),
+		env.BUN_INSTALL ? join(env.BUN_INSTALL, "bin", name) : "",
+		join(homedir(), ".bun", "bin", name),
+		process.execPath,
+	].filter(Boolean);
+	const candidate = candidates.find(
+		(candidate) => existsSync(candidate) && /(?:^|[\\/])bun(?:\.exe)?$/i.test(candidate),
+	);
+	if (!candidate) throw new Error("bun executable not found for the e2e host");
+	return candidate;
 }
 
-export function hermeticE2ePath(fakeBinDir: string): string {
-	const systemDirs = process.platform === "win32" ? windowsSystemDirs() : POSIX_SYSTEM_DIRS;
-	return [fakeBinDir, ...systemDirs].join(delimiter);
+function executableSuffixes(env: NodeJS.ProcessEnv): string[] {
+	if (process.platform !== "win32") return [""];
+	return ["", ...(env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)];
+}
+
+export function executableOnPath(
+	path: string,
+	name: string,
+	env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+	const suffixes = executableSuffixes(env);
+	return path
+		.split(delimiter)
+		.filter(Boolean)
+		.flatMap((directory) => suffixes.map((suffix) => join(directory, name + suffix)))
+		.find(existsSync);
+}
+
+const FAKED_TOOLS = ["pi", "central", "code"];
+
+export function hermeticE2ePath(fakeBinDir: string, env: NodeJS.ProcessEnv = process.env): string {
+	if (process.platform !== "win32")
+		return [fakeBinDir, "/usr/bin", "/bin", "/usr/sbin", "/sbin"].join(delimiter);
+	const git = findOnPath("git.exe", env);
+	if (!git) throw new Error("git executable not found for the e2e host");
+	const systemRoot = env.SystemRoot ?? env.SYSTEMROOT ?? "C:\\Windows";
+	// Git's own `usr/bin` carries the POSIX userland (`cat`, `printf`, `sh`) the stub CLIs and terminal
+	// specs run under its bash; the PowerShell directory keeps the host's child-process probe working.
+	const ambient = [
+		dirname(git),
+		join(windowsGitRoot(env), "usr", "bin"),
+		join(systemRoot, "System32"),
+		join(systemRoot, "System32", "WindowsPowerShell", "v1.0"),
+		systemRoot,
+	]
+		.map(windowsPath)
+		.join(delimiter);
+	for (const tool of FAKED_TOOLS) {
+		const real = executableOnPath(ambient, tool, env);
+		if (real) throw new Error(`e2e host PATH would expose a real ${tool}: ${real}`);
+	}
+	return [fakeBinDir, ambient].join(delimiter);
 }
 
 export function hermeticE2eShell(fakeBinDir: string): string {

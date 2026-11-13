@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import { toast, useAppStore } from "../store";
 import { errorText, getTransport } from "../transport";
+import { MemoryContinuityCard } from "./MemoryContinuityCard";
 import { SettingsRadioCards } from "./SettingsRadioCards";
 import { projectWorkspaceTarget } from "./workspaceTarget";
 
@@ -74,6 +75,7 @@ export function ProjectSettingsDialog({
 					onSelect={select}
 				/>
 				<p className="text-text-muted tr-text-metadata">{t("panels.projectSettings.targetHint")}</p>
+				<MemoryContinuityCard projectId={projectId} />
 				<DialogFooter>
 					<Button variant="primary" onClick={() => onOpenChange(false)}>
 						{t("common.done")}

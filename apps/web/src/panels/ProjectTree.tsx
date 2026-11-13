@@ -1,5 +1,6 @@
 import {
 	RiArrowGoBackLine as ArrowGoBack,
+	RiBrainLine as Brain,
 	RiCheckLine as Check,
 	RiArrowDownSLine as ChevronDown,
 	RiArrowRightSLine as ChevronRight,
@@ -21,6 +22,7 @@ import {
 	RiHome2Fill,
 	RiSettings3Line as Settings,
 	RiDeleteBin6Line as Trash2,
+	RiNodeTree as Tree,
 	RiCloseLine as X,
 } from "@remixicon/react";
 import type { EditorInfo, Project, Workspace, WorkspaceCreation } from "@thinkrail/contracts";
@@ -45,7 +47,16 @@ import {
 } from "@thinkrail/ui/dropdown-menu";
 import { LoadingRegion } from "@thinkrail/ui/skeleton";
 import { cn } from "@thinkrail/ui/utils";
-import { type MouseEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import {
+	type MouseEvent,
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { useShallow } from "zustand/react/shallow";
 import { AttentionDot } from "@/components/AttentionDot";
 import { RunningIcon } from "@/components/RunningIcon";
 import { copyText, platformShortcutLabel } from "@/lib";
@@ -57,24 +68,27 @@ import {
 	SETTLED_SHELF_PAGE,
 	type SettledReason,
 	selectActiveWorkspaceProjectId,
-	selectAutoSettledCounts,
 	selectProjectIsRunning,
 	selectProjectNeedsAttention,
+	selectProjectTreeModel,
+	selectRepoProjects,
 	selectSupportsOnboarding,
 	selectWorkspaceIsRunning,
 	selectWorkspaceNeedsAttention,
-	selectWorkspacePartition,
+	type selectWorkspacePartition,
 	selectWorkspaceReadAction,
 	settledReasonLabel,
 	settledReasonTitle,
 	supportsWorkspaceReadState,
 	toast,
 	useAppStore,
+	type WorkspacePartition,
 	type WorkspaceReadAction,
 	workspaceName,
 } from "../store";
 import { errorText, getTransport } from "../transport";
 import { AddProjectMenu } from "./AddProjectMenu";
+import { ChatsSection } from "./ChatsSection";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ExistingWorktreeDialog } from "./ExistingWorktreeDialog";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
@@ -96,7 +110,9 @@ import {
 	loadProjectWorkspaces,
 	markWorkspaceRead,
 	markWorkspaceUnread,
+	openProjectMemory,
 	openWorkspaceIn,
+	projectFilesWorkspace,
 	renameProject,
 	renameWorkspace,
 	revealWorkspace,
@@ -108,6 +124,8 @@ import {
 
 const HOVER_CONTROL_CLASS =
 	"shrink-0 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100";
+
+const NO_WORKSPACES: WorkspacePartition = { live: [], settled: [] };
 
 function groupCreationsByProject(
 	creations: Record<string, WorkspaceCreation>,
@@ -122,7 +140,7 @@ function groupCreationsByProject(
 
 export function ProjectTree() {
 	const t = useT();
-	const projects = useAppStore((s) => s.projects);
+	const projects = useAppStore(useShallow(selectRepoProjects));
 	const recentProjects = useAppStore((s) => s.recentProjects);
 	const selectedProjectId = useAppStore((s) => s.selectedProjectId);
 	const workspaces = useAppStore((s) => s.workspaces);
@@ -134,7 +152,7 @@ export function ProjectTree() {
 	const protocolVersion = useAppStore((s) => s.protocolVersion);
 	const supportsCreate = useAppStore(selectSupportsOnboarding);
 	const supportsSettling = useAppStore((s) => s.workspaceSettlingSupported);
-	const sessionStateByWorkspace = useAppStore((s) => s.sessionStateByWorkspace);
+	const sessionStateClock = useAppStore((s) => s.sessionStateClock);
 	const settleIdleDays = useAppStore((s) => s.settleIdleDays);
 	const settledShelfExpanded = useAppStore((s) => s.settledShelfExpanded);
 	const settledShelfShown = useAppStore((s) => s.settledShelfShown);
@@ -183,19 +201,39 @@ export function ProjectTree() {
 		if (activeProjectId) useAppStore.getState().expandProject(activeProjectId);
 	}, [activeProjectId]);
 
-	const partitionState = {
-		workspaces,
-		workspaceSettlingSupported: supportsSettling,
-		sessionStateByWorkspace,
+	const projectTree = useMemo(() => {
+		const sessionStateByWorkspace = useAppStore.getState().sessionStateByWorkspace;
+		return {
+			...selectProjectTreeModel(
+				{
+					workspaces,
+					workspaceSettlingSupported: supportsSettling,
+					sessionStateByWorkspace,
+					activeWorkspaceId,
+					activeWorkspaceLiveLatch,
+					settleIdleDays,
+				},
+				projects.map((project) => project.id),
+				now,
+			),
+			projection: { sessionStateByWorkspace },
+		};
+	}, [
 		activeWorkspaceId,
 		activeWorkspaceLiveLatch,
+		now,
+		projects,
+		sessionStateClock,
 		settleIdleDays,
-	};
+		supportsSettling,
+		workspaces,
+	]);
+	const { partitions, workspaceCounts, autoSettledKey, projection: stateProjection } = projectTree;
 	const activeSettledIndex =
 		activeProjectId && activeWorkspaceId
-			? selectWorkspacePartition(partitionState, activeProjectId, now).settled.findIndex(
+			? (partitions[activeProjectId]?.settled.findIndex(
 					(row) => row.workspace.id === activeWorkspaceId,
-				)
+				) ?? -1)
 			: -1;
 	useEffect(() => {
 		if (!activeProjectId || activeSettledIndex < 0) return;
@@ -204,9 +242,6 @@ export function ProjectTree() {
 		store.showMoreSettled(activeProjectId, activeSettledIndex + 1);
 	}, [activeProjectId, activeSettledIndex]);
 
-	const autoSettledKey = selectAutoSettledCounts(partitionState, now)
-		.map(({ projectId, count }) => `${projectId}:${count}`)
-		.join(",");
 	useEffect(() => {
 		if (autoSettledKey === "" || settledShelfNoticed()) return;
 		const timer = setTimeout(announceSettledShelf, SETTLED_NOTICE_QUIET_MS);
@@ -236,6 +271,19 @@ export function ProjectTree() {
 
 	const selectWorkspace = (workspace: Workspace) => {
 		useAppStore.getState().activateWorkspace(workspace);
+	};
+
+	/** Open the project folder as a file tree: its default workspace IS the project root. */
+	const browseProjectFiles = async (projectId: string) => {
+		const store = useAppStore.getState();
+		store.expandProject(projectId);
+		if (!store.workspaces[projectId]) await loadWorkspaces(projectId).catch(() => {});
+		const current = useAppStore.getState();
+		const rows = current.workspaces[projectId] ?? [];
+		const target = projectFilesWorkspace(rows);
+		if (!target) return;
+		current.activateWorkspace(target);
+		useAppStore.getState().requestToolView(target.id, "files");
 	};
 
 	const toggleExpand = (projectId: string) => {
@@ -293,6 +341,7 @@ export function ProjectTree() {
 
 	return (
 		<nav data-testid="project-tree" className="flex flex-col gap-4">
+			<ChatsSection />
 			<header className="flex h-panel-row items-center justify-between pr-4 pl-8">
 				<span className="tr-text-eyebrow text-text-muted">{t("panels.projectTree.title")}</span>
 				<AddProjectMenu
@@ -318,7 +367,6 @@ export function ProjectTree() {
 				{projects.map((project) => {
 					const isExpanded = expandedProjectIds[project.id] === true;
 					const list = workspaces[project.id];
-					const stateProjection = { sessionStateByWorkspace };
 					return (
 						<li key={project.id}>
 							<ProjectRow
@@ -329,7 +377,7 @@ export function ProjectTree() {
 									!isExpanded && selectProjectNeedsAttention(stateProjection, project.id)
 								}
 								isRunning={!isExpanded && selectProjectIsRunning(stateProjection, project.id)}
-								workspaceCount={(list ?? []).filter((w) => !isDefaultWorkspace(w)).length}
+								workspaceCount={workspaceCounts[project.id] ?? 0}
 								onToggle={() => toggleExpand(project.id)}
 								onSelect={() => void selectProject(project.id)}
 								canRename={canRenameProject(protocolVersion)}
@@ -340,6 +388,8 @@ export function ProjectTree() {
 								onAddWorkspace={() => openWorkspaceDialog(project.id, false)}
 								onAddWorkspaceFromMenu={() => openWorkspaceDialog(project.id, true)}
 								onOpenExistingWorktree={() => openExistingWorktreeDialog(project.id)}
+								onBrowseFiles={() => void browseProjectFiles(project.id)}
+								onOpenMemory={() => openProjectMemory(project.id, project.name)}
 								onRegisterNameButton={(element) => registerProjectNameButton(project.id, element)}
 								onRestoreFocus={() => focusProjectNameOrAdd(project.id)}
 							/>
@@ -350,7 +400,7 @@ export function ProjectTree() {
 								<SettledPartition
 									enabled={supportsSettling}
 									projectId={project.id}
-									partition={selectWorkspacePartition(partitionState, project.id, now)}
+									partition={partitions[project.id] ?? NO_WORKSPACES}
 									shelfExpanded={settledShelfExpanded[project.id] === true}
 									shelfShown={settledShelfShown[project.id] ?? SETTLED_SHELF_PAGE}
 									renderRow={(ws, settled) =>
@@ -551,6 +601,8 @@ function ProjectRow({
 	onAddWorkspace,
 	onAddWorkspaceFromMenu,
 	onOpenExistingWorktree,
+	onBrowseFiles,
+	onOpenMemory,
 	onRegisterNameButton,
 	onRestoreFocus,
 }: {
@@ -570,6 +622,8 @@ function ProjectRow({
 	onAddWorkspace: () => void;
 	onAddWorkspaceFromMenu: () => void;
 	onOpenExistingWorktree: () => void;
+	onBrowseFiles: () => void;
+	onOpenMemory: () => void;
 	onRegisterNameButton: (element: HTMLButtonElement | null) => void;
 	onRestoreFocus: () => void;
 }) {
@@ -723,6 +777,14 @@ function ProjectRow({
 					>
 						<FolderOpen />
 						{t("panels.projectTree.openExistingWorktree")}
+					</ContextMenuItem>
+					<ContextMenuItem data-testid="project-menu-browse-files" onSelect={() => onBrowseFiles()}>
+						<Tree />
+						{t("panels.projectTree.browseFiles")}
+					</ContextMenuItem>
+					<ContextMenuItem data-testid="project-menu-memory" onSelect={() => onOpenMemory()}>
+						<Brain />
+						{t("panels.projectTree.memory")}
 					</ContextMenuItem>
 					<ContextMenuSeparator />
 					{canEditSettings ? (

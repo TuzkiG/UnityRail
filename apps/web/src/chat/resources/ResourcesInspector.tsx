@@ -23,7 +23,7 @@ import { type Translator, useT } from "@thinkrail/locales/react";
 import { Button, IconButton } from "@thinkrail/ui/button";
 import { Dialog, DialogPanel, DialogTitle } from "@thinkrail/ui/dialog";
 import { cn } from "@thinkrail/ui/utils";
-import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
+import { type KeyboardEvent, memo, type ReactNode, useEffect, useRef } from "react";
 import { McpServerSection } from "./mcpRow";
 import {
 	actionKey,
@@ -320,7 +320,7 @@ function FoldRow({ group, onToggle }: { group: Category; onToggle: () => void })
 	);
 }
 
-export function ResourcesInspector(props: ResourcesInspectorProps) {
+function ResourcesInspectorImpl(props: ResourcesInspectorProps) {
 	const t = useT();
 	const fresh = props.newIds ?? NONE;
 	const pinned = props.selectedId ? new Set([...fresh, props.selectedId]) : fresh;
@@ -351,6 +351,8 @@ export function ResourcesInspector(props: ResourcesInspectorProps) {
 		if (!props.open || !selected || props.selectedId === resourceId(selected)) return;
 		props.onSelect(resourceId(selected));
 	});
+
+	if (!props.open) return null;
 
 	const stopFor = (resource: Resource) =>
 		resource.kind === "command"
@@ -671,3 +673,5 @@ export function ResourcesInspector(props: ResourcesInspectorProps) {
 		</Dialog>
 	);
 }
+
+export const ResourcesInspector = memo(ResourcesInspectorImpl);

@@ -1,4 +1,5 @@
 import type { ReviewComment, ReviewSnapshot } from "@thinkrail/contracts";
+import { flatItems, TodoStore } from "pi-todos/core";
 import { getProjects } from "../projects";
 import { getReviewSnapshot } from "../reviews";
 import {
@@ -7,7 +8,7 @@ import {
 	reviewedShaSuperseded,
 	todoReviewRecord,
 } from "../todos";
-import { listWorkspaceRecords } from "../workspaces";
+import { getWorkspace, listWorkspaceRecords } from "../workspaces";
 import { itemReviewActive } from "./planReviewQueue";
 
 interface ItemRef {
@@ -48,12 +49,62 @@ function isFindingStale(workspaceId: string, comment: ReviewComment): boolean {
 	);
 }
 
+/** Latest commit artifact per TODO, read once per session instead of once per comment. */
+function latestCommitByTodo(workspaceId: string, sessionId: string): Map<string, string> {
+	const plan = new TodoStore(getWorkspace(workspaceId).worktreePath, sessionId).read();
+	const latest = new Map<string, string>();
+	for (const item of flatItems(plan)) {
+		const shas = (item.artifacts ?? []).flatMap((artifact) =>
+			artifact.kind === "commit" && artifact.sha ? [artifact.sha] : [],
+		);
+		const sha = shas.at(-1);
+		if (sha !== undefined) latest.set(item.id, sha);
+	}
+	return latest;
+}
+
+const ADOPTED_PREFIX = "commit:";
+
+function supersededBy(
+	workspaceId: string,
+	origin: NonNullable<ReviewComment["origin"]>,
+	latest: Map<string, string>,
+): boolean {
+	const sha = latest.get(origin.todoId);
+	if (sha !== undefined) return sha !== origin.reviewedSha;
+	// Adopted commits encode their own sha; the plan never holds them.
+	if (origin.todoId.startsWith(ADOPTED_PREFIX))
+		return origin.reviewedSha !== origin.todoId.slice(ADOPTED_PREFIX.length);
+	return reviewedShaSuperseded(
+		{ workspaceId, sessionId: origin.sessionId, id: origin.todoId },
+		origin.reviewedSha,
+	);
+}
+
 export function markClientStale<T extends ReviewSnapshot>(snapshot: T, workspaceId: string): T {
+	const candidates = snapshot.comments.filter(
+		(comment) =>
+			comment.anchorState === "outdated" &&
+			comment.origin !== undefined &&
+			comment.origin.reviewedSha !== "",
+	);
+	if (candidates.length === 0) return snapshot;
+	const plans = new Map<string, Map<string, string>>();
+	const stale = new Set<string>();
+	for (const comment of candidates) {
+		const origin = comment.origin;
+		if (!origin) continue;
+		let latest = plans.get(origin.sessionId);
+		if (!latest) {
+			latest = latestCommitByTodo(workspaceId, origin.sessionId);
+			plans.set(origin.sessionId, latest);
+		}
+		if (supersededBy(workspaceId, origin, latest)) stale.add(comment.id);
+	}
+	if (stale.size === 0) return snapshot;
 	return {
 		...snapshot,
-		comments: snapshot.comments.map((c) =>
-			isFindingStale(workspaceId, c) ? { ...c, stale: true } : c,
-		),
+		comments: snapshot.comments.map((c) => (stale.has(c.id) ? { ...c, stale: true } : c)),
 	};
 }
 

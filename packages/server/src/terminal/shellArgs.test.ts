@@ -16,8 +16,10 @@ test("auto prefers pwsh when it resolves on PATH", () => {
 });
 
 test("auto falls back to Windows PowerShell when pwsh is not installed", () => {
+	// Both cases inject the probe: a developer machine that has pwsh must not decide this.
 	expect(terminalShell("win32", {}, "auto", noPwsh)).toBe("powershell.exe");
-	expect(terminalShell("win32", {})).toBe("powershell.exe");
+	expect(terminalShell("win32", {}, "auto", noPwsh)).toBe("powershell.exe");
+	expect(terminalShell("win32", {}, "auto", withPwsh)).toBe("C:\\pwsh\\pwsh.exe");
 });
 
 test("an explicit preference is a literal pin, never probed or substituted", () => {

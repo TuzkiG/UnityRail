@@ -10,6 +10,7 @@ import { selectFilesTreeView, type TabIntent, useAppStore } from "../store";
 import { getTransport } from "../transport";
 import { type ChangeMarks, statusMarkClass } from "./changesModel";
 import { holdEditorWarm, useEditorWarm, warmOnHover } from "./editorWarm";
+import { peekFolderChain, peekRootDir, readFolderChain, readRootDir } from "./filesTreeCache";
 import { type ResolvedFolderChain, resolveFolderChain } from "./folderChains";
 import { openFileInTab } from "./openTabs";
 import { TreeRow } from "./TreeRow";
@@ -30,8 +31,8 @@ export function FileTree({
 	...focus
 }: TreeFocus & { workspaceId: string; marks: ChangeMarks }) {
 	const t = useT();
-	const [nodes, setNodes] = useState<FileNode[] | null>(null);
 	const repo = useAppStore((s) => selectFilesTreeView(s, workspaceId).repo ?? "");
+	const [nodes, setNodes] = useState<FileNode[] | null>(() => peekRootDir(workspaceId, repo));
 	const expanded = useAppStore((s) => selectFilesTreeView(s, workspaceId).expanded);
 	const expandedPaths = useMemo(() => new Set(expanded), [expanded]);
 	const warm = useEditorWarm();
@@ -44,11 +45,14 @@ export function FileTree({
 
 	useWorkspaceRead(
 		workspaceId,
-		(id) => getTransport().request("fs.readDir", { workspaceId: id, path: repo || "." }),
+		(id, path) =>
+			readRootDir(id, path ?? "", () =>
+				getTransport().request("fs.readDir", { workspaceId: id, path: path || "." }),
+			),
 		{
 			onResult: (result) => setNodes(result),
 			onFailure: () => setNodes((prev) => prev ?? []),
-			onSwitch: () => setNodes(null),
+			onSwitch: () => setNodes(peekRootDir(workspaceId, repo)),
 		},
 		repo,
 	);
@@ -68,6 +72,7 @@ export function FileTree({
 					key={node.path}
 					node={node}
 					workspaceId={workspaceId}
+					repo={repo}
 					marks={marks}
 					focus={focus}
 					expandedPaths={expandedPaths}
@@ -82,6 +87,7 @@ export function FileTree({
 function FileNodeRow({
 	node,
 	workspaceId,
+	repo,
 	marks,
 	focus,
 	expandedPaths,
@@ -90,6 +96,7 @@ function FileNodeRow({
 }: {
 	node: FileNode;
 	workspaceId: string;
+	repo: string;
 	marks: ChangeMarks;
 	focus: TreeFocus;
 	expandedPaths: ReadonlySet<string>;
@@ -98,33 +105,51 @@ function FileNodeRow({
 }) {
 	const t = useT();
 	const isDir = node.kind === "dir";
-	const [directory, setDirectory] = useState<ResolvedFolderChain<FileNode> | null>(null);
+	const [directory, setDirectory] = useState<ResolvedFolderChain<FileNode> | null>(() =>
+		isDir ? peekFolderChain(workspaceId, repo, node.path) : null,
+	);
+	const [readFailed, setReadFailed] = useState(false);
+	const retried = useRef(false);
 	const pendingExpand = useRef(false);
 
 	const { reload } = useWorkspaceRead(
 		isDir ? workspaceId : null,
 		(id) =>
-			resolveFolderChain(node, (path) =>
-				getTransport().request("fs.readDir", { workspaceId: id, path }),
+			readFolderChain(id, repo, node.path, () =>
+				resolveFolderChain(node, (path) =>
+					getTransport().request("fs.readDir", { workspaceId: id, path }),
+				),
 			),
 		{
 			onResult: (result) => {
+				setReadFailed(false);
 				setDirectory(result);
 				if (!pendingExpand.current) return;
 				pendingExpand.current = false;
 				setPathsExpanded(result.paths, true);
 			},
+			onFailure: () => setReadFailed(true),
 			onSwitch: () => {
 				pendingExpand.current = false;
-				setDirectory(null);
+				setReadFailed(false);
+				setDirectory(peekFolderChain(workspaceId, repo, node.path));
 			},
 		},
+		node.path,
 	);
 
 	const label = directory?.label ?? node.name;
 	const representedPaths = directory?.paths ?? [node.path];
-	const expanded = expandedPaths.has(directory?.path ?? node.path);
+	// `resolveFolderChain` always records the starting path first, so it stays the stable
+	// expansion key even when the chain extends past it after new directories appear.
+	const expanded = isDir && expandedPaths.has(node.path);
 	const children = directory?.children ?? null;
+
+	useEffect(() => {
+		if (!readFailed || retried.current || !isDir || !expanded || directory !== null) return;
+		retried.current = true;
+		reload();
+	}, [directory, expanded, isDir, readFailed, reload]);
 	const toggleDirectory = () => {
 		const nextExpanded = !expanded;
 		pendingExpand.current = nextExpanded && directory === null;
@@ -198,6 +223,7 @@ function FileNodeRow({
 							key={child.path}
 							node={child}
 							workspaceId={workspaceId}
+							repo={repo}
 							marks={marks}
 							focus={focus}
 							expandedPaths={expandedPaths}

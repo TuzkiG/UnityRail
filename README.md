@@ -29,15 +29,24 @@ create the tools it needs based on how you actually work.
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme-assets/workbench-dark.png">
   <img src=".github/readme-assets/workbench-light.png" alt="UnityRail workbench: the Projects pane beside the left tool rail listing worktree workspaces and their Settled shelf, a finished pi conversation with its tool steps in the center, the resulting diff beside it, and the Specs tree above the Changes list on the right with their tools on the edge rail" width="900">
 </picture>
+*From the left: An isolated workspace, a work session with an AI agent in that workspace, the code change made by the agent, and the spec tree.*
 
-*A `pi` session and the change it made, scoped to an isolated git-worktree workspace.*
+<a id="install"></a>
+
+## Installation
+
+ThinkRail ships in two forms: a native desktop installer and the self-contained `thinkrail` CLI. You can install them from out [Landing page](https://thinkrail.ai/#install).
+
+For latest version, see the [Releases page](https://github.com/JetBrains/thinkrail/releases).
+
 
 ## What you get
 
 - **Isolated workspaces.** Open any git repo as a project and cut workspaces from it as `git worktree`s,
   each with its own branch and working directory. Agents work in parallel without touching your
   checkout; merge the good branch, delete the rest. New worktrees initialize their submodules, and
-  Changes/Review follow edits inside nested repositories at any depth, including a business checkout mounted by a directory link. You can also attach existing worktrees or explicitly
+  Changes/Review follow edits inside nested repositories at any depth, including a business checkout mounted by a directory link. Ask a chat to do something "in a side workspace" and the agent starts that workspace and its chat
+  itself, then checks how its chats and pull requests are doing. You can also attach existing worktrees or explicitly
   work in the project folder itself, and each project can preset which of the two its New-Workspace dialog
   opens in. Finished and dormant workspaces settle onto a per-project shelf on
   their own — when their pull request merges or closes, or after a quiet week — and come back the moment
@@ -54,15 +63,26 @@ create the tools it needs based on how you actually work.
   its own model and live token and cost readout. Steer a running turn or queue a follow-up, delegate to
   subagents, and work a shared plan the agent updates and you edit — each completed step can be committed
   and reviewed on its own.
-- **Find chats and run commands from one box.** `⌘K` (or a double tap of Shift) opens a palette that finds
-  chats, workspaces and projects across every open project, runs the app's commands with their shortcuts
-  shown, and jumps to a Settings section. With nothing typed it lists the chats waiting for you.
+- **Find anything from one box.** `⌘K` (or a double tap of Shift) opens a palette that finds chats and
+  the messages inside them, workspaces and projects, files in the current workspace, specs, and plans,
+  with a preview pane. It also runs the app's commands with their shortcuts shown and opens Settings
+  sections, and with nothing typed it lists the chats waiting for you. Type a task and press `⌘↵` to
+  open Create workspace with it as the prompt.
 - **Specs as ground truth.** A connected graph of `SPEC.md` files lives beside the code; the agent reads,
   searches, and maintains it through dedicated `spec_*` tools, so intent survives the session. The
   read-only Specs tool renders the graph as a tree in the workbench.
-- **Skills and workflows.** Portable Agent Skills you already keep for other coding agents are read in
-  place, and bundled workflows guide project setup, design brainstorming, and shipping a pull request —
-  pushing the workspace branch and opening or updating its GitHub PR through your own `gh`.
+- **Memory that outlives a session.** Connect [Basic Memory](https://docs.basicmemory.com/integrations/pi)
+  from Settings → Memory: the official Pi package recalls the decisions, rationale and next steps of
+  earlier sessions and captures new ones after a turn settles. Its notes are plain Markdown in your own
+  Basic Memory projects, listed and editable on the same page — and a project's notes open as a
+  workbench tab from the project menu. Each project can pick the Basic Memory project it targets and
+  whether recall and capture run automatically.
+- **Skills and workflows.** UnityRail loads your `pi` skills and any already in your project, and can
+  import skills from Claude, Codex, and other coding agents: switch them on in Settings → Extensions, or
+  per project in the Skills dialog, which also shows the size of your skill catalog. A large library is
+  listed within a small prompt budget, and the agent finds the rest with a skill search. Bundled
+  workflows guide project setup, design brainstorming, and shipping a pull request — pushing the
+  workspace branch and opening or updating its GitHub PR through your own `gh`.
 - **Agent tools beyond the shell.** Web research, structured multiple-choice questions the agent asks you
   in the chat instead of guessing — with mockups, diagrams and diffs right in the question, your own answer
   and notes, a one-click "Discuss" when a question is unclear, and a fully keyboard-driven card — and inline
@@ -98,8 +118,8 @@ create the tools it needs based on how you actually work.
   browser. Both embed the same engine host; app state lives under `~/.thinkrail`.
 - **Your language.** Settings → Language follows your system language or a language you pick; English,
   Japanese, Russian, Simplified Chinese, and Spanish are built in. Add a language UnityRail doesn't ship yet by
-  dropping a translated `en.json` into `~/.thinkrail/locales` — it applies as you save. Agent replies and
-  tool output stay as the agent wrote them.
+  dropping a translated locale file (for example `de.json`) into `~/.thinkrail/locales` — it applies as you
+  save. Agent replies and tool output stay as the agent wrote them.
 - **Your themes.** Settings → Appearance ships dark, light, minimal and high-contrast themes. Make your own
   by copying a bundled `*.theme.json`, changing its id and colors, and saving it to `~/.thinkrail/themes`.
 - **Your fonts.** Settings → Appearance picks the interface and code fonts from the bundled Geist and
@@ -115,6 +135,7 @@ create the tools it needs based on how you actually work.
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme-assets/specs-dark.png">
   <img src=".github/readme-assets/specs-light.png" alt="The Specs tool, opened from the right edge rail, listing the project's spec tree while the product goal spec is rendered in the editor" width="900">
 </picture>
+*The project's spec graph as a tree (on the right), with the spec itself rendered alongside in the center.*
 
 *The project's spec graph as a tree, with the spec itself rendered alongside.*
 
@@ -150,15 +171,12 @@ Both are published with `SHA256SUMS` on the [releases page](https://github.com/J
 
 Download the `thinkrail-desktop-*` asset for your platform:
 
-- **macOS 14+ (Apple Silicon or Intel)** — open the DMG for your architecture:
-  `thinkrail-desktop-darwin-arm64.dmg` or `thinkrail-desktop-darwin-x64.dmg`.
-- **Windows x64** — extract the complete setup ZIP, then run its setup executable in place, next to its
-  payload.
-- **Linux x64 / ARM64** — extract the setup tarball and run `installer`. Desktop builds need glibc 2.38+
-  with GTK 3, WebKitGTK 4.1, Ayatana AppIndicator 3, and librsvg 2 — Ubuntu 24.04 or newer:
+- **macOS 14+ (Apple Silicon or Intel)**: open the DMG for your architecture: `thinkrail-desktop-darwin-arm64.dmg` or `thinkrail-desktop-darwin-x64.dmg`.
+- **Windows x64**: extract the complete setup ZIP, then run the executable.
+- **Linux x64 / ARM64**: extract the setup tarball and run `installer`. Desktop builds need glibc 2.38+ with GTK 3, WebKitGTK 4.1, Ayatana AppIndicator 3, librsvg 2, and Ubuntu 24.04 or newer, plus `libnotify-bin` for desktop notifications:
 
   ```bash
-  sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0 libayatana-appindicator3-1 librsvg2-2
+  sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0 libayatana-appindicator3-1 librsvg2-2 libnotify-bin
   ```
 
 Packaged stable and nightly desktop builds check for updates in the background and offer them in
@@ -167,7 +185,6 @@ you choose **Install & Restart**. UnityRail then shows the installation's progre
 reopens on the new version. After the restart it tells you whether the update installed. If it didn't, it
 explains why and offers to retry. The updater appears only when the package carries a valid HTTPS feed
 identity; installations that predate that identity need one manual installation first.
-
 ### Command line
 
 The installer downloads the right binary, verifies its SHA-256 checksum, and puts `thinkrail` on your PATH.
@@ -178,7 +195,7 @@ The installer downloads the right binary, verifies its SHA-256 checksum, and put
 curl -fsSL https://raw.githubusercontent.com/JetBrains/thinkrail/main/install.sh | bash
 ```
 
-**Windows** — the same command works from cmd and PowerShell:
+**Windows**: the same command works from cmd and PowerShell:
 
 ```powershell
 powershell -c "irm https://raw.githubusercontent.com/JetBrains/thinkrail/main/install.ps1 | iex"
@@ -201,38 +218,27 @@ existing Git credentials and SSH keys; existing destination folders are never ov
 
 <details>
 <summary><strong>Nightly builds, pinned versions, updates, and uninstall</strong></summary>
-
 The installer takes `--channel stable|nightly` and `--version`; a pinned version must belong to the
 selected channel:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JetBrains/thinkrail/main/install.sh | bash -s -- --channel nightly
-curl -fsSL https://raw.githubusercontent.com/JetBrains/thinkrail/main/install.sh | bash -s -- --channel stable --version 0.1.2
-curl -fsSL https://raw.githubusercontent.com/JetBrains/thinkrail/main/install.sh | bash -s -- --channel nightly --version 0.2.0-nightly.10
+curl -fsSL https://raw.githubusercontent.com/JetBrains/thinkrail/main/install.sh | bash -s -- --channel stable --version 0.3.1
+curl -fsSL https://raw.githubusercontent.com/JetBrains/thinkrail/main/install.sh | bash -s -- --channel nightly --version 0.4.0-nightly.2
 ```
 
-On Windows the options are environment variables (`THINKRAIL_CHANNEL`, `THINKRAIL_VERSION`,
-`THINKRAIL_PREFIX`, `THINKRAIL_NO_MODIFY_PATH`):
+On Windows the options are environment variables (`THINKRAIL_CHANNEL`, `THINKRAIL_VERSION`, `THINKRAIL_PREFIX`, `THINKRAIL_NO_MODIFY_PATH`):
 
 ```powershell
 $env:THINKRAIL_CHANNEL='nightly'; irm https://raw.githubusercontent.com/JetBrains/thinkrail/main/install.ps1 | iex   # PowerShell
-set "THINKRAIL_CHANNEL=stable" && set "THINKRAIL_VERSION=0.1.2" && powershell -c "irm https://raw.githubusercontent.com/JetBrains/thinkrail/main/install.ps1 | iex"   # cmd
+set "THINKRAIL_CHANNEL=stable" && set "THINKRAIL_VERSION=0.3.1" && powershell -c "irm https://raw.githubusercontent.com/JetBrains/thinkrail/main/install.ps1 | iex"   # cmd
 ```
 
-Installed stable and nightly CLI hosts periodically offer **Run Update** in **Settings → Updates**. It runs
-the host machine's `thinkrail update` in the background — also when the UI is open in a browser on another
-machine — and a successful update asks you to restart the host manually. You can run `thinkrail update`
-directly on any platform: it re-runs the installer for the installed channel and replaces
-`<prefix>/bin/thinkrail[.exe]`; pass `--channel` or `--version` only for an explicit override.
+If you keep ThinkRail running, it periodically checks for updates and, when it finds one, shows an "Update available" button in the GUI.
 
-`thinkrail uninstall` removes the executable, the PATH entry the installer added, and the install metadata,
-and asks whether to delete your `~/.thinkrail` app state (kept by default — `--remove-data` deletes it,
-`-y` skips the questions).
+`thinkrail uninstall` removes the executable, the PATH entry the installer added, and the install metadata; it then asks whether to delete your `~/.thinkrail` app state (kept by default; `--remove-data` deletes it, and `-y` skips the questions).
 
-Prefer a manual install? Download a binary and `SHA256SUMS` from the releases page and verify the checksum.
-For self-update to work, rename it to `thinkrail` (`thinkrail.exe` on Windows) and place it at
-`<prefix>/bin/thinkrail[.exe]`; a binary kept under its release filename or elsewhere must be replaced
-manually or reinstalled with the script.
+If you prefer a manual install, download a binary and the `SHA256SUMS` from the releases page, and verify the checksum. For self-update to work, rename it to `thinkrail` (`thinkrail.exe` on Windows) and place it at `<prefix>/bin/thinkrail[.exe]`; a binary kept under its release filename or elsewhere must be replaced manually or reinstalled with the script.
 
 </details>
 
@@ -244,10 +250,7 @@ manually or reinstalled with the script.
 | Windows x64 | signed setup executable and app binaries | signed `.exe` |
 | Linux x64 / ARM64 | setup tarball, unsigned | unsigned |
 
-JetBrains signs the Windows CLI, the desktop setup executable, and every executable and DLL the desktop app
-installs. The macOS CLI is signed but not yet notarized.
-Signed and notarized desktop DMGs require the coordinated JetBrains service pipeline; older published DMGs
-and locally built packages may still be unsigned and blocked by Gatekeeper. Linux artifacts are unsigned.
+JetBrains signs the Windows CLI, the desktop setup executable, and every executable and DLL the desktop app installs. The macOS CLI is signed but not yet notarized. Signed and notarized desktop DMGs must come from the coordinated JetBrains service pipeline; older published DMGs and locally built packages may still be unsigned and blocked by Gatekeeper. Linux artifacts are unsigned.
 
 ## Analytics & privacy
 
@@ -280,11 +283,9 @@ UnityRail is a thin host that runs `pi` in-process and bridges it to a rich web 
 skills, compaction, cost, and session state; the app owns the workspace, the editor, and the wire — it
 never assembles prompts behind your back. Three rings:
 
-- **Engine host** — `packages/server` (+ `packages/shared`): a `Bun.serve` HTTP+WS host with one in-process
-  `pi` session per chat, launched by `apps/cli` or `apps/desktop`.
-- **The wire** — `packages/contracts`: the typed, versioned protocol between host and UI.
-- **UI client** — `apps/web`: React 19 + Zustand + Tailwind v4, shipped independently; it dials a host over
-  the wire and depends on the contracts only.
+* **Engine** (`packages/server` + `packages/shared`): a `Bun.serve` HTTP+WS host with one in-process `pi` session per chat, launched by `apps/cli` or `apps/desktop`.
+* **Contracts** (`packages/contracts`): the typed, versioned protocol between the engine and the GUI.
+* **GUI** (`apps/web`): React 19 + Zustand + Tailwind v4, shipped independently; it communicates with the engine through the contracts.
 
 [`goal-and-requirements.md`](goal-and-requirements.md) and [`architecture.md`](architecture.md) are the
 canonical product and design specs. UnityRail is developed spec-first: a `SPEC.md` sits beside every
@@ -292,8 +293,9 @@ module, and a change that moves a boundary, contract, or decision updates the sp
 
 ## Developing UnityRail
 
-You need **Bun** 1.4.4 (the pinned package manager and runtime), **Node.js** ≥ 22.19 (required by the
-in-process `pi` engine), and an authenticated `pi` provider for agent work.
+You need **Bun** 1.4.4 (the pinned package manager and runtime), **Node.js** ≥ 22.23.4 (the in-process `pi`
+engine needs ≥ 22.19; the website build and typecheck need ≥ 22.23.4 for Astro 7.4), and an AI provider for
+agent work.
 
 ```bash
 git clone https://github.com/JetBrains/thinkrail.git
@@ -309,18 +311,15 @@ bun run desktop:dev                  # package and open the Electrobun app
 bun run desktop:build                # package without opening it
 ```
 
-[`CONTRIBUTING.md`](CONTRIBUTING.md) covers the checks, the end-to-end suites, desktop packaging, and the
-repository layout.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) covers the checks, the end-to-end suites, desktop packaging, and the repository layout.
 
 ## Contributing
 
-Contributions are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md). This project and community are
-governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome. See [`CONTRIBUTING.md`](CONTRIBUTING.md). This project and community are governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Community
 
-Join us on [Discord](https://thinkrail.ai/discord) to ask questions, share what you're building, and
-talk to the team. Bugs and feature requests go to [GitHub issues](https://github.com/JetBrains/thinkrail/issues).
+Join us on [Discord](https://thinkrail.ai/discord) to ask questions, share what you're building, and talk to the team. Bugs and feature requests go to [GitHub issues](https://github.com/JetBrains/thinkrail/issues).
 
 ## License
 

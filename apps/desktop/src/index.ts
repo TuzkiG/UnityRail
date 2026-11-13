@@ -12,6 +12,7 @@ import Electrobun, {
 	PATHS,
 	Utils,
 } from "electrobun/main";
+import desktopBuildConfig from "../electrobun.config";
 import {
 	installDesktopApplicationMenu,
 	isNativeCommand,
@@ -60,10 +61,8 @@ import {
 import {
 	desktopWindowChrome,
 	injectInitialWindowChrome,
-	installWindowChromeGeometry,
-	installWindowChromePublisher,
+	installWindowChromeUpdates,
 	readNativeWindowState,
-	sameNativeWindowState,
 	windowChromeGeometry,
 	windowChromePreloadSeed,
 } from "./windowChrome";
@@ -159,6 +158,7 @@ function windowControlsProbeScript(target: { testId: string; maximized: boolean 
 }
 let startupQuitCoordinator: ReturnType<typeof createElectrobunQuitCoordinator> | undefined;
 let startupSplash: StartupSplash | undefined;
+const TASKBAR_STAMP_DELAY_MS = 2000;
 
 function setWindowsAppUserModelId(): void {
 	if (process.platform !== "win32") return;
@@ -278,6 +278,7 @@ async function start(): Promise<void> {
 		platform: process.platform,
 		arch: process.arch,
 		userData,
+		releaseBaseUrl: desktopBuildConfig.release.baseUrl,
 		restartToUpdate: () => quitCoordinator.restartToUpdate(),
 	});
 	// Electrobun resolves and caches ../Resources from cwd; leave the bundle only after those reads.
@@ -318,6 +319,7 @@ async function start(): Promise<void> {
 	);
 	startupQuitCoordinator = quitCoordinator;
 	Electrobun.events.on("before-quit", (event: BeforeQuitEvent) => {
+		routes.flush();
 		quitCoordinator.handleBeforeQuit(event);
 	});
 	const origin = `http://127.0.0.1:${host.port}`;
@@ -497,22 +499,20 @@ async function start(): Promise<void> {
 				}
 			}
 		}
-		installWindowChromeGeometry(
+		installWindowChromeUpdates(
 			mainWindow,
-			() => windowChromeGeometry(windowChrome, mainWindow.isFullScreen()),
-			(geometry) => rpc.send.windowChromeChanged(geometry),
+			() => ({
+				geometry: windowChromeGeometry(windowChrome, mainWindow.isFullScreen()),
+				...(windowChrome.windowControls ? { state: readNativeWindowState(mainWindow) } : {}),
+			}),
+			(snapshot) => {
+				rpc.send.windowChromeChanged(snapshot.geometry);
+				if (snapshot.state !== undefined) {
+					recordWindowControlsProbe({ state: snapshot.state });
+					rpc.send.windowStateChanged(snapshot.state);
+				}
+			},
 		);
-		if (windowChrome.windowControls) {
-			installWindowChromePublisher(
-				mainWindow,
-				() => readNativeWindowState(mainWindow),
-				(state) => {
-					recordWindowControlsProbe({ state });
-					rpc.send.windowStateChanged(state);
-				},
-				sameNativeWindowState,
-			);
-		}
 	}
 	const navigationProbePath = neutral
 		? undefined
@@ -556,8 +556,14 @@ async function start(): Promise<void> {
 	const releaseStartupSplash = startupSplash
 		? handOffStartupSplash(startupSplash, mainWindow)
 		: undefined;
-	mainWindow.on("focus", () => rpc.send.windowFocusChanged({ focused: true }));
-	mainWindow.on("blur", () => rpc.send.windowFocusChanged({ focused: false }));
+	let windowFocused: boolean | undefined;
+	const publishWindowFocus = (focused: boolean): void => {
+		if (windowFocused === focused) return;
+		windowFocused = focused;
+		rpc.send.windowFocusChanged({ focused });
+	};
+	mainWindow.on("focus", () => publishWindowFocus(true));
+	mainWindow.on("blur", () => publishWindowFocus(false));
 	updateController.subscribe((state) => rpc.send.updateStateChanged(state));
 	menuTarget = {
 		hintVisible: () => !mainWindow.isMinimized(),
@@ -588,7 +594,7 @@ async function start(): Promise<void> {
 				mode: neutral ? "host" : "ui",
 			});
 		}
-		setTimeout(stampWindowsTaskbarShortcuts, 0);
+		setTimeout(stampWindowsTaskbarShortcuts, TASKBAR_STAMP_DELAY_MS);
 	});
 
 	const controlPath = process.env.THINKRAIL_DESKTOP_CONTROL_FILE;

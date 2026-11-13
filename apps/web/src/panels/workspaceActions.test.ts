@@ -2,12 +2,15 @@ import { expect, test } from "bun:test";
 import {
 	PROJECT_WORKSPACE_TARGET_PROTOCOL_VERSION,
 	WORKSPACE_RENAME_PROTOCOL_VERSION,
+	WORKSPACE_SETTLE_PROTOCOL_VERSION,
 	type Workspace,
 } from "@thinkrail/contracts";
 import {
 	canEditProjectSettings,
 	canRenameWorkspace,
+	canSettleWorkspace,
 	createRenameController,
+	projectFilesWorkspace,
 	workspaceRenameValue,
 } from "./workspaceActions";
 
@@ -118,4 +121,24 @@ test("reset abandons an open or pending edit so a later capable welcome renames 
 	expect(renamed).toEqual([]);
 	rename.reset();
 	expect(editing).toEqual([true, false]);
+});
+
+test("settling is offered for a worktree only — never the Default workspace or a chat without a project", () => {
+	expect(canSettleWorkspace(WORKSPACE_SETTLE_PROTOCOL_VERSION, managed)).toBe(true);
+	expect(
+		canSettleWorkspace(WORKSPACE_SETTLE_PROTOCOL_VERSION, { ...managed, kind: "default" }),
+	).toBe(false);
+	expect(canSettleWorkspace(WORKSPACE_SETTLE_PROTOCOL_VERSION, { ...managed, kind: "chat" })).toBe(
+		false,
+	);
+	expect(canSettleWorkspace(WORKSPACE_SETTLE_PROTOCOL_VERSION - 1, managed)).toBe(false);
+});
+
+test("browse project files resolves the project folder's default workspace", () => {
+	const defaultRow: Workspace = { ...managed, id: "w-default", kind: "default", name: "默认" };
+	const branchRow: Workspace = { ...managed, id: "w-branch" };
+
+	expect(projectFilesWorkspace([branchRow, defaultRow])?.id).toBe("w-default");
+	expect(projectFilesWorkspace([branchRow])?.id).toBe("w-branch");
+	expect(projectFilesWorkspace([])).toBeUndefined();
 });

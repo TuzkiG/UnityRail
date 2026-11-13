@@ -14,6 +14,22 @@ test("the user's own environment reaches the shell", () => {
 	expect(env.NO_COLOR).toBe("1");
 });
 
+test("a Windows environment block reaches the shell once per case-insensitive name", () => {
+	const env = terminalPtyEnv(
+		"win32",
+		{ Path: "C:\\Windows", PATH: "C:\\Program Files\\Git\\usr\\bin", SystemRoot: "C:\\Windows" },
+		() => null,
+	);
+	expect(env.PATH).toBe("C:\\Program Files\\Git\\usr\\bin");
+	expect(env.Path).toBeUndefined();
+	expect(env.SystemRoot).toBe("C:\\Windows");
+});
+
+test("a Windows block that only spells Path still hands the shell a PATH", () => {
+	const env = terminalPtyEnv("win32", { Path: "C:\\Windows" }, () => null);
+	expect(env.PATH).toBe("C:\\Windows");
+});
+
 test("the launching terminal's identity and colour forcing do not leak into the shell", () => {
 	const env = terminalPtyEnv(
 		"darwin",

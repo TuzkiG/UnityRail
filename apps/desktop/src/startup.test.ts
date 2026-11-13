@@ -15,13 +15,11 @@ function normalizeCwds(cwds: Record<string, string>): Record<string, string> {
 }
 
 const outcomes = {
-	updates: "update metadata failure before host acquisition quits directly",
 	boot: "host boot failure quits directly",
 	listener: "listener failure after host acquisition shuts the host down before quitting",
 } as const;
 
 const cases = [
-	{ failure: "updates", userData: "override", home: "present", pendingInstall: false },
 	{ failure: "boot", userData: "getter", home: "present", pendingInstall: false },
 	{ failure: "listener", userData: "override", home: "present", pendingInstall: true },
 	{ failure: "listener", userData: "getter", home: "present", pendingInstall: false },
@@ -32,13 +30,8 @@ for (const { failure, userData, home, pendingInstall } of cases) {
 	const location =
 		home === "missing"
 			? "stays in the launch directory when home is missing"
-			: "reads bundle metadata before leaving for home";
-	const splash =
-		failure === "updates"
-			? "before any splash"
-			: pendingInstall
-				? "behind an update splash"
-				: "behind a startup splash";
+			: "acquires the host before leaving for home";
+	const splash = pendingInstall ? "behind an update splash" : "behind a startup splash";
 	test(`${outcomes[failure]} even if the error dialog fails; ${location} ${splash} (user data from ${userData})`, () => {
 		const root = mkdtempSync(join(tmpdir(), "thinkrail-desktop-startup-"));
 		try {
@@ -121,12 +114,6 @@ mock.module("electrobun/main", () => ({
   },
   PATHS: { RESOURCES_FOLDER: ${JSON.stringify(root)}, VIEWS_FOLDER: ${JSON.stringify(root)} },
   Updater: {
-    getLocalInfo: async () => {
-      calls.push("updates");
-      cwd.updates = process.cwd();
-      if (failure === "updates") throw new Error("update metadata failed");
-      return { identifier: "ai.thinkrail.app", channel: "canary", version: "0.0.1", hash: "abc", baseUrl: "https://example.invalid/u", name: "UnityRail-canary" };
-    },
     updateInfo: () => updateInfo,
     onStatusChange: () => {},
     checkForUpdate: async () => updateInfo,
@@ -174,16 +161,15 @@ console.log(JSON.stringify({ calls, cwd, splashText }));
 				cwd: Record<string, string>;
 				splashText: string | null;
 			};
-			if (failure !== "updates") {
-				expect(run.splashText).toContain(
-					pendingInstall ? "Finishing update to 0.0.2…" : "Starting UnityRail…",
-				);
-			}
+			expect(run.splashText).toContain(
+				pendingInstall ? "Finishing update to 0.0.2…" : "Starting UnityRail…",
+			);
 			expect(run.calls).toEqual([
-				"updates",
-				...(failure === "updates" ? [] : ["shell-env", "splash", "host"]),
+				"shell-env",
+				"splash",
+				"host",
 				...(failure === "listener" ? ["listener"] : []),
-				...(failure === "updates" ? [] : ["splash-hidden"]),
+				"splash-hidden",
 				"dialog",
 				...(failure === "listener" ? ["shutdown-start", "shutdown-end"] : []),
 				"quit",
@@ -192,10 +178,10 @@ console.log(JSON.stringify({ calls, cwd, splashText }));
 			const childDir = home === "missing" ? launchDir : normalizePath(root);
 			expect(normalizeCwds(run.cwd)).toEqual({
 				...(userData === "getter" ? { userData: launchDir } : {}),
-				updates: launchDir,
-				...(failure === "updates"
-					? {}
-					: { shellEnv: childDir, runtime: childDir, host: childDir, child: childDir }),
+				shellEnv: childDir,
+				runtime: childDir,
+				host: childDir,
+				child: childDir,
 			});
 			expect(result.stderr.toString().includes("could not leave the app bundle")).toBe(
 				home === "missing",

@@ -28,7 +28,9 @@ operation, while the controller keeps only the cross-operation sequencing needed
 
 Only packaged supported stable/canary builds whose release metadata supplies a nonempty HTTPS updater base URL
 enable the production adapter. Packaged metadata is the sole feed authority; renderer input and a duplicate
-application feed constant are forbidden. Development and ordinary artifact seams remain disabled. Tests inject an
+application feed constant are forbidden. Development and ordinary artifact seams remain disabled — when the
+build's release base URL is empty the adapter is never constructed and startup skips the native
+`getLocalInfo()` round-trip entirely. Tests inject an
 updater dependency into the controller rather than altering production feed selection.
 
 Manual actions acknowledge immediately while work continues through state revisions. Automatic checks start

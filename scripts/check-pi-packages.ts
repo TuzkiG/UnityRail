@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Vanilla-parity gate for pi-extensions/*; the bar and its rationale live in pi-extensions/SPEC.md.
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import {
 	copyFileSync,
 	mkdirSync,
@@ -8,6 +8,7 @@ import {
 	readdirSync,
 	readFileSync,
 	rmSync,
+	statSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -330,6 +331,27 @@ function run(
 	return result.stdout;
 }
 
+function directoryBytes(path: string): number {
+	let total = 0;
+	for (const entry of readdirSync(path, { withFileTypes: true })) {
+		const child = join(path, entry.name);
+		if (entry.isDirectory()) total += directoryBytes(child);
+		else total += statSync(child).size;
+	}
+	return total;
+}
+
+function formatBytes(bytes: number): string {
+	const units = ["B", "K", "M", "G"];
+	let value = bytes;
+	let unit = 0;
+	while (value >= 1024 && unit < units.length - 1) {
+		value /= 1024;
+		unit += 1;
+	}
+	return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)}${units[unit]}`;
+}
+
 function assertDualRuntime(tarball: string, scratch: string): void {
 	const extracted = mkdtempSync(join(scratch, "extract-"));
 	run("tar", ["-xzf", tarball, "-C", extracted], scratch);
@@ -433,9 +455,7 @@ try {
 		process.stdout.write(result.stdout);
 		if (result.status !== 0) fail(`${pkg.name} failed vanilla parity under Node\n${result.stderr}`);
 
-		const size = execFileSync("du", ["-sh", join(npmDir, "node_modules")], {
-			encoding: "utf8",
-		}).split("\t")[0];
+		const size = formatBytes(directoryBytes(join(npmDir, "node_modules")));
 		console.log(`  · ${pkg.name}: installed fixture (pi + package + deps) ${size}`);
 	}
 	console.log(

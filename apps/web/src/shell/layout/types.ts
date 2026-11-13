@@ -39,7 +39,8 @@ export interface LayoutDocumentTab {
 	kind: "document";
 	id: string;
 	name: string;
-	documentKind: "todo-plan";
+	/** `todo-plan` is a chat's TODO plan; `memory` is a project's Basic Memory notes. */
+	documentKind: "todo-plan" | "memory";
 	sourceId: string;
 	docPath: string;
 }

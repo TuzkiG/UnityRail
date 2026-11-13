@@ -128,6 +128,15 @@ function JbcentralQuotaSettings({
 	);
 }
 
+const JBCENTRAL_POLL_INITIAL_MS = 500;
+const JBCENTRAL_POLL_MAX_MS = 5_000;
+const JBCENTRAL_POLL_MAX_ATTEMPTS = 60;
+
+/** Backoff between status polls while the integration is configuring: 500ms, 1s, 2s, 4s, then 5s. */
+export function jbcentralPollDelay(attempt: number): number {
+	return Math.min(JBCENTRAL_POLL_INITIAL_MS * 2 ** Math.max(0, attempt - 1), JBCENTRAL_POLL_MAX_MS);
+}
+
 export function JetBrainsAiCard({
 	status,
 	install,
@@ -146,8 +155,20 @@ export function JetBrainsAiCard({
 
 	useEffect(() => {
 		if (status.state !== "configuring") return;
-		const timer = setInterval(() => void onChanged(), 500);
-		return () => clearInterval(timer);
+		let attempts = 0;
+		let timer: ReturnType<typeof setTimeout> | null = null;
+		const schedule = () => {
+			if (attempts >= JBCENTRAL_POLL_MAX_ATTEMPTS) return;
+			attempts += 1;
+			timer = setTimeout(() => {
+				if (typeof document === "undefined" || !document.hidden) void onChanged();
+				schedule();
+			}, jbcentralPollDelay(attempts));
+		};
+		schedule();
+		return () => {
+			if (timer !== null) clearTimeout(timer);
+		};
 	}, [status.state, onChanged]);
 
 	const demandedSignIn = useRef(isSignedOut(status));
